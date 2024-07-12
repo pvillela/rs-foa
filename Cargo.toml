@@ -1,0 +1,29 @@
+[package]
+name = "foa"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Types and functions to support a function-oriented architecture style for Rust applications."
+repository = "https://github.com/pvillela/rs-foa/tree/main"
+readme = "README.md"
+keywords = ["function-oriented", "architecture", "framework", "utilities"]
+categories = ["rust-patterns", "web-programming"]
+exclude = ["CHANGELOG.md", "*.sh", ".gitignore"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+log = "0.4"
+thiserror = { version = "1.0", optional = true }
+
+[features]
+
+[dev-dependencies]
+env_logger = "0.11"
+
+# [[bench]]
+# name = "xxx"
+# harness = false
+
+# [package.metadata.docs.rs]
+# all-features = true
