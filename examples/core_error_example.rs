@@ -42,26 +42,24 @@ impl Locale for Ctx {
 type MyCoreError = CoreError<Ctx>;
 
 fn main() {
+    let err0 = MyCoreError::new(&ERROR_KIND_0, vec![]);
+    let err1 = MyCoreError::new_with_source(&ERROR_KIND_1, vec!["arg1".to_owned()], err0.clone());
+    let err2 = MyCoreError::new_with_source(
+        &ERROR_KIND_2,
+        vec!["param1".to_owned(), "param2".to_owned()],
+        err1.clone(),
+    );
+    let err2_lo = MyCoreError::new_with_source(&ERROR_KIND_2, vec!["xxx".to_owned()], err1.clone());
+    let err2_hi = MyCoreError::new_with_source(
+        &ERROR_KIND_2,
+        vec!["x".to_owned(), "y".to_owned(), "z".to_owned()],
+        err1.clone(),
+    );
+
     for i in 0..3 {
         LOCALE_SELECTOR.store(i, Ordering::Relaxed);
         println!("***** Locale={}", LOCALES[i]);
         println!();
-
-        let err0 = MyCoreError::new(&ERROR_KIND_0, vec![]);
-        let err1 =
-            MyCoreError::new_with_source(&ERROR_KIND_1, vec!["arg1".to_owned()], err0.clone());
-        let err2 = MyCoreError::new_with_source(
-            &ERROR_KIND_2,
-            vec!["param1".to_owned(), "param2".to_owned()],
-            err1.clone(),
-        );
-        let err2_lo =
-            MyCoreError::new_with_source(&ERROR_KIND_2, vec!["xxx".to_owned()], err1.clone());
-        let err2_hi = MyCoreError::new_with_source(
-            &ERROR_KIND_2,
-            vec!["x".to_owned(), "y".to_owned(), "z".to_owned()],
-            err1.clone(),
-        );
 
         println!("err0={err0:?}");
         println!("err0 msg={err0}");
