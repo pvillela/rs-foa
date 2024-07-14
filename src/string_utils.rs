@@ -1,4 +1,6 @@
-pub fn display_interpolated(mut raw_msg: &str, args: &Vec<String>) -> String {
+use crate::{Locale, LocalizedMsg};
+
+pub fn interpolated_string(mut raw_msg: &str, args: &Vec<String>) -> String {
     let mut msg = String::with_capacity(raw_msg.len() * 2);
     for arg in args {
         let Some(idx) = raw_msg.find("{}") else {
@@ -18,4 +20,21 @@ pub fn display_interpolated(mut raw_msg: &str, args: &Vec<String>) -> String {
     msg.push_str(raw_msg);
 
     msg
+}
+
+pub fn interpolated_localized_msg<CTX>(kind: &str, args: &Vec<String>) -> String
+where
+    CTX: LocalizedMsg + Locale,
+{
+    let Some(raw_msg) = localized_msg::<CTX>(kind) else {
+        return "invalid message key".to_owned();
+    };
+    interpolated_string(raw_msg, args)
+}
+
+pub fn localized_msg<CTX>(kind: &str) -> Option<&str>
+where
+    CTX: LocalizedMsg + Locale,
+{
+    CTX::localized_msg(kind, CTX::locale())
 }
