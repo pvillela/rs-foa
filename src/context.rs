@@ -9,8 +9,7 @@ pub trait Locale {
 //=============
 // impls for NullCtx
 
-#[derive(Debug)]
-pub struct NullCtx;
+pub type NullCtx = ();
 
 impl LocalizedMsg for NullCtx {
     fn localized_msg<'a>(_kind: &'a str, _locale: &'a str) -> Option<&'a str> {

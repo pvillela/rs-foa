@@ -4,117 +4,81 @@ use std::{
     marker::PhantomData,
 };
 
-use crate::{
-    interpolated_localized_msg, interpolated_string, Locale, LocalizedMsg, NoDebug, NullCtx,
-};
+use crate::{interpolated_localized_msg, interpolated_string, Locale, LocalizedMsg, NoDebug};
 
 #[derive(Debug)]
-pub struct ErrorKind {
+pub struct ErrorKind<const ARITY: usize, const HASCAUSE: bool>(
+    /// name
+    pub &'static str,
+    /// dev message
+    pub &'static str,
+);
+
+#[derive(Debug)]
+struct Kind {
     name: &'static str,
     dev_msg: &'static str,
-    arity: usize,
-    has_cause: bool,
 }
 
-impl ErrorKind {
-    const fn new_priv(
-        name: &'static str,
-        debug_msg: &'static str,
-        arity: usize,
-        has_cause: bool,
-    ) -> Self {
-        Self {
-            name,
-            dev_msg: debug_msg,
-            arity,
-            has_cause,
+impl<const ARITY: usize, const HASCAUSE: bool> ErrorKind<ARITY, HASCAUSE> {
+    const fn to_uni(&self) -> Kind {
+        Kind {
+            name: self.0,
+            dev_msg: self.1,
         }
-    }
-
-    pub const fn new(name: &'static str, debug_msg: &'static str) -> Self {
-        Self::new_priv(name, debug_msg, 0, false)
-    }
-
-    pub const fn new_with_args(name: &'static str, debug_msg: &'static str, arity: usize) -> Self {
-        Self::new_priv(name, debug_msg, arity, false)
-    }
-
-    pub const fn new_with_cause(name: &'static str, debug_msg: &'static str) -> Self {
-        Self::new_priv(name, debug_msg, 0, true)
-    }
-
-    pub const fn new_with_args_and_cause(
-        name: &'static str,
-        debug_msg: &'static str,
-        arity: usize,
-    ) -> Self {
-        Self::new_priv(name, debug_msg, arity, true)
     }
 }
 
 #[derive(Debug)]
-pub struct FoaError<CTX = NullCtx> {
-    kind: &'static ErrorKind,
+pub struct FoaError<CTX> {
+    kind: Kind,
     args: Vec<String>,
     source: Option<Box<dyn StdError + 'static>>,
     _ctx: NoDebug<PhantomData<CTX>>,
 }
 
-impl FoaError {
-    fn new_priv<const N: usize>(
-        kind: &'static ErrorKind,
-        args: [&str; N],
+impl<CTX> FoaError<CTX> {
+    fn new_priv<const ARITY: usize, const HASCAUSE: bool>(
+        kind: &'static ErrorKind<ARITY, HASCAUSE>,
+        args: [&str; ARITY],
         cause: Option<Box<dyn StdError>>,
-    ) -> Option<Self> {
+    ) -> Self {
         let args_vec = args
             .into_iter()
             .map(|arg| arg.to_owned())
             .collect::<Vec<_>>();
-        let err = Self {
-            kind,
+
+        Self {
+            kind: kind.to_uni(),
             args: args_vec,
             source: cause,
             _ctx: NoDebug(PhantomData),
-        };
-
-        Some(err)
+        }
     }
 
-    pub fn new(kind: &'static ErrorKind) -> Option<Self> {
-        if kind.arity != 0 || kind.has_cause {
-            return None;
-        }
+    pub fn new(kind: &'static ErrorKind<0, false>) -> Self {
         Self::new_priv(kind, [], None)
     }
 
-    pub fn new_with_args<const N: usize>(
-        kind: &'static ErrorKind,
-        args: [&str; N],
-    ) -> Option<Self> {
-        if kind.arity != N || kind.has_cause {
-            return None;
-        }
+    pub fn new_with_args<const ARITY: usize>(
+        kind: &'static ErrorKind<ARITY, false>,
+        args: [&str; ARITY],
+    ) -> Self {
         Self::new_priv(kind, args, None)
     }
 
     pub fn new_with_cause(
-        kind: &'static ErrorKind,
+        kind: &'static ErrorKind<0, true>,
         cause: impl StdError + 'static,
-    ) -> Option<Self> {
-        if kind.arity != 0 || !kind.has_cause {
-            return None;
-        }
+    ) -> Self {
         Self::new_priv(kind, [], Some(Box::new(cause)))
     }
 
-    pub fn new_with_args_and_cause<const N: usize>(
-        kind: &'static ErrorKind,
-        args: [&str; N],
+    pub fn new_with_args_and_cause<const ARITY: usize>(
+        kind: &'static ErrorKind<ARITY, true>,
+        args: [&str; ARITY],
         cause: impl StdError + 'static,
-    ) -> Option<Self> {
-        if kind.arity != N || !kind.has_cause {
-            return None;
-        }
+    ) -> Self {
         Self::new_priv(kind, args, Some(Box::new(cause)))
     }
 }
@@ -137,12 +101,15 @@ where
     }
 }
 
-impl StdError for FoaError {
+impl<CTX> StdError for FoaError<CTX>
+where
+    CTX: LocalizedMsg + Locale + Debug,
+{
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match &self.source {
             Some(source) => {
-                let err = &*source;
-                err.source()
+                let err = source.as_ref();
+                Some(err)
             }
             None => None,
         }
