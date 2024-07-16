@@ -13,6 +13,9 @@ pub use core_error::*;
 mod no_debug;
 pub use no_debug::*;
 
+mod foa_error;
+pub use foa_error::*;
+
 mod ref_into_make;
 pub use ref_into_make::*;
 
