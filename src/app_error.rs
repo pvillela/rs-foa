@@ -1,7 +1,8 @@
 use serde::{ser::SerializeStructVariant, Serialize};
-use serde_json::Value;
 use std::{error::Error as StdError, fmt::Debug};
 use thiserror::Error;
+
+use crate::SerError;
 
 #[derive(Error, Debug)]
 pub enum AppError<C> {
@@ -26,21 +27,6 @@ impl<C> AppError<C> {
         Self::LibraryError {
             source: Box::new(source),
         }
-    }
-}
-
-pub trait SerError: StdError {
-    fn to_json(&self) -> Value;
-}
-
-impl StdError for Box<dyn SerError> {}
-
-impl<T> SerError for T
-where
-    T: StdError + Serialize,
-{
-    fn to_json(&self) -> Value {
-        serde_json::to_value(self).expect("serde_json::to_value() error")
     }
 }
 

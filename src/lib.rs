@@ -19,6 +19,9 @@ pub use foa_error::*;
 mod ref_into_make;
 pub use ref_into_make::*;
 
+mod ser_error;
+pub use ser_error::*;
+
 mod string_utils;
 pub use string_utils::*;
 
