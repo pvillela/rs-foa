@@ -60,7 +60,7 @@ fn main() {
     println!();
 
     {
-        let lib_app_err = AppErr::library_error(lib_err3.clone());
+        let lib_app_err = AppErr::library_error_ser(lib_err3.clone());
         println!("{lib_app_err}");
         println!("{:?}", serde_json::to_string(&lib_app_err));
         println!("{}", serde_json::to_string(&lib_app_err).unwrap());
@@ -70,7 +70,7 @@ fn main() {
     println!();
 
     {
-        let lib_app_err = AppErr::library_error_str(&lib_err3);
+        let lib_app_err = AppErr::library_error(lib_err3);
         println!("{lib_app_err}");
         println!("{:?}", serde_json::to_string(&lib_app_err));
         println!("{}", serde_json::to_string(&lib_app_err).unwrap());
