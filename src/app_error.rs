@@ -1,10 +1,10 @@
-use serde::{ser::SerializeStructVariant, Serialize};
+use serde::Serialize;
 use std::{error::Error as StdError, fmt::Debug};
 use thiserror::Error;
 
 use crate::SerError;
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Serialize)]
 pub enum AppError<C> {
     #[error("{0}")]
     Core(C),
@@ -13,7 +13,7 @@ pub enum AppError<C> {
     LibraryErrorStr(String),
 
     #[error("library error due to: [{source}]")]
-    LibraryError { source: Box<dyn SerError> },
+    LibraryError { source: SerError },
 }
 
 impl<C> AppError<C> {
@@ -23,32 +23,9 @@ impl<C> AppError<C> {
     }
 
     /// The `source` is wrapped in an [`AppError::LibraryError`]
-    pub fn library_error<T: SerError + 'static>(source: T) -> AppError<C> {
+    pub fn library_error(source: impl StdError + Serialize + 'static) -> AppError<C> {
         Self::LibraryError {
-            source: Box::new(source),
-        }
-    }
-}
-
-impl<C: Serialize> Serialize for AppError<C> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        match self {
-            AppError::Core(core_err) => {
-                // serializer.serialize_newtype_variant("AppError", 0, "Core", &core_err.to_json())
-                core_err.serialize(serializer)
-            }
-            AppError::LibraryErrorStr(s) => {
-                serializer.serialize_newtype_variant("AppError", 1, "LibraryErrorStr", s)
-            }
-            AppError::LibraryError { source } => {
-                let mut state =
-                    serializer.serialize_struct_variant("AppError", 2, "LibraryError", 1)?;
-                state.serialize_field("source", &source.to_json())?;
-                state.end()
-            }
+            source: SerError::new(source),
         }
     }
 }

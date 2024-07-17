@@ -1,14 +1,12 @@
 use serde::Serialize;
 use serde_json::Value;
-use std::error::Error as StdError;
+use std::{error::Error as StdError, fmt::Display};
 
-pub trait SerError: StdError {
+trait SerializableError: StdError {
     fn to_json(&self) -> Value;
 }
 
-impl StdError for Box<dyn SerError> {}
-
-impl<T> SerError for T
+impl<T> SerializableError for T
 where
     T: StdError + Serialize,
 {
@@ -17,11 +15,32 @@ where
     }
 }
 
-// impl Serialize for Box<dyn SerError> {
-//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-//     where
-//         S: serde::Serializer,
-//     {
-//         self.to_json().serialize(serializer)
-//     }
-// }
+#[derive(Debug)]
+pub struct SerError(Box<dyn SerializableError>);
+
+impl SerError {
+    pub fn new(source: impl StdError + Serialize + 'static) -> Self {
+        Self(Box::new(source))
+    }
+}
+
+impl Display for SerError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl StdError for SerError {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        self.0.source()
+    }
+}
+
+impl Serialize for SerError {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.0.to_json().serialize(serializer)
+    }
+}
