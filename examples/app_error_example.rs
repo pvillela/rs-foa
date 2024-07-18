@@ -73,7 +73,7 @@ fn main() {
     println!();
 
     {
-        let err = AppErr::library_error(lib_err3);
+        let err = AppErr::library_error_std(lib_err3);
         println!("display: {err}");
         println!("debug: {err:?}");
         println!("JSON option: {:?}", serde_json::to_string(&err));

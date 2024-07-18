@@ -46,7 +46,7 @@ pub fn error_recursive_msg(err: &(dyn StdError)) -> String {
 }
 
 //==============
-// SerializableError
+// SerializableError (JSON)
 
 pub trait SerializableError: StdError {
     fn to_json(&self) -> Value;
@@ -75,14 +75,14 @@ impl StdError for Box<dyn SerializableError> {
 // StdBoxError
 
 #[derive(Debug)]
-pub struct StdBoxError(Box<dyn StdError>);
+struct StdBoxError(Box<dyn StdError>);
 
 impl StdBoxError {
-    pub fn new(inner: impl StdError + 'static) -> Self {
+    fn new(inner: impl StdError + 'static) -> Self {
         Self(Box::new(inner))
     }
 
-    pub fn as_dyn_std_error(&self) -> &(dyn StdError + 'static) {
+    fn as_dyn_std_error(&self) -> &(dyn StdError + 'static) {
         self.0.as_ref()
     }
 }
@@ -112,14 +112,14 @@ impl Serialize for StdBoxError {
 // SerBoxError
 
 #[derive(Debug)]
-pub struct SerBoxError(Box<dyn SerializableError>);
+struct SerBoxError(Box<dyn SerializableError>);
 
 impl SerBoxError {
-    pub fn new(inner: impl SerializableError + 'static) -> Self {
+    fn new(inner: impl SerializableError + 'static) -> Self {
         Self(Box::new(inner))
     }
 
-    pub fn as_dyn_std_error(&self) -> &(dyn StdError + 'static) {
+    fn as_dyn_std_error(&self) -> &(dyn StdError + 'static) {
         &self.0 as &dyn StdError
     }
 }
@@ -142,5 +142,62 @@ impl Serialize for SerBoxError {
         S: serde::Serializer,
     {
         self.0.to_json().serialize(serializer)
+    }
+}
+
+//==============
+// BoxError
+
+#[derive(Debug)]
+#[allow(private_interfaces)]
+pub enum BoxError {
+    Std(StdBoxError),
+    Ser(SerBoxError),
+}
+
+impl BoxError {
+    pub fn new_ser(inner: impl SerializableError + 'static) -> Self {
+        Self::Ser(SerBoxError::new(inner))
+    }
+
+    pub fn new_std(inner: impl StdError + 'static) -> Self {
+        Self::Std(StdBoxError::new(inner))
+    }
+
+    pub fn as_dyn_std_error(&self) -> &(dyn StdError + 'static) {
+        match self {
+            Self::Std(err) => err.as_dyn_std_error(),
+            Self::Ser(err) => err.as_dyn_std_error(),
+        }
+    }
+}
+
+impl Display for BoxError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Std(err) => err.fmt(f),
+            Self::Ser(err) => err.fmt(f),
+        }
+    }
+}
+
+impl StdError for BoxError {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        match self {
+            Self::Std(err) => err.source(),
+            Self::Ser(err) => err.source(),
+        }
+    }
+}
+
+impl Serialize for BoxError {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            Self::Std(err) => err.serialize(serializer),
+            Self::Ser(err) => err.serialize(serializer),
+        }
     }
 }
