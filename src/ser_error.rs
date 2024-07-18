@@ -30,7 +30,7 @@ pub fn error_recursive_msg(err: &(dyn StdError)) -> String {
     buf.push_str(&first.to_string());
 
     for item in chain_iter {
-        buf.push_str(", SOURCE=[");
+        buf.push_str(", source_msg=[");
         buf.push_str(&item.to_string());
     }
 

@@ -17,14 +17,14 @@ enum CoreAppError {
 struct Err1;
 
 #[derive(Error, Debug, Serialize, Clone)]
-#[error("error type 2: foo={foo}, source=[{source}]")]
+#[error("error type 2: foo={foo}")]
 struct Err2 {
     foo: String,
     source: Err1,
 }
 
 #[derive(Error, Debug, Serialize, Clone)]
-#[error("error type 3: bar={bar}, source=[{source}]")]
+#[error("error type 3: bar={bar}")]
 struct Err3 {
     bar: u32,
     source: Err2,
@@ -33,19 +33,22 @@ struct Err3 {
 type AppErr = AppError<CoreAppError>;
 
 fn main() {
-    let core_err1 = AppErr::Core(CoreAppError::UsernameDuplicate("xyz".to_owned()));
-    println!("{core_err1}");
-    println!("{:?}", serde_json::to_string(&core_err1));
-    println!("{}", serde_json::to_string(&core_err1).unwrap());
-    println!("{core_err1:?}");
-
+    {
+        let err = AppErr::Core(CoreAppError::UsernameDuplicate("xyz".to_owned()));
+        println!("display: {err}");
+        println!("debug: {err:?}");
+        println!("JSON option: {:?}", serde_json::to_string(&err));
+        println!("JSON unwrapped: {}", serde_json::to_string(&err).unwrap());
+    }
     println!();
 
-    let core_err2 = AppErr::Core(CoreAppError::UsernameEmpty);
-    println!("{core_err2}");
-    println!("{:?}", serde_json::to_string(&core_err2));
-    println!("{}", serde_json::to_string(&core_err2).unwrap());
-    println!("{core_err2:?}");
+    {
+        let err = AppErr::Core(CoreAppError::UsernameEmpty);
+        println!("display: {err}");
+        println!("debug: {err:?}");
+        println!("JSON option: {:?}", serde_json::to_string(&err));
+        println!("JSON unwrapped: {}", serde_json::to_string(&err).unwrap());
+    }
 
     let lib_err1 = Err1;
     let lib_err2 = Err2 {
@@ -60,20 +63,20 @@ fn main() {
     println!();
 
     {
-        let lib_app_err = AppErr::library_error_ser(lib_err3.clone());
-        println!("{lib_app_err}");
-        println!("{:?}", serde_json::to_string(&lib_app_err));
-        println!("{}", serde_json::to_string(&lib_app_err).unwrap());
-        println!("{lib_app_err:?}");
+        let err = AppErr::library_error_ser(lib_err3.clone());
+        println!("display: {err}");
+        println!("debug: {err:?}");
+        println!("JSON option: {:?}", serde_json::to_string(&err));
+        println!("JSON unwrapped: {}", serde_json::to_string(&err).unwrap());
     }
 
     println!();
 
     {
-        let lib_app_err = AppErr::library_error(lib_err3);
-        println!("{lib_app_err}");
-        println!("{:?}", serde_json::to_string(&lib_app_err));
-        println!("{}", serde_json::to_string(&lib_app_err).unwrap());
-        println!("{lib_app_err:?}");
+        let err = AppErr::library_error(lib_err3);
+        println!("display: {err}");
+        println!("debug: {err:?}");
+        println!("JSON option: {:?}", serde_json::to_string(&err));
+        println!("JSON unwrapped: {}", serde_json::to_string(&err).unwrap());
     }
 }
