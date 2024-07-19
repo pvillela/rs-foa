@@ -1,9 +1,9 @@
-use std::error::Error;
+use std::{error::Error, fmt::Debug};
 
 use foa::{ErrorKind, FoaError, Locale, LocalizedMsg};
 
 const ERROR0: ErrorKind<0, false> = ErrorKind("ERROR0", "error kind with no args");
-const ERROR1: ErrorKind<1, false> = ErrorKind("ERROR1", "error kind with '{}' as single arg");
+const ERROR1: ErrorKind<1, true> = ErrorKind("ERROR1", "error kind with '{}' as single arg");
 const ERROR2: ErrorKind<2, true> = ErrorKind("ERROR2", "error kind with '{}' and '{}' as args");
 
 #[derive(Debug, Clone)]
@@ -30,39 +30,84 @@ impl Locale for Ctx0 {
     }
 }
 
+trait ErrCtx: LocalizedMsg + Locale + Debug + 'static {}
+impl<T> ErrCtx for T where T: LocalizedMsg + Locale + Debug + 'static {}
+
+fn error0<CTX: ErrCtx>() -> FoaError<CTX> {
+    FoaError::new(&ERROR0)
+}
+
+fn error1_std<CTX: ErrCtx>() -> FoaError<CTX> {
+    FoaError::new_with_args_and_cause_std(&ERROR1, [&42.to_string()], error0::<CTX>())
+}
+
+fn error1_ser<CTX: ErrCtx>() -> FoaError<CTX> {
+    FoaError::new_with_args_and_cause_ser(&ERROR1, [&42.to_string()], error0::<CTX>())
+}
+
+fn error2_std<CTX: ErrCtx>() -> FoaError<CTX> {
+    FoaError::new_with_args_and_cause_std(
+        &ERROR2,
+        [&99.to_string(), "2nd arg"],
+        error1_std::<CTX>(),
+    )
+}
+
+fn error2_ser<CTX: ErrCtx>() -> FoaError<CTX> {
+    FoaError::new_with_args_and_cause_ser(
+        &ERROR2,
+        [&99.to_string(), "2nd arg"],
+        error1_ser::<CTX>(),
+    )
+}
+
+fn print_error<CTX: ErrCtx>(err: FoaError<CTX>) {
+    println!("display: {err}");
+    println!("debug: {err:?}");
+    println!("JSON: {}", serde_json::to_string(&err).unwrap());
+    println!("source: {:?}", err.source());
+}
+
 fn main() {
     println!("============= NullCtx");
     println!();
 
     {
-        let kind = &ERROR0;
-        println!("kind: {kind:?}");
-        let err: FoaError<()> = FoaError::new(kind);
-        println!("display: {err}");
-        println!("debug: {err:?}");
+        println!("error0");
+        let err: FoaError<()> = error0();
+        print_error(err);
     }
 
     println!();
 
     {
-        let kind = &ERROR1;
-        println!("kind: {kind:?}");
-        let err: FoaError<()> = FoaError::new_with_args(kind, [&42.to_string()]);
-        println!("display: {err}");
-        println!("debug: {err:?}");
+        println!("error1_std");
+        let err: FoaError<()> = error1_std();
+        print_error(err);
     }
 
     println!();
 
     {
-        let kind = &ERROR2;
-        println!("kind: {kind:?}");
-        let cause: FoaError<()> = FoaError::new_with_args(&ERROR1, [&42.to_string()]);
-        let err: FoaError<()> =
-            FoaError::new_with_args_and_cause(kind, [&99.to_string(), "2nd arg"], cause);
-        println!("display: {err}");
-        println!("debug: {err:?}");
-        println!("source: {:?}", err.source());
+        println!("error1_ser");
+        let err: FoaError<()> = error1_ser();
+        print_error(err);
+    }
+
+    println!();
+
+    {
+        println!("error2_std");
+        let err: FoaError<()> = error2_std();
+        print_error(err);
+    }
+
+    println!();
+
+    {
+        println!("error2_ser");
+        let err: FoaError<()> = error2_ser();
+        print_error(err);
     }
 
     println!();
@@ -70,33 +115,40 @@ fn main() {
     println!();
 
     {
-        let kind = &ERROR0;
-        println!("kind: {kind:?}");
-        let err: FoaError<Ctx0> = FoaError::new(kind);
-        println!("display: {err}");
-        println!("debug: {err:?}");
+        println!("error0");
+        let err: FoaError<Ctx0> = error0();
+        print_error(err);
     }
 
     println!();
 
     {
-        let kind = &ERROR1;
-        println!("kind: {kind:?}");
-        let err: FoaError<Ctx0> = FoaError::new_with_args(kind, [&42.to_string()]);
-        println!("display: {err}");
-        println!("debug: {err:?}");
+        println!("error1_std");
+        let err: FoaError<Ctx0> = error1_std();
+        print_error(err);
     }
 
     println!();
 
     {
-        let kind = &ERROR2;
-        println!("kind: {kind:?}");
-        let cause: FoaError<Ctx0> = FoaError::new_with_args(&ERROR1, [&42.to_string()]);
-        let err: FoaError<Ctx0> =
-            FoaError::new_with_args_and_cause(kind, [&99.to_string(), "2nd arg"], cause);
-        println!("display: {err}");
-        println!("debug: {err:?}");
-        println!("source: {:?}", err.source());
+        println!("error1_ser");
+        let err: FoaError<Ctx0> = error1_ser();
+        print_error(err);
+    }
+
+    println!();
+
+    {
+        println!("error2_std");
+        let err: FoaError<Ctx0> = error2_std();
+        print_error(err);
+    }
+
+    println!();
+
+    {
+        println!("error2_ser");
+        let err: FoaError<Ctx0> = error2_ser();
+        print_error(err);
     }
 }

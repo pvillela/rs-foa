@@ -104,7 +104,11 @@ impl Serialize for StdBoxError {
     where
         S: serde::Serializer,
     {
-        serializer.serialize_str(&error_recursive_msg(self))
+        let mut text = String::new();
+        text.push_str("recursive_msg(");
+        text.push_str(&error_recursive_msg(self));
+        text.push(')');
+        serializer.serialize_str(&text)
     }
 }
 
