@@ -1,4 +1,4 @@
-use crate::{interpolated_localized_msg, Locale, LocalizedMsg, NoDebug};
+use crate::{interpolated_localized_msg, ErrCtx, NoDebug};
 use std::{error::Error as StdError, fmt::Debug, marker::PhantomData, sync::Arc};
 use thiserror::Error;
 
@@ -6,7 +6,7 @@ use thiserror::Error;
 #[error("{}", interpolated_localized_msg::<CTX>(kind, args))]
 pub struct CoreError<CTX>
 where
-    CTX: LocalizedMsg + Locale,
+    CTX: ErrCtx,
 {
     pub kind: &'static str,
     pub args: Vec<String>,
@@ -16,7 +16,7 @@ where
 
 impl<CTX> CoreError<CTX>
 where
-    CTX: LocalizedMsg + Locale,
+    CTX: ErrCtx,
 {
     pub fn new(kind: &'static str, args: Vec<String>) -> Self {
         CoreError {

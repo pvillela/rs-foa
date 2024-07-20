@@ -4,7 +4,7 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-use foa::{CoreError, Locale, LocalizedMsg};
+use foa::{CoreError, ErrCtx, Locale, LocalizedMsg};
 use once_cell::sync::Lazy;
 
 static ERROR_DISPLAY_MAP: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
@@ -26,9 +26,10 @@ static LOCALE_SELECTOR: AtomicUsize = AtomicUsize::new(0);
 const LOCALES: [&str; 3] = ["en-ca", "pt-br", "es-es"];
 
 #[derive(Debug, Clone)]
-struct Ctx;
+struct Ctx1;
+struct Ctx1TypeI;
 
-impl LocalizedMsg for Ctx {
+impl LocalizedMsg for Ctx1TypeI {
     fn localized_msg<'a>(kind: &'a str, locale: &'a str) -> Option<&'a str> {
         let key = kind.to_owned() + "-" + locale;
         let raw_msg = ERROR_DISPLAY_MAP.get(&key.borrow())?;
@@ -36,16 +37,22 @@ impl LocalizedMsg for Ctx {
     }
 }
 
-impl Locale for Ctx {
+impl Locale for Ctx1TypeI {
     fn locale<'a>() -> &'a str {
         LOCALES[LOCALE_SELECTOR.load(Ordering::Relaxed)]
     }
 }
 
-#[derive(Debug, Clone)]
-struct Ctx1;
+impl ErrCtx for Ctx1 {
+    type Locale = Ctx1TypeI;
+    type LocalizedMsg = Ctx1TypeI;
+}
 
-impl LocalizedMsg for Ctx1 {
+#[derive(Debug, Clone)]
+struct Ctx2;
+struct Ctx2TypeI;
+
+impl LocalizedMsg for Ctx2TypeI {
     fn localized_msg<'a>(kind: &'a str, locale: &'a str) -> Option<&'a str> {
         let res = match locale {
             "en-ca" => match kind {
@@ -66,38 +73,43 @@ impl LocalizedMsg for Ctx1 {
     }
 }
 
-impl Locale for Ctx1 {
+impl Locale for Ctx2TypeI {
     fn locale<'a>() -> &'a str {
         LOCALES[LOCALE_SELECTOR.load(Ordering::Relaxed)]
     }
 }
 
-type MyCoreError = CoreError<Ctx>;
+impl ErrCtx for Ctx2 {
+    type Locale = Ctx2TypeI;
+    type LocalizedMsg = Ctx2TypeI;
+}
+
 type MyCoreError1 = CoreError<Ctx1>;
+type MyCoreError2 = CoreError<Ctx2>;
 
 fn main() {
     println!("=================== Ctx");
     println!();
     {
-        let err0 = MyCoreError::new(&ERROR_KIND_0, vec![]);
+        let err0 = MyCoreError1::new(ERROR_KIND_0, vec![]);
         let err1 =
-            MyCoreError::new_with_source(&ERROR_KIND_1, vec!["arg1".to_owned()], err0.clone());
-        let err2 = MyCoreError::new_with_source(
-            &ERROR_KIND_2,
+            MyCoreError1::new_with_source(ERROR_KIND_1, vec!["arg1".to_owned()], err0.clone());
+        let err2 = MyCoreError1::new_with_source(
+            ERROR_KIND_2,
             vec!["param1".to_owned(), "param2".to_owned()],
             err1.clone(),
         );
         let err2_lo =
-            MyCoreError::new_with_source(&ERROR_KIND_2, vec!["xxx".to_owned()], err1.clone());
-        let err2_hi = MyCoreError::new_with_source(
-            &ERROR_KIND_2,
+            MyCoreError1::new_with_source(ERROR_KIND_2, vec!["xxx".to_owned()], err1.clone());
+        let err2_hi = MyCoreError1::new_with_source(
+            ERROR_KIND_2,
             vec!["x".to_owned(), "y".to_owned(), "z".to_owned()],
             err1.clone(),
         );
 
-        for i in 0..3 {
+        for (i, locale) in LOCALES.iter().enumerate() {
             LOCALE_SELECTOR.store(i, Ordering::Relaxed);
-            println!("***** Locale={}", LOCALES[i]);
+            println!("***** Locale={}", locale);
             println!();
 
             println!("err0={err0:?}");
@@ -125,25 +137,25 @@ fn main() {
     println!("=================== Ctx1");
     println!();
     {
-        let err0 = MyCoreError1::new(&ERROR_KIND_0, vec![]);
+        let err0 = MyCoreError2::new(ERROR_KIND_0, vec![]);
         let err1 =
-            MyCoreError1::new_with_source(&ERROR_KIND_1, vec!["arg1".to_owned()], err0.clone());
-        let err2 = MyCoreError1::new_with_source(
-            &ERROR_KIND_2,
+            MyCoreError2::new_with_source(ERROR_KIND_1, vec!["arg1".to_owned()], err0.clone());
+        let err2 = MyCoreError2::new_with_source(
+            ERROR_KIND_2,
             vec!["param1".to_owned(), "param2".to_owned()],
             err1.clone(),
         );
         let err2_lo =
-            MyCoreError1::new_with_source(&ERROR_KIND_2, vec!["xxx".to_owned()], err1.clone());
-        let err2_hi = MyCoreError1::new_with_source(
-            &ERROR_KIND_2,
+            MyCoreError2::new_with_source(ERROR_KIND_2, vec!["xxx".to_owned()], err1.clone());
+        let err2_hi = MyCoreError2::new_with_source(
+            ERROR_KIND_2,
             vec!["x".to_owned(), "y".to_owned(), "z".to_owned()],
             err1.clone(),
         );
 
-        for i in 0..3 {
+        for (i, locale) in LOCALES.iter().enumerate() {
             LOCALE_SELECTOR.store(i, Ordering::Relaxed);
-            println!("***** Locale={}", LOCALES[i]);
+            println!("***** Locale={}", locale);
             println!();
 
             println!("err0={err0:?}");

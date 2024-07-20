@@ -6,9 +6,7 @@ use std::{
 
 use serde::Serialize;
 
-use crate::{
-    interpolated_localized_msg, interpolated_string, BoxError, Locale, LocalizedMsg, NoDebug,
-};
+use crate::{interpolated_localized_msg, interpolated_string, BoxError, ErrCtx, NoDebug};
 
 #[derive(Debug)]
 pub struct ErrorKind<const ARITY: usize, const HASCAUSE: bool>(
@@ -105,12 +103,12 @@ impl<CTX> FoaError<CTX> {
 
 impl<CTX> Display for FoaError<CTX>
 where
-    CTX: LocalizedMsg + Locale + Debug,
+    CTX: ErrCtx + Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if cfg!(debug_assertions) {
             f.write_str("display=[")?;
-            let msg = interpolated_string(&self.kind.dev_msg, &self.args);
+            let msg = interpolated_string(self.kind.dev_msg, &self.args);
             f.write_str(&msg)?;
             f.write_str("], debug=[")?;
             <Self as Debug>::fmt(self, f)?;
@@ -124,7 +122,7 @@ where
 
 impl<CTX> StdError for FoaError<CTX>
 where
-    CTX: LocalizedMsg + Locale + Debug,
+    CTX: ErrCtx + Debug,
 {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match &self.source {

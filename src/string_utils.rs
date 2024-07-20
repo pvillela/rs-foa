@@ -1,4 +1,4 @@
-use crate::{Locale, LocalizedMsg};
+use crate::{ErrCtx, Locale, LocalizedMsg};
 
 pub fn interpolated_string(mut raw_msg: &str, args: &Vec<String>) -> String {
     let mut msg = String::with_capacity(raw_msg.len() * 2);
@@ -24,7 +24,7 @@ pub fn interpolated_string(mut raw_msg: &str, args: &Vec<String>) -> String {
 
 pub fn interpolated_localized_msg<CTX>(kind: &str, args: &Vec<String>) -> String
 where
-    CTX: LocalizedMsg + Locale,
+    CTX: ErrCtx,
 {
     let Some(raw_msg) = localized_msg::<CTX>(kind) else {
         return "invalid message key".to_owned();
@@ -34,7 +34,7 @@ where
 
 pub fn localized_msg<CTX>(kind: &str) -> Option<&str>
 where
-    CTX: LocalizedMsg + Locale,
+    CTX: ErrCtx,
 {
-    CTX::localized_msg(kind, CTX::locale())
+    CTX::LocalizedMsg::localized_msg(kind, CTX::Locale::locale())
 }

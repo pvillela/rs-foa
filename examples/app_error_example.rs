@@ -1,3 +1,5 @@
+#![allow(clippy::disallowed_names)]
+
 use foa::AppError;
 use serde::Serialize;
 use std::fmt::Debug;

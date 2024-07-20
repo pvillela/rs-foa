@@ -1,4 +1,6 @@
-use foa::{interpolated_localized_msg, Locale, LocalizedMsg};
+#![allow(clippy::disallowed_names)]
+
+use foa::{interpolated_localized_msg, ErrCtx, Locale, LocalizedMsg};
 use regex::Regex;
 use serde::Serialize;
 use std::{fmt::Debug, marker::PhantomData};
@@ -7,7 +9,7 @@ use thiserror::Error;
 #[derive(Error, Debug, Serialize)]
 enum XyzError<CTX>
 where
-    CTX: LocalizedMsg + Locale + Debug,
+    CTX: ErrCtx,
 {
     #[error("{:?}", self)]
     // #[error("user with name \"{0}\" already exists")]
@@ -26,9 +28,9 @@ where
     _Unused(PhantomData<CTX>),
 }
 
-fn interpolated_error_enum_localization<'a, CTX>(err_item: impl Debug) -> String
+fn interpolated_error_enum_localization<CTX>(err_item: impl Debug) -> String
 where
-    CTX: LocalizedMsg + Locale,
+    CTX: ErrCtx,
 {
     let debug_str = format!("{err_item:?}");
 
@@ -49,8 +51,9 @@ where
 
 #[derive(Debug, Clone)]
 struct Ctx0;
+struct Ctx0TypeI;
 
-impl LocalizedMsg for Ctx0 {
+impl LocalizedMsg for Ctx0TypeI {
     fn localized_msg<'a>(kind: &'a str, locale: &'a str) -> Option<&'a str> {
         let res = match locale {
             "en-ca" => match kind {
@@ -72,10 +75,15 @@ impl LocalizedMsg for Ctx0 {
     }
 }
 
-impl Locale for Ctx0 {
+impl Locale for Ctx0TypeI {
     fn locale<'a>() -> &'a str {
         "en-ca"
     }
+}
+
+impl ErrCtx for Ctx0 {
+    type Locale = Ctx0TypeI;
+    type LocalizedMsg = Ctx0TypeI;
 }
 
 type MyXyzError = XyzError<Ctx0>;
@@ -95,10 +103,10 @@ pub fn parse_tuple_variant(debug_str: &str) -> Option<(&str, Vec<&str>)> {
     let args_re = Regex::new(r#"(\d+)|,\s*|"(\w+)""#).expect("invalid regex code");
 
     // skip the commas
-    let mut args_caps_iter = args_re.captures_iter(args_str).step_by(2);
+    let args_caps_iter = args_re.captures_iter(args_str).step_by(2);
 
     let mut args = Vec::new();
-    while let Some(caps) = args_caps_iter.next() {
+    for caps in args_caps_iter {
         let arg = if let Some(cap) = caps.get(1) {
             // number arg
             cap.as_str()

@@ -1,6 +1,6 @@
 use std::{error::Error, fmt::Debug};
 
-use foa::{ErrorKind, FoaError, Locale, LocalizedMsg};
+use foa::{ErrCtx, ErrorKind, FoaError, Locale, LocalizedMsg};
 
 const ERROR0: ErrorKind<0, false> = ErrorKind("ERROR0", "error kind with no args");
 const ERROR1: ErrorKind<1, true> = ErrorKind("ERROR1", "error kind with '{}' as single arg");
@@ -8,8 +8,15 @@ const ERROR2: ErrorKind<2, true> = ErrorKind("ERROR2", "error kind with '{}' and
 
 #[derive(Debug, Clone)]
 struct Ctx0;
+struct Ctx0TypeI;
 
-impl LocalizedMsg for Ctx0 {
+impl Locale for Ctx0TypeI {
+    fn locale<'a>() -> &'a str {
+        "en-ca"
+    }
+}
+
+impl LocalizedMsg for Ctx0TypeI {
     fn localized_msg<'a>(kind: &'a str, locale: &'a str) -> Option<&'a str> {
         let res = match locale {
             "en-ca" => match kind {
@@ -24,28 +31,24 @@ impl LocalizedMsg for Ctx0 {
     }
 }
 
-impl Locale for Ctx0 {
-    fn locale<'a>() -> &'a str {
-        "en-ca"
-    }
+impl ErrCtx for Ctx0 {
+    type Locale = Ctx0TypeI;
+    type LocalizedMsg = Ctx0TypeI;
 }
-
-trait ErrCtx: LocalizedMsg + Locale + Debug + 'static {}
-impl<T> ErrCtx for T where T: LocalizedMsg + Locale + Debug + 'static {}
 
 fn error0<CTX: ErrCtx>() -> FoaError<CTX> {
     FoaError::new(&ERROR0)
 }
 
-fn error1_std<CTX: ErrCtx>() -> FoaError<CTX> {
+fn error1_std<CTX: ErrCtx + 'static>() -> FoaError<CTX> {
     FoaError::new_with_args_and_cause_std(&ERROR1, [&42.to_string()], error0::<CTX>())
 }
 
-fn error1_ser<CTX: ErrCtx>() -> FoaError<CTX> {
+fn error1_ser<CTX: ErrCtx + 'static>() -> FoaError<CTX> {
     FoaError::new_with_args_and_cause_ser(&ERROR1, [&42.to_string()], error0::<CTX>())
 }
 
-fn error2_std<CTX: ErrCtx>() -> FoaError<CTX> {
+fn error2_std<CTX: ErrCtx + 'static>() -> FoaError<CTX> {
     FoaError::new_with_args_and_cause_std(
         &ERROR2,
         [&99.to_string(), "2nd arg"],
@@ -53,7 +56,7 @@ fn error2_std<CTX: ErrCtx>() -> FoaError<CTX> {
     )
 }
 
-fn error2_ser<CTX: ErrCtx>() -> FoaError<CTX> {
+fn error2_ser<CTX: ErrCtx + 'static>() -> FoaError<CTX> {
     FoaError::new_with_args_and_cause_ser(
         &ERROR2,
         [&99.to_string(), "2nd arg"],
