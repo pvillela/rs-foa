@@ -103,7 +103,7 @@ impl<CTX> FoaError<CTX> {
 
 impl<CTX> Display for FoaError<CTX>
 where
-    CTX: ErrCtx + Debug,
+    CTX: ErrCtx,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if cfg!(debug_assertions) {
@@ -122,7 +122,7 @@ where
 
 impl<CTX> StdError for FoaError<CTX>
 where
-    CTX: ErrCtx + Debug,
+    CTX: ErrCtx,
 {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match &self.source {
