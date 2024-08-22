@@ -1,4 +1,4 @@
-use super::{DbCfg, DummyDbPool};
+use crate::artct::common::{DbCfg, DummyDbPool};
 use arc_swap::ArcSwap;
 use foa::appcfg::AppCfg;
 use std::sync::{

@@ -1,4 +1,4 @@
-use super::common::{bar_core, AppCfgInfoArc, AppErr, DbCtx, DummyTx};
+use super::common::{AppCfgInfoArc, AppErr, DbCtx, DummyTx};
 use crate::artct::common::AsyncFnTx;
 use foa::{
     context::{Cfg, CfgCtx},
@@ -38,6 +38,12 @@ where
     CTX: CfgCtx,
     <CTX::Cfg as Cfg>::Info: for<'a> RefInto<'a, BarArtctBfCfgInfo<'a>>,
 {
+}
+
+pub fn bar_core(u: i32, v: String) -> String {
+    let u = u + 1;
+    let v = v + "-bar";
+    format!("bar: u={}, v={}", u, v)
 }
 
 pub trait BarArtctBfBoot<CTX>

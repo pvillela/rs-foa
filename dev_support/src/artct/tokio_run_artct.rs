@@ -1,7 +1,4 @@
-use super::{
-    common::{AppCfgInfo, FooAIn},
-    foo_artct_sfl,
-};
+use super::{common::AppCfgInfo, foo_artct_sfl, FooArtctIn};
 use foa::appcfg::AppCfg;
 use futures::future::join_all;
 use std::time::{Duration, Instant};
@@ -65,7 +62,7 @@ pub async fn run(input: RunIn) {
         tokio::spawn(async move {
             let mut res: usize = 0;
             for j in 0..repeats {
-                let out = foo_artct_sfl(FooAIn {
+                let out = foo_artct_sfl(FooArtctIn {
                     sleep_millis: per_call_sleep_units * unit_time_millis,
                 })
                 .await;

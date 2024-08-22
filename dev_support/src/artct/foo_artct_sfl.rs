@@ -1,19 +1,36 @@
 use super::{
-    common::{foo_core, AppCfgInfoArc, AppErr, DbCtx, DummyTx, FooArtIn, FooArtOut},
+    common::{AppCfgInfoArc, AppErr, DbCtx, DummyTx},
     BarArtctBf, BarArtctBfBoot, BarCtx,
 };
 use crate::artct::common::AsyncFnTx;
+use axum;
+use axum::response::{IntoResponse, Response};
 use foa::{
     context::{Cfg, CfgCtx},
     refinto::RefInto,
 };
+use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use std::time::Duration;
 use tokio::time::sleep;
 use tracing::instrument;
 
-pub type FooArtctIn = FooArtIn;
-pub type FooArtctOut = FooArtOut;
+#[derive(Clone, Deserialize, Debug)]
+pub struct FooArtctIn {
+    pub sleep_millis: u64,
+}
+
+#[allow(unused)]
+#[derive(Serialize, Debug)]
+pub struct FooArtctOut {
+    pub res: String,
+}
+
+impl IntoResponse for FooArtctOut {
+    fn into_response(self) -> Response {
+        axum::Json(self).into_response()
+    }
+}
 
 pub struct FooArtctSflCfgInfo<'a> {
     pub a: &'a str,
@@ -41,6 +58,12 @@ where
     CTX: CfgCtx,
     <CTX::Cfg as Cfg>::Info: for<'a> RefInto<'a, FooArtctSflCfgInfo<'a>>,
 {
+}
+
+fn foo_core(a: String, b: i32, bar_res: String) -> String {
+    let a = a + "-foo";
+    let b = b + 3;
+    format!("foo: a={}, b={}, bar=({})", a, b, bar_res)
 }
 
 pub trait FooArtctSflC<CTX>: BarArtctBf<CTX>
