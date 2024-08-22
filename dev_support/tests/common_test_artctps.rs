@@ -1,6 +1,6 @@
-use dev_support::artct::{
+use dev_support::artctps::{
     common::{AppErr, AsyncFnTx, DbCtx},
-    BarArtctBfCfgInfo, FooArtctIn, FooArtctOut, FooArtctSflCfgInfo, FooArtctSflI, FooCtx,
+    BarBfCfgInfo, FooCtx, FooIn, FooOut, FooSflCfgInfo, FooSflI,
 };
 use foa::{
     context::{Cfg, CfgCtx},
@@ -23,37 +23,36 @@ pub struct CfgTestInput {
     pub foo: FooSflCfgTestInput,
 }
 
-impl<'a> RefInto<'a, BarArtctBfCfgInfo<'a>> for CfgTestInput {
-    fn ref_into(&'a self) -> BarArtctBfCfgInfo<'a> {
-        BarArtctBfCfgInfo {
+impl<'a> RefInto<'a, BarBfCfgInfo<'a>> for CfgTestInput {
+    fn ref_into(&'a self) -> BarBfCfgInfo<'a> {
+        BarBfCfgInfo {
             u: self.bar.u,
             v: &self.bar.v,
         }
     }
 }
 
-impl<'a> RefInto<'a, FooArtctSflCfgInfo<'a>> for CfgTestInput {
-    fn ref_into(&'a self) -> FooArtctSflCfgInfo<'a> {
-        FooArtctSflCfgInfo {
+impl<'a> RefInto<'a, FooSflCfgInfo<'a>> for CfgTestInput {
+    fn ref_into(&'a self) -> FooSflCfgInfo<'a> {
+        FooSflCfgInfo {
             a: &self.foo.a,
             b: self.foo.b,
         }
     }
 }
 
-async fn foo_artct_sfl<CTX>(input: FooArtctIn) -> Result<FooArtctOut, AppErr>
+async fn foo_sfl<CTX>(input: FooIn) -> Result<FooOut, AppErr>
 where
     CTX: FooCtx + DbCtx,
 {
-    FooArtctSflI::<CTX>::exec_with_transaction(input).await
+    FooSflI::<CTX>::exec_with_transaction(input).await
 }
 
 pub async fn common_test<CTX>() -> Option<String>
 where
     CTX: CfgCtx<Cfg: Cfg<Info = CfgTestInput>> + DbCtx + 'static,
 {
-    let handle =
-        tokio::spawn(async move { foo_artct_sfl::<CTX>(FooArtctIn { sleep_millis: 0 }).await });
+    let handle = tokio::spawn(async move { foo_sfl::<CTX>(FooIn { sleep_millis: 0 }).await });
     let res = handle.await.ok().map(|x| format!("{:?}", x));
     println!("{:?}", res);
     res

@@ -1,8 +1,8 @@
-use dev_support::artct::tokio_run_artct::{run, RunIn};
+use dev_support::artctps::tokio_run::{run, RunIn};
 
 #[tokio::main]
 async fn main() {
-    println!("===== cda_run_foo_artct_bar_artct_tokio =====");
+    println!("===== cda_run_foo_bar_artctps_tokio =====");
 
     run(RunIn {
         unit_time_millis: 1,
