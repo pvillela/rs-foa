@@ -2,7 +2,7 @@
 
 use foa::{
     context::{ErrCtx, Locale, LocalizedMsg},
-    interpolated_localized_msg,
+    string_utils::interpolated_localized_msg,
 };
 use regex::Regex;
 use serde::Serialize;
