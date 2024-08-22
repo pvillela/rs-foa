@@ -2,7 +2,7 @@ use serde::Serialize;
 use std::{error::Error as StdError, fmt::Debug};
 use thiserror::Error;
 
-use crate::BoxError;
+use super::BoxError;
 
 /// Simple error struct to be used by applications. It wraps an error enum of type `C` and adds a couple of variants
 /// for errors returned from libraries called by the app. `C` must be [`Serialize`], which is not a problem for

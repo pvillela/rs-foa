@@ -1,4 +1,4 @@
-use crate::{interpolated_localized_msg, ErrCtx, NoDebug};
+use crate::{context::ErrCtx, interpolated_localized_msg, NoDebug};
 use std::{error::Error as StdError, fmt::Debug, marker::PhantomData, sync::Arc};
 use thiserror::Error;
 

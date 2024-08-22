@@ -86,7 +86,7 @@ where
 /// The code below doesn't compile, thus the need for `nudge_inference`
 /// (see https://github.com/rust-lang/rust/issues/113495#issuecomment-1728150795)
 /// in this function.
-/// ```
+/// ```ignore
 /// pub fn partial_apply<A1, A2, T>(
 ///     f: impl for<'a> AsyncBorrowFn2b2<'a, A1, &'a A2, T> + 'static,
 ///     a1: A1,

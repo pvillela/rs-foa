@@ -1,10 +1,8 @@
 mod common_test_artct;
 
 use common_test_artct::{common_test, BarBfCfgTestInput, CfgTestInput, FooSflCfgTestInput};
-use dev_support::artct::{
-    common::{DbClientDefault, DbCtx},
-    context::{Cfg, CfgCtx},
-};
+use dev_support::artct::common::{DbClientDefault, DbCtx};
+use foa::context::{Cfg, CfgCtx};
 use tokio;
 
 mod t1 {

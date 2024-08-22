@@ -6,7 +6,9 @@ use std::{
 
 use serde::Serialize;
 
-use crate::{interpolated_localized_msg, interpolated_string, BoxError, ErrCtx, NoDebug};
+use crate::{
+    context::ErrCtx, error::BoxError, interpolated_localized_msg, interpolated_string, NoDebug,
+};
 
 #[derive(Debug)]
 pub struct ErrorKind<const ARITY: usize, const HASCAUSE: bool>(

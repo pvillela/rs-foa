@@ -1,8 +1,9 @@
 use super::{
-    common::{get_app_configuration, AppCfgInfo, AppErr, DbClientDefault, DbCtx},
-    context::{AsyncFnTx, Cfg, CfgCtx},
+    common::{AppCfgInfo, AppErr, DbClientDefault, DbCtx, get_app_configuration},
     FooArtctIn, FooArtctOut, FooArtctSflI,
 };
+use foa::context::{Cfg, CfgCtx};
+use crate::artct::common::AsyncFnTx;
 
 struct Ctx;
 

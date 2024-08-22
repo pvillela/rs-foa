@@ -1,6 +1,9 @@
 use std::{error::Error, fmt::Debug};
 
-use foa::{ErrCtx, ErrorKind, FoaError, Locale, LocalizedMsg};
+use foa::{
+    context::{ErrCtx, Locale, LocalizedMsg},
+    error::{ErrorKind, FoaError},
+};
 
 const ERROR0: ErrorKind<0, false> = ErrorKind("ERROR0", "error kind with no args");
 const ERROR1: ErrorKind<1, true> = ErrorKind("ERROR1", "error kind with '{}' as single arg");

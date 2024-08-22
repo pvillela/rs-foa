@@ -4,7 +4,10 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-use foa::{CoreError, ErrCtx, Locale, LocalizedMsg};
+use foa::{
+    context::{ErrCtx, Locale, LocalizedMsg},
+    error::CoreError,
+};
 use once_cell::sync::Lazy;
 
 static ERROR_DISPLAY_MAP: Lazy<HashMap<&str, &str>> = Lazy::new(|| {

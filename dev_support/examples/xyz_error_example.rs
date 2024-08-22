@@ -1,6 +1,9 @@
 #![allow(clippy::disallowed_names)]
 
-use foa::{interpolated_localized_msg, ErrCtx, Locale, LocalizedMsg};
+use foa::{
+    context::{ErrCtx, Locale, LocalizedMsg},
+    interpolated_localized_msg,
+};
 use regex::Regex;
 use serde::Serialize;
 use std::{fmt::Debug, marker::PhantomData};
