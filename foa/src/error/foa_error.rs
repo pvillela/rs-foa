@@ -9,8 +9,8 @@ use serde::Serialize;
 use crate::{
     context::ErrCtx,
     error::BoxError,
-    no_debug::NoDebug,
-    string_utils::{interpolated_localized_msg, interpolated_string},
+    nodebug::NoDebug,
+    string::{interpolated_localized_msg, interpolated_string},
 };
 
 #[derive(Debug)]
