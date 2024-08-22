@@ -1,10 +1,13 @@
-use dev_support::artct::{
-    BarArtctBfCfgInfo,
-    common::{AppErr, DbCtx, RefInto}, FooArtctIn, FooArtctOut, FooArtctSflCfgInfo, FooArtctSflI, FooCtx,
-};
-use foa::context::{Cfg, CfgCtx};
-use tokio;
 use dev_support::artct::common::AsyncFnTx;
+use dev_support::artct::{
+    common::{AppErr, DbCtx},
+    BarArtctBfCfgInfo, FooArtctIn, FooArtctOut, FooArtctSflCfgInfo, FooArtctSflI, FooCtx,
+};
+use foa::{
+    context::{Cfg, CfgCtx},
+    refinto::RefInto,
+};
+use tokio;
 
 pub struct BarBfCfgTestInput {
     pub u: i32,

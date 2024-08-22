@@ -1,6 +1,6 @@
 use axum::{routing::post, Router};
-use dev_support::artct::common::{handler_of, refresh_app_configuration};
-use dev_support::artct::foo_artct_sfl;
+use dev_support::artct::{common::refresh_app_configuration, foo_artct_sfl};
+use foa::web::axum::handler_of;
 use std::{thread, time::Duration};
 
 #[tokio::main]

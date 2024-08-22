@@ -1,10 +1,13 @@
-use super::common::{AppCfgInfo, AppErr, bar_core, DbCtx, DummyTx, RefInto};
-use foa::context::{Cfg, CfgCtx};
+use super::common::{bar_core, AppCfgInfo, AppErr, DbCtx, DummyTx};
+use crate::artct::common::AsyncFnTx;
+use foa::{
+    context::{Cfg, CfgCtx},
+    refinto::RefInto,
+};
 use std::marker::PhantomData;
 use std::time::Duration;
 use tokio::time::sleep;
 use tracing::instrument;
-use crate::artct::common::AsyncFnTx;
 
 pub type BarArtctIn = u64;
 pub type BarArtctOut = String;

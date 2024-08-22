@@ -4,4 +4,5 @@ pub mod fun;
 pub mod nodebug;
 pub mod refinto;
 pub mod string;
+pub mod web;
 pub mod wrapper;
