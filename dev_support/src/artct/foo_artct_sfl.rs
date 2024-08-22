@@ -1,5 +1,5 @@
 use super::{
-    common::{foo_core, AppCfgInfo, AppErr, DbCtx, DummyTx, FooArtIn, FooArtOut},
+    common::{foo_core, AppCfgInfoArc, AppErr, DbCtx, DummyTx, FooArtIn, FooArtOut},
     BarArtctBf, BarArtctBfBoot, BarCtx,
 };
 use crate::artct::common::AsyncFnTx;
@@ -20,7 +20,7 @@ pub struct FooArtctSflCfgInfo<'a> {
     pub b: i32,
 }
 
-impl<'a> RefInto<'a, FooArtctSflCfgInfo<'a>> for AppCfgInfo {
+impl<'a> RefInto<'a, FooArtctSflCfgInfo<'a>> for AppCfgInfoArc {
     fn ref_into(&'a self) -> FooArtctSflCfgInfo<'a> {
         FooArtctSflCfgInfo {
             a: &self.x,

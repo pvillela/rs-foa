@@ -1,19 +1,22 @@
 use super::{
-    common::{AppCfgInfo, AppErr, DbClientDefault, DbCtx, get_app_configuration},
+    common::{AppCfgInfo, AppCfgInfoArc, AppErr, DbClientDefault, DbCtx},
     FooArtctIn, FooArtctOut, FooArtctSflI,
 };
-use foa::context::{Cfg, CfgCtx};
 use crate::artct::common::AsyncFnTx;
+use foa::{
+    appcfg::AppCfg,
+    context::{Cfg, CfgCtx},
+};
 
 struct Ctx;
 
 struct CtxCfg;
 
 impl Cfg for CtxCfg {
-    type Info = AppCfgInfo;
+    type Info = AppCfgInfoArc;
 
     fn cfg() -> Self::Info {
-        get_app_configuration()
+        AppCfgInfo::get_app_configuration()
     }
 }
 

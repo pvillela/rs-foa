@@ -1,4 +1,4 @@
-use super::common::{bar_core, AppCfgInfo, AppErr, DbCtx, DummyTx};
+use super::common::{bar_core, AppCfgInfoArc, AppErr, DbCtx, DummyTx};
 use crate::artct::common::AsyncFnTx;
 use foa::{
     context::{Cfg, CfgCtx},
@@ -17,7 +17,7 @@ pub struct BarArtctBfCfgInfo<'a> {
     pub v: &'a str,
 }
 
-impl<'a> RefInto<'a, BarArtctBfCfgInfo<'a>> for AppCfgInfo {
+impl<'a> RefInto<'a, BarArtctBfCfgInfo<'a>> for AppCfgInfoArc {
     fn ref_into(&'a self) -> BarArtctBfCfgInfo<'a> {
         BarArtctBfCfgInfo {
             u: self.y,

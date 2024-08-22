@@ -1,7 +1,8 @@
 use super::{
-    common::{initialize_app_configuration, refresh_app_configuration, FooAIn},
+    common::{AppCfgInfo, FooAIn},
     foo_artct_sfl,
 };
+use foa::appcfg::AppCfg;
 use futures::future::join_all;
 use std::time::{Duration, Instant};
 use tokio;
@@ -40,7 +41,7 @@ pub async fn run(input: RunIn) {
     let start_time = Instant::now();
     println!("Started at {:?}", start_time);
 
-    initialize_app_configuration();
+    // AppCfgInfo::refresh_app_configuration();
 
     let handle_r = tokio::spawn(async move {
         sleep(Duration::from_millis(
@@ -52,7 +53,7 @@ pub async fn run(input: RunIn) {
                 app_cfg_refresh_delta_units * unit_time_millis,
             ))
             .await;
-            refresh_app_configuration();
+            AppCfgInfo::refresh_app_configuration();
             println!(
                 "App configuration refreshed at elapsed time {:?}.",
                 start_time.elapsed()
