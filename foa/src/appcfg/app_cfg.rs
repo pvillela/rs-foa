@@ -5,7 +5,6 @@ pub trait AppCfg: Sized + 'static {
     fn app_cfg_static() -> &'static OnceLock<ArcSwap<Self>>;
     fn app_config_info() -> Self;
 
-    // Refreshes of APP_CONFIGURATION
     fn refresh_app_configuration() {
         let cfg_as = get_app_config_arcswap();
         cfg_as.store(Arc::new(Self::app_config_info()));

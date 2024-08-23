@@ -26,10 +26,6 @@ use std::{
 //     fn db_client() -> impl Future<Output = Result<Self::Db, <Self::Db as Transaction>::DbErr>> + Send;
 // }
 
-pub trait Db {
-    fn pool_tx<'c>() -> Result<Transaction<'c, Postgres>, SqlxError>;
-}
-
 // pub trait DbCtx {
 //     type DbClient: Db;
 // }
@@ -113,6 +109,10 @@ pub trait Db {
 //         format!("-Tx.dummy() called from {}", src)
 //     }
 // }
+
+pub trait Db {
+    fn pool_tx<'c>() -> Result<Transaction<'c, Postgres>, SqlxError>;
+}
 
 pub const DB_ERROR: ErrorKind<0, true> = ErrorKind("DB_ERROR", "database error");
 
