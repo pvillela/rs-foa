@@ -1,11 +1,9 @@
-use super::get_pool;
+use super::{get_pool, AppErr};
 use futures::Future;
 use std::{
     error::Error,
     fmt::{Debug, Display},
 };
-
-use super::AppErr;
 
 pub trait Transaction {
     type Tx<'a>;

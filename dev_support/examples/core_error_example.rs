@@ -1,14 +1,13 @@
-use std::{
-    borrow::Borrow,
-    collections::HashMap,
-    sync::atomic::{AtomicUsize, Ordering},
-};
-
 use foa::{
     context::{ErrCtx, Locale, LocalizedMsg},
     error::CoreError,
 };
 use once_cell::sync::Lazy;
+use std::{
+    borrow::Borrow,
+    collections::HashMap,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 static ERROR_DISPLAY_MAP: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
     HashMap::from([

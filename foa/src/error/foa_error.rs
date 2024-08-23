@@ -1,16 +1,14 @@
-use std::{
-    error::Error as StdError,
-    fmt::{Debug, Display, Write},
-    marker::PhantomData,
-};
-
-use serde::Serialize;
-
 use crate::{
     context::ErrCtx,
     error::BoxError,
     nodebug::NoDebug,
     string::{interpolated_localized_msg, interpolated_string},
+};
+use serde::Serialize;
+use std::{
+    error::Error as StdError,
+    fmt::{Debug, Display, Write},
+    marker::PhantomData,
 };
 
 #[derive(Debug)]
