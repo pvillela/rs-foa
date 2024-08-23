@@ -3,6 +3,3 @@ pub use app_cfg_info::*;
 
 mod app_err;
 pub use app_err::*;
-
-mod tx;
-pub use tx::*;

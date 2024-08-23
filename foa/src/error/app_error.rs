@@ -24,7 +24,7 @@ impl<C> AppError<C> {
 
     /// Wraps a JSON-serializable `source` in an [`AppError::LibraryError`]. The result is serializable,
     /// taking into account the JSON structure of the source error.
-    pub fn library_error_ser(source: impl StdError + Serialize + 'static) -> AppError<C> {
+    pub fn library_error_ser(source: impl StdError + Serialize + Send + 'static) -> AppError<C> {
         Self::LibraryError {
             source: BoxError::new_ser(source),
         }
@@ -32,7 +32,7 @@ impl<C> AppError<C> {
 
     /// Wraps a `source` in an [`AppError::LibraryError`]. The result is serializable but the serialization
     /// is unstructured, based on a message string.
-    pub fn library_error_std(source: impl StdError + 'static) -> AppError<C> {
+    pub fn library_error_std(source: impl StdError + Send + 'static) -> AppError<C> {
         Self::LibraryError {
             source: BoxError::new_std(source),
         }

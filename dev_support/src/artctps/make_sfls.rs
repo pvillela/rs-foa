@@ -1,13 +1,16 @@
 use super::{
-    common::{AppCfgInfo, AppCfgInfoArc, AppErr, DbClientDefault, DbCtx},
+    common::{AppCfgInfo, AppCfgInfoArc, AppErr},
     FooIn, FooOut, FooSflI,
 };
-use crate::artctps::common::AsyncFnTx;
 use foa::{
     appcfg::AppCfg,
     context::{Cfg, CfgCtx},
+    db::sqlx::pg::{AsyncFnTx, Db},
+    error::FoaError,
 };
+use sqlx::{Error as SqlxError, PgPool, Postgres, Transaction};
 
+#[derive(Debug)]
 struct Ctx;
 
 struct CtxCfg;
@@ -24,14 +27,24 @@ impl CfgCtx for Ctx {
     type Cfg = CtxCfg;
 }
 
-struct CtxDbClient;
+// struct CtxDbClient;
 
-impl DbClientDefault for CtxDbClient {}
+// impl DbClientDefault for CtxDbClient {}
 
-impl DbCtx for Ctx {
-    type DbClient = CtxDbClient;
+// impl DbCtx for Ctx {
+//     type DbClient = CtxDbClient;
+// }
+
+// struct Ctx;
+
+impl Db for Ctx {
+    async fn pool_tx<'c>() -> Result<Transaction<'c, Postgres>, SqlxError> {
+        let pool =
+            PgPool::connect("postgres://testuser:testpassword@localhost:9999/testdb").await?;
+        pool.begin().await
+    }
 }
 
-pub async fn foo_sfl(input: FooIn) -> Result<FooOut, AppErr> {
+pub async fn foo_sfl(input: FooIn) -> Result<FooOut, FoaError<Ctx>> {
     FooSflI::<Ctx>::exec_with_transaction(input).await
 }

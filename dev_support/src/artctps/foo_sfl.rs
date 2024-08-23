@@ -1,15 +1,15 @@
-use super::{
-    common::{AppCfgInfoArc, AppErr, DbCtx, DummyTx},
-    BarBf, BarBfBoot, BarCtx,
-};
-use crate::artctps::common::AsyncFnTx;
+use super::{common::AppCfgInfoArc, BarBf, BarBfBoot, BarCtx};
 use axum;
 use axum::response::{IntoResponse, Response};
+use foa::db::sqlx::pg::AsyncFnTx;
 use foa::{
     context::{Cfg, CfgCtx},
+    db::sqlx::pg::Db,
+    error::FoaError,
     refinto::RefInto,
 };
 use serde::{Deserialize, Serialize};
+use sqlx::PgConnection;
 use std::marker::PhantomData;
 use std::time::Duration;
 use tokio::time::sleep;
@@ -48,7 +48,7 @@ impl<'a> RefInto<'a, FooSflCfgInfo<'a>> for AppCfgInfoArc {
 
 pub trait FooSfl<CTX> {
     #[allow(async_fn_in_trait)]
-    async fn foo_sfl(input: FooIn, tx: &DummyTx<'_>) -> Result<FooOut, AppErr>;
+    async fn foo_sfl(input: FooIn, tx: &mut PgConnection) -> Result<FooOut, FoaError<CTX>>;
 }
 
 pub trait FooOnlyCtx: CfgCtx<Cfg: Cfg<Info: for<'a> RefInto<'a, FooSflCfgInfo<'a>>>> {}
@@ -72,15 +72,15 @@ where
 {
     #[instrument(level = "trace", skip_all)]
     #[allow(async_fn_in_trait)]
-    async fn foo_sfl_c(input: FooIn, tx: &DummyTx<'_>) -> Result<FooOut, AppErr> {
+    async fn foo_sfl_c(input: FooIn, tx: &mut PgConnection) -> Result<FooOut, FoaError<CTX>> {
         let app_cfg_info = CTX::Cfg::cfg();
         let cfg = app_cfg_info.ref_into();
         let FooIn { sleep_millis } = input;
         sleep(Duration::from_millis(sleep_millis)).await;
         let a = cfg.a.to_owned();
         let b = cfg.b;
-        let bar_res = (Self::bar_bf)(0, tx).await.unwrap();
-        let res = foo_core(a, b, bar_res) + &tx.dummy("foo_sfl_c");
+        let bar_res = Self::bar_bf(0, tx).await?;
+        let res = foo_core(a, b, bar_res);
         Ok(FooOut { res })
     }
 }
@@ -103,7 +103,7 @@ where
     CTX: FooCtx,
 {
     #[allow(async_fn_in_trait)]
-    async fn foo_sfl_boot(input: FooIn, tx: &DummyTx<'_>) -> Result<FooOut, AppErr> {
+    async fn foo_sfl_boot(input: FooIn, tx: &mut PgConnection) -> Result<FooOut, FoaError<CTX>> {
         FooSflI::<CTX>::foo_sfl_c(input, tx).await
     }
 }
@@ -113,17 +113,16 @@ where
     T: FooSflBoot<CTX>,
     CTX: FooCtx,
 {
-    async fn foo_sfl(input: FooIn, tx: &DummyTx<'_>) -> Result<FooOut, AppErr> {
+    async fn foo_sfl(input: FooIn, tx: &mut PgConnection) -> Result<FooOut, FoaError<CTX>> {
         T::foo_sfl_boot(input, tx).await
     }
 }
 
-impl<CTX, T> AsyncFnTx<CTX, FooIn, FooOut> for T
+impl<CTX> AsyncFnTx<CTX, FooIn, FooOut> for FooSflI<CTX>
 where
-    CTX: DbCtx,
-    T: FooSfl<CTX>,
+    CTX: Db + FooCtx,
 {
-    async fn f(input: FooIn, tx: &DummyTx<'_>) -> Result<FooOut, AppErr> {
-        T::foo_sfl(input, tx).await
+    async fn f(input: FooIn, tx: &mut PgConnection) -> Result<FooOut, FoaError<CTX>> {
+        FooSflI::foo_sfl(input, tx).await
     }
 }

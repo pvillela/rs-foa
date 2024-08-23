@@ -1,9 +1,11 @@
-use super::common::{AppCfgInfoArc, AppErr, DbCtx, DummyTx};
-use crate::artctps::common::AsyncFnTx;
+use super::common::AppCfgInfoArc;
 use foa::{
     context::{Cfg, CfgCtx},
+    db::sqlx::pg::{AsyncFnTx, Db},
+    error::FoaError,
     refinto::RefInto,
 };
+use sqlx::PgConnection;
 use std::marker::PhantomData;
 use std::time::Duration;
 use tokio::time::sleep;
@@ -28,7 +30,7 @@ impl<'a> RefInto<'a, BarBfCfgInfo<'a>> for AppCfgInfoArc {
 
 pub trait BarBf<CTX> {
     #[allow(async_fn_in_trait)]
-    async fn bar_bf(sleep_millis: u64, tx: &DummyTx<'_>) -> Result<String, AppErr>;
+    async fn bar_bf(sleep_millis: u64, tx: &mut PgConnection) -> Result<String, FoaError<CTX>>;
 }
 
 pub trait BarCtx: CfgCtx<Cfg: Cfg<Info: for<'a> RefInto<'a, BarBfCfgInfo<'a>>>> {}
@@ -52,13 +54,16 @@ where
 {
     #[instrument(level = "trace", skip_all)]
     #[allow(async_fn_in_trait)]
-    async fn bar_bf_boot(sleep_millis: u64, tx: &DummyTx<'_>) -> Result<String, AppErr> {
+    async fn bar_bf_boot(
+        sleep_millis: u64,
+        _conn: &mut PgConnection,
+    ) -> Result<String, FoaError<CTX>> {
         let app_cfg_info = CTX::Cfg::cfg();
         let cfg = app_cfg_info.ref_into();
         sleep(Duration::from_millis(sleep_millis)).await;
         let u = cfg.u;
         let v = cfg.v.to_owned();
-        let res = bar_core(u, v) + &tx.dummy("bar_bf_c");
+        let res = bar_core(u, v);
         Ok(res)
     }
 }
@@ -68,8 +73,8 @@ where
     T: BarBfBoot<CTX>,
     CTX: BarCtx,
 {
-    async fn bar_bf(sleep_millis: u64, tx: &DummyTx<'_>) -> Result<String, AppErr> {
-        Self::bar_bf_boot(sleep_millis, tx).await
+    async fn bar_bf(sleep_millis: u64, conn: &mut PgConnection) -> Result<String, FoaError<CTX>> {
+        Self::bar_bf_boot(sleep_millis, conn).await
     }
 }
 
@@ -77,12 +82,11 @@ pub struct BarBfBootI<CTX>(PhantomData<CTX>);
 
 impl<CTX> BarBfBoot<CTX> for BarBfBootI<CTX> where CTX: BarCtx {}
 
-impl<CTX, T> AsyncFnTx<CTX, BarIn, BarOut> for T
+impl<CTX> AsyncFnTx<CTX, BarIn, BarOut> for BarBfBootI<CTX>
 where
-    CTX: DbCtx,
-    T: BarBf<CTX>,
+    CTX: BarCtx + Db,
 {
-    async fn f(input: BarIn, tx: &DummyTx<'_>) -> Result<BarOut, AppErr> {
-        T::bar_bf(input, tx).await
+    async fn f(input: BarIn, conn: &mut PgConnection) -> Result<BarOut, FoaError<CTX>> {
+        BarBfBootI::bar_bf(input, conn).await
     }
 }

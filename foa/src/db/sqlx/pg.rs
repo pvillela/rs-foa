@@ -111,7 +111,8 @@ use std::{
 // }
 
 pub trait Db {
-    fn pool_tx<'c>() -> Result<Transaction<'c, Postgres>, SqlxError>;
+    #[allow(async_fn_in_trait)]
+    async fn pool_tx<'c>() -> Result<Transaction<'c, Postgres>, SqlxError>;
 }
 
 pub const DB_ERROR: ErrorKind<0, true> = ErrorKind("DB_ERROR", "database error");
@@ -131,7 +132,7 @@ where
 
     #[allow(async_fn_in_trait)]
     async fn exec_with_transaction(input: IN) -> Result<OUT, FoaError<CTX>> {
-        let mut tx = CTX::pool_tx()?;
+        let mut tx = CTX::pool_tx().await?;
         let res = Self::f(input, &mut *tx).await;
         if res.is_ok() {
             tx.commit().await?;

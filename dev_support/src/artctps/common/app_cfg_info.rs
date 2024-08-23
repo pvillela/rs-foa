@@ -1,4 +1,3 @@
-use crate::artctps::common::{DbCfg, DummyDbPool};
 use arc_swap::ArcSwap;
 use foa::appcfg::AppCfg;
 use std::sync::{
@@ -42,18 +41,4 @@ impl AppCfg for AppCfgInfo {
             }
         }
     }
-}
-
-impl DbCfg for AppCfgInfoArc {
-    fn get_pool(&self) -> &DummyDbPool {
-        // TODO: implement this properly
-        static POOL: OnceLock<DummyDbPool> = OnceLock::new();
-        POOL.get_or_init(|| DummyDbPool)
-    }
-}
-
-pub fn get_pool() -> &'static DummyDbPool {
-    static CFG: OnceLock<AppCfgInfoArc> = OnceLock::new();
-    let cfg = CFG.get_or_init(|| AppCfgInfo::get_app_configuration().clone());
-    cfg.get_pool()
 }
