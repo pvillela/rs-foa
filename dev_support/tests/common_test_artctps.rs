@@ -1,9 +1,12 @@
+use std::fmt::Debug;
+
 use dev_support::artctps::{
-    common::{AppErr, AsyncFnTx, DbCtx},
-    BarBfCfgInfo, FooCtx, FooIn, FooOut, FooSflCfgInfo, FooSflI,
+    common::AppErr, BarBfCfgInfo, FooCtx, FooIn, FooOut, FooSflCfgInfo, FooSflI,
 };
 use foa::{
     context::{Cfg, CfgCtx},
+    db::sqlx::pg::{AsyncFnTx, Db, Itself},
+    error::FoaError,
     refinto::RefInto,
 };
 use tokio;
@@ -41,16 +44,16 @@ impl<'a> RefInto<'a, FooSflCfgInfo<'a>> for CfgTestInput {
     }
 }
 
-async fn foo_sfl<CTX>(input: FooIn) -> Result<FooOut, AppErr>
+async fn foo_sfl<CTX>(input: FooIn) -> Result<FooOut, FoaError<CTX>>
 where
-    CTX: FooCtx + DbCtx,
+    CTX: FooCtx + Db + Itself<CTX>,
 {
     FooSflI::<CTX>::exec_with_transaction(input).await
 }
 
 pub async fn common_test<CTX>() -> Option<String>
 where
-    CTX: CfgCtx<Cfg: Cfg<Info = CfgTestInput>> + DbCtx + 'static,
+    CTX: CfgCtx<Cfg: Cfg<Info = CfgTestInput>> + Db + Itself<CTX> + 'static + Send + Debug,
 {
     let handle = tokio::spawn(async move { foo_sfl::<CTX>(FooIn { sleep_millis: 0 }).await });
     let res = handle.await.ok().map(|x| format!("{:?}", x));

@@ -1,12 +1,8 @@
 use crate::error::{ErrorKind, FoaError};
-use futures::Future;
-use sqlx::{
-    pool::PoolConnection, postgres::PgTransactionManager, Error as SqlxError, PgConnection, PgPool,
-    Postgres, Row, Transaction, TransactionManager,
-};
+use sqlx::{Error as SqlxError, PgConnection, Postgres, Transaction};
 use std::{
-    error::Error,
     fmt::{Debug, Display},
+    future::Future,
 };
 
 // pub trait Transaction<CTX> {
@@ -112,7 +108,13 @@ use std::{
 
 pub trait Db {
     #[allow(async_fn_in_trait)]
-    async fn pool_tx<'c>() -> Result<Transaction<'c, Postgres>, SqlxError>;
+    fn pool_tx<'c>(
+        &'c self,
+    ) -> impl Future<Output = Result<Transaction<'c, Postgres>, SqlxError>> + Send;
+}
+
+pub trait Itself<CTX> {
+    fn itself() -> CTX;
 }
 
 pub const DB_ERROR: ErrorKind<0, true> = ErrorKind("DB_ERROR", "database error");
@@ -125,14 +127,15 @@ impl<CTX> From<SqlxError> for FoaError<CTX> {
 
 pub trait AsyncFnTx<CTX, IN, OUT>
 where
-    CTX: Db,
+    CTX: Db + Itself<CTX>,
 {
     #[allow(async_fn_in_trait)]
     async fn f(input: IN, tx: &mut PgConnection) -> Result<OUT, FoaError<CTX>>;
 
     #[allow(async_fn_in_trait)]
     async fn exec_with_transaction(input: IN) -> Result<OUT, FoaError<CTX>> {
-        let mut tx = CTX::pool_tx().await?;
+        let ctx = CTX::itself();
+        let mut tx = ctx.pool_tx().await?;
         let res = Self::f(input, &mut *tx).await;
         if res.is_ok() {
             tx.commit().await?;

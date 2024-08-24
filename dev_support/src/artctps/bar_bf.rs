@@ -1,7 +1,7 @@
 use super::common::AppCfgInfoArc;
 use foa::{
     context::{Cfg, CfgCtx},
-    db::sqlx::pg::{AsyncFnTx, Db},
+    db::sqlx::pg::{AsyncFnTx, Db, Itself},
     error::FoaError,
     refinto::RefInto,
 };
@@ -84,9 +84,9 @@ impl<CTX> BarBfBoot<CTX> for BarBfBootI<CTX> where CTX: BarCtx {}
 
 impl<CTX> AsyncFnTx<CTX, BarIn, BarOut> for BarBfBootI<CTX>
 where
-    CTX: BarCtx + Db,
+    CTX: BarCtx + Db + Itself<CTX>,
 {
     async fn f(input: BarIn, conn: &mut PgConnection) -> Result<BarOut, FoaError<CTX>> {
-        BarBfBootI::bar_bf(input, conn).await
+        BarBfBootI::<CTX>::bar_bf(input, conn).await
     }
 }

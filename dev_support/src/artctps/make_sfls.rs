@@ -5,15 +5,15 @@ use super::{
 use foa::{
     appcfg::AppCfg,
     context::{Cfg, CfgCtx},
-    db::sqlx::pg::{AsyncFnTx, Db},
+    db::sqlx::pg::{AsyncFnTx, Db, Itself},
     error::FoaError,
 };
 use sqlx::{Error as SqlxError, PgPool, Postgres, Transaction};
 
 #[derive(Debug)]
-struct Ctx;
+pub struct Ctx;
 
-struct CtxCfg;
+pub struct CtxCfg;
 
 impl Cfg for CtxCfg {
     type Info = AppCfgInfoArc;
@@ -38,10 +38,16 @@ impl CfgCtx for Ctx {
 // struct Ctx;
 
 impl Db for Ctx {
-    async fn pool_tx<'c>() -> Result<Transaction<'c, Postgres>, SqlxError> {
+    async fn pool_tx<'c>(&'c self) -> Result<Transaction<'c, Postgres>, SqlxError> {
         let pool =
             PgPool::connect("postgres://testuser:testpassword@localhost:9999/testdb").await?;
         pool.begin().await
+    }
+}
+
+impl Itself<Ctx> for Ctx {
+    fn itself() -> Ctx {
+        Ctx
     }
 }
 

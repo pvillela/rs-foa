@@ -1,7 +1,7 @@
 use super::{common::AppCfgInfoArc, BarBf, BarBfBoot, BarCtx};
 use axum;
 use axum::response::{IntoResponse, Response};
-use foa::db::sqlx::pg::AsyncFnTx;
+use foa::db::sqlx::pg::{AsyncFnTx, Itself};
 use foa::{
     context::{Cfg, CfgCtx},
     db::sqlx::pg::Db,
@@ -120,9 +120,9 @@ where
 
 impl<CTX> AsyncFnTx<CTX, FooIn, FooOut> for FooSflI<CTX>
 where
-    CTX: Db + FooCtx,
+    CTX: Db + FooCtx + Itself<CTX>,
 {
     async fn f(input: FooIn, tx: &mut PgConnection) -> Result<FooOut, FoaError<CTX>> {
-        FooSflI::foo_sfl(input, tx).await
+        FooSflI::<CTX>::foo_sfl(input, tx).await
     }
 }

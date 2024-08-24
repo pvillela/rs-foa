@@ -1,13 +1,15 @@
 mod common_test_artctps;
 
 use common_test_artctps::{common_test, BarBfCfgTestInput, CfgTestInput, FooSflCfgTestInput};
-use dev_support::artctps::common::{DbClientDefault, DbCtx};
 use foa::context::{Cfg, CfgCtx};
+use foa::db::sqlx::pg::{Db, Itself};
+use sqlx::{Error as SqlxError, PgPool, Postgres, Transaction};
 use tokio;
 
 mod t1 {
     use super::*;
 
+    #[derive(Debug)]
     struct Ctx;
     struct CtxCfg;
 
@@ -32,12 +34,18 @@ mod t1 {
         type Cfg = CtxCfg;
     }
 
-    struct CtxDbClient;
+    impl Db for Ctx {
+        async fn pool_tx<'c>(&'c self) -> Result<Transaction<'c, Postgres>, SqlxError> {
+            let pool =
+                PgPool::connect("postgres://testuser:testpassword@localhost:9999/testdb").await?;
+            pool.begin().await
+        }
+    }
 
-    impl DbClientDefault for CtxDbClient {}
-
-    impl DbCtx for Ctx {
-        type DbClient = CtxDbClient;
+    impl Itself<Ctx> for Ctx {
+        fn itself() -> Ctx {
+            Ctx
+        }
     }
 
     #[tokio::test]
@@ -52,6 +60,7 @@ mod t1 {
 mod t2 {
     use super::*;
 
+    #[derive(Debug)]
     struct Ctx;
     struct CtxCfg;
 
@@ -76,12 +85,18 @@ mod t2 {
         type Cfg = CtxCfg;
     }
 
-    struct CtxDbClient;
+    impl Db for Ctx {
+        async fn pool_tx<'c>(&'c self) -> Result<Transaction<'c, Postgres>, SqlxError> {
+            let pool =
+                PgPool::connect("postgres://testuser:testpassword@localhost:9999/testdb").await?;
+            pool.begin().await
+        }
+    }
 
-    impl DbClientDefault for CtxDbClient {}
-
-    impl DbCtx for Ctx {
-        type DbClient = CtxDbClient;
+    impl Itself<Ctx> for Ctx {
+        fn itself() -> Ctx {
+            Ctx
+        }
     }
 
     #[tokio::test]
