@@ -1,3 +1,4 @@
+use crate::error::FoaError;
 use axum::response::IntoResponse;
 use axum::Json;
 use futures::Future;
@@ -11,4 +12,10 @@ where
     Fut: 'static + Future<Output = T> + Send + Sync,
 {
     move |Json(input)| f(input)
+}
+
+impl<CTX> IntoResponse for FoaError<CTX> {
+    fn into_response(self) -> axum::response::Response {
+        axum::Json(self).into_response()
+    }
 }

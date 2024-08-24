@@ -48,7 +48,7 @@ pub fn error_recursive_msg(err: &(dyn StdError)) -> String {
 //==============
 // SerializableError (JSON)
 
-pub trait SerializableError: StdError + Send {
+pub trait SerializableError: StdError + Send + Sync {
     fn to_json(&self) -> Value;
 
     fn src(&self) -> Option<&(dyn StdError + 'static)> {
@@ -58,7 +58,7 @@ pub trait SerializableError: StdError + Send {
 
 impl<T> SerializableError for T
 where
-    T: StdError + Serialize + Send,
+    T: StdError + Serialize + Send + Sync,
 {
     fn to_json(&self) -> Value {
         serde_json::to_value(self).expect("serde_json::to_value() error")
@@ -75,10 +75,10 @@ impl StdError for Box<dyn SerializableError> {
 // StdBoxError
 
 #[derive(Debug)]
-struct StdBoxError(Box<dyn StdError + Send>);
+struct StdBoxError(Box<dyn StdError + Send + Sync>);
 
 impl StdBoxError {
-    fn new(inner: impl StdError + Send + 'static) -> Self {
+    fn new(inner: impl StdError + Send + Sync + 'static) -> Self {
         Self(Box::new(inner))
     }
 
@@ -119,7 +119,7 @@ impl Serialize for StdBoxError {
 struct SerBoxError(Box<dyn SerializableError>);
 
 impl SerBoxError {
-    fn new(inner: impl SerializableError + Send + 'static) -> Self {
+    fn new(inner: impl SerializableError + Send + Sync + 'static) -> Self {
         Self(Box::new(inner))
     }
 
@@ -160,11 +160,11 @@ pub enum BoxError {
 }
 
 impl BoxError {
-    pub fn new_ser(inner: impl SerializableError + Send + 'static) -> Self {
+    pub fn new_ser(inner: impl SerializableError + Send + Sync + 'static) -> Self {
         Self::Ser(SerBoxError::new(inner))
     }
 
-    pub fn new_std(inner: impl StdError + Send + 'static) -> Self {
+    pub fn new_std(inner: impl StdError + Send + Sync + 'static) -> Self {
         Self::Std(StdBoxError::new(inner))
     }
 

@@ -1,9 +1,6 @@
 use crate::error::{ErrorKind, FoaError};
 use sqlx::{Error as SqlxError, PgConnection, Postgres, Transaction};
-use std::{
-    fmt::{Debug, Display},
-    future::Future,
-};
+use std::future::Future;
 
 // pub trait Transaction<CTX> {
 //     type Tx<'a>;

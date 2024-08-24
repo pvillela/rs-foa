@@ -75,14 +75,14 @@ impl<CTX> FoaError<CTX> {
 
     pub fn new_with_cause_std(
         kind: &'static ErrorKind<0, true>,
-        cause: impl StdError + Send + 'static,
+        cause: impl StdError + Send + Sync + 'static,
     ) -> Self {
         Self::new_priv(kind, [], Some(BoxError::new_std(cause)))
     }
 
     pub fn new_with_cause_ser(
         kind: &'static ErrorKind<0, true>,
-        cause: impl StdError + Serialize + Send + 'static,
+        cause: impl StdError + Serialize + Send + Sync + 'static,
     ) -> Self {
         Self::new_priv(kind, [], Some(BoxError::new_ser(cause)))
     }
@@ -90,7 +90,7 @@ impl<CTX> FoaError<CTX> {
     pub fn new_with_args_and_cause_std<const ARITY: usize>(
         kind: &'static ErrorKind<ARITY, true>,
         args: [&str; ARITY],
-        cause: impl StdError + Send + 'static,
+        cause: impl StdError + Send + Sync + 'static,
     ) -> Self {
         Self::new_priv(kind, args, Some(BoxError::new_std(cause)))
     }
@@ -98,7 +98,7 @@ impl<CTX> FoaError<CTX> {
     pub fn new_with_args_and_cause_ser<const ARITY: usize>(
         kind: &'static ErrorKind<ARITY, true>,
         args: [&str; ARITY],
-        cause: impl StdError + Serialize + Send + 'static,
+        cause: impl StdError + Serialize + Send + Sync + 'static,
     ) -> Self {
         Self::new_priv(kind, args, Some(BoxError::new_ser(cause)))
     }

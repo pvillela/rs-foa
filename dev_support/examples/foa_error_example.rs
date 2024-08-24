@@ -39,19 +39,19 @@ impl ErrCtx for Ctx0 {
     type LocalizedMsg = Ctx0TypeI;
 }
 
-fn error0<CTX: ErrCtx>() -> FoaError<CTX> {
+fn error0<CTX: ErrCtx + Send + Sync>() -> FoaError<CTX> {
     FoaError::new(&ERROR0)
 }
 
-fn error1_std<CTX: ErrCtx + Send>() -> FoaError<CTX> {
+fn error1_std<CTX: ErrCtx + Send + Sync>() -> FoaError<CTX> {
     FoaError::new_with_args_and_cause_std(&ERROR1, [&42.to_string()], error0::<CTX>())
 }
 
-fn error1_ser<CTX: ErrCtx + Send>() -> FoaError<CTX> {
+fn error1_ser<CTX: ErrCtx + Send + Sync>() -> FoaError<CTX> {
     FoaError::new_with_args_and_cause_ser(&ERROR1, [&42.to_string()], error0::<CTX>())
 }
 
-fn error2_std<CTX: ErrCtx + Send>() -> FoaError<CTX> {
+fn error2_std<CTX: ErrCtx + Send + Sync>() -> FoaError<CTX> {
     FoaError::new_with_args_and_cause_std(
         &ERROR2,
         [&99.to_string(), "2nd arg"],
@@ -59,7 +59,7 @@ fn error2_std<CTX: ErrCtx + Send>() -> FoaError<CTX> {
     )
 }
 
-fn error2_ser<CTX: ErrCtx + Send>() -> FoaError<CTX> {
+fn error2_ser<CTX: ErrCtx + Send + Sync>() -> FoaError<CTX> {
     FoaError::new_with_args_and_cause_ser(
         &ERROR2,
         [&99.to_string(), "2nd arg"],
