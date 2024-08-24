@@ -7,6 +7,8 @@ use sqlx::{Error as SqlxError, PgPool, Postgres, Transaction};
 use tokio;
 
 mod t1 {
+    use foa::error::FoaError;
+
     use super::*;
 
     #[derive(Debug)]
@@ -35,10 +37,10 @@ mod t1 {
     }
 
     impl Db for Ctx {
-        async fn pool_tx<'c>(&'c self) -> Result<Transaction<'c, Postgres>, SqlxError> {
+        async fn pool_tx<'c, CTX>(&'c self) -> Result<Transaction<'c, Postgres>, FoaError<CTX>> {
             let pool =
                 PgPool::connect("postgres://testuser:testpassword@localhost:9999/testdb").await?;
-            pool.begin().await
+            pool.begin().await.map_err(|err| err.into())
         }
     }
 
@@ -58,6 +60,8 @@ mod t1 {
 }
 
 mod t2 {
+    use foa::error::FoaError;
+
     use super::*;
 
     #[derive(Debug)]
@@ -86,10 +90,10 @@ mod t2 {
     }
 
     impl Db for Ctx {
-        async fn pool_tx<'c>(&'c self) -> Result<Transaction<'c, Postgres>, SqlxError> {
+        async fn pool_tx<'c, CTX>(&'c self) -> Result<Transaction<'c, Postgres>, FoaError<CTX>> {
             let pool =
                 PgPool::connect("postgres://testuser:testpassword@localhost:9999/testdb").await?;
-            pool.begin().await
+            pool.begin().await.map_err(|err| err.into())
         }
     }
 

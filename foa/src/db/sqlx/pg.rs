@@ -108,9 +108,9 @@ use std::{
 
 pub trait Db {
     #[allow(async_fn_in_trait)]
-    fn pool_tx<'c>(
+    fn pool_tx<'c, CTX>(
         &'c self,
-    ) -> impl Future<Output = Result<Transaction<'c, Postgres>, SqlxError>> + Send;
+    ) -> impl Future<Output = Result<Transaction<'c, Postgres>, FoaError<CTX>>> + Send;
 }
 
 pub trait Itself<CTX> {

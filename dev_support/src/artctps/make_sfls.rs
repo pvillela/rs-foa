@@ -38,10 +38,10 @@ impl CfgCtx for Ctx {
 // struct Ctx;
 
 impl Db for Ctx {
-    async fn pool_tx<'c>(&'c self) -> Result<Transaction<'c, Postgres>, SqlxError> {
+    async fn pool_tx<'c, CTX>(&'c self) -> Result<Transaction<'c, Postgres>, FoaError<CTX>> {
         let pool =
             PgPool::connect("postgres://testuser:testpassword@localhost:9999/testdb").await?;
-        pool.begin().await
+        pool.begin().await.map_err(|err| err.into())
     }
 }
 
