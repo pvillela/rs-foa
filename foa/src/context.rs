@@ -20,7 +20,7 @@ pub trait Locale {
     fn locale<'a>() -> &'a str;
 }
 
-pub trait ErrCtx: Debug + 'static {
+pub trait ErrCtx: Debug + Send + Sync + 'static {
     type Locale: Locale;
     type LocalizedMsg: LocalizedMsg;
 }
