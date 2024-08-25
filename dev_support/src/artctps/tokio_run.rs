@@ -1,8 +1,7 @@
-use super::{common::AppCfgInfo, foo_sfl, FooIn};
+use super::{common::AppCfgInfo, Ctx, FooIn, FooSflI};
 use foa::appcfg::AppCfg;
 use futures::future::join_all;
 use std::time::{Duration, Instant};
-use tokio;
 use tokio::time::sleep;
 
 pub struct RunIn {
@@ -17,6 +16,8 @@ pub struct RunIn {
 }
 
 pub async fn run(input: RunIn) {
+    let foo_sfl = FooSflI::<Ctx>::sfl;
+
     let RunIn {
         unit_time_millis,
         app_cfg_first_refresh_units,

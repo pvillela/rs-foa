@@ -1,14 +1,8 @@
-use super::{
-    common::{AppCfgInfo, AppCfgInfoArc, AppErr},
-    FooIn, FooOut, FooSfl, FooSflI,
-};
-use axum::extract::Extension;
+use super::common::{AppCfgInfo, AppCfgInfoArc};
 use foa::{
     appcfg::AppCfg,
     context::{Cfg, CfgCtx},
-    db::sqlx::pg::{AsyncFnTx, Db, Itself},
-    error::FoaError,
-    web::axum::PgSfl,
+    db::sqlx::pg::{Db, Itself},
 };
 use sqlx::{PgPool, Postgres, Transaction};
 
@@ -29,16 +23,6 @@ impl CfgCtx for Ctx {
     type Cfg = CtxCfg;
 }
 
-// struct CtxDbClient;
-
-// impl DbClientDefault for CtxDbClient {}
-
-// impl DbCtx for Ctx {
-//     type DbClient = CtxDbClient;
-// }
-
-// struct Ctx;
-
 impl Db for Ctx {
     async fn pool_tx<'c>(&'c self) -> Result<Transaction<'c, Postgres>, sqlx::Error> {
         let pool =
@@ -50,24 +34,5 @@ impl Db for Ctx {
 impl Itself<Ctx> for Ctx {
     fn itself() -> Ctx {
         Ctx
-    }
-}
-
-#[derive(Clone)]
-pub struct ApiContext {
-    // config: Arc<Config>,
-    db: PgPool,
-}
-
-pub async fn foo_sfl(input: FooIn) -> Result<FooOut, FoaError<Ctx>> {
-    FooSflI::<Ctx>::exec_with_transaction(input).await
-}
-
-impl PgSfl<FooIn, Result<FooOut, FoaError<Ctx>>> for FooSflI<Ctx> {
-    async fn sfl(
-        input: FooIn,
-        tx: &mut Transaction<'_, Postgres>,
-    ) -> Result<FooOut, FoaError<Ctx>> {
-        FooSflI::foo_sfl(input, tx).await
     }
 }

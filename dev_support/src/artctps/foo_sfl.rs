@@ -1,15 +1,14 @@
 use super::{common::AppCfgInfoArc, BarBf, BarBfBoot, BarCtx};
 use axum;
 use axum::response::{IntoResponse, Response};
-use foa::db::sqlx::pg::{AsyncFnTx, Itself};
+use foa::db::sqlx::pg::{pg_sfl, Db, Itself, PgSfl};
 use foa::{
     context::{Cfg, CfgCtx},
-    db::sqlx::pg::Db,
     error::FoaError,
     refinto::RefInto,
 };
 use serde::{Deserialize, Serialize};
-use sqlx::PgConnection;
+use sqlx::{PgConnection, Postgres, Transaction};
 use std::marker::PhantomData;
 use std::time::Duration;
 use tokio::time::sleep;
@@ -118,11 +117,23 @@ where
     }
 }
 
-impl<CTX> AsyncFnTx<CTX, FooIn, FooOut> for FooSflI<CTX>
+impl<CTX> PgSfl<FooIn, Result<FooOut, FoaError<CTX>>> for FooSflI<CTX>
 where
-    CTX: Db + FooCtx + Itself<CTX>,
+    CTX: Db + Itself<CTX> + FooCtx,
 {
-    async fn f(input: FooIn, tx: &mut PgConnection) -> Result<FooOut, FoaError<CTX>> {
-        FooSflI::<CTX>::foo_sfl(input, tx).await
+    async fn sfl(
+        input: FooIn,
+        tx: &mut Transaction<'_, Postgres>,
+    ) -> Result<FooOut, FoaError<CTX>> {
+        FooSflI::foo_sfl(input, tx).await
+    }
+}
+
+impl<CTX> FooSflI<CTX>
+where
+    CTX: Db + Itself<CTX> + FooCtx,
+{
+    pub async fn sfl(input: FooIn) -> Result<FooOut, FoaError<CTX>> {
+        pg_sfl::<CTX, FooIn, FooOut, FoaError<CTX>, FooSflI<CTX>>(input).await
     }
 }

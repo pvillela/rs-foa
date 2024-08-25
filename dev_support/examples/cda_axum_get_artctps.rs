@@ -6,7 +6,7 @@ use foa::web::axum::handler_pg;
 async fn main() {
     let app = Router::new().route(
         "/users",
-        axum::routing::post(handler_pg::<Ctx, _, _, _, FooSflI<_>>),
+        axum::routing::post(handler_pg::<Ctx, _, _, _, FooSflI<Ctx>>),
     );
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:8080")
