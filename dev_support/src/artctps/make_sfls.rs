@@ -1,7 +1,8 @@
 use super::{
     common::{AppCfgInfo, AppCfgInfoArc, AppErr},
-    FooIn, FooOut, FooSflI,
+    FooIn, FooOut, FooSfl, FooSflI,
 };
+use axum::extract::Extension;
 use foa::{
     appcfg::AppCfg,
     context::{Cfg, CfgCtx},
@@ -51,6 +52,24 @@ impl Itself<Ctx> for Ctx {
     }
 }
 
+#[derive(Clone)]
+pub struct ApiContext {
+    // config: Arc<Config>,
+    db: PgPool,
+}
+
 pub async fn foo_sfl(input: FooIn) -> Result<FooOut, FoaError<Ctx>> {
     FooSflI::<Ctx>::exec_with_transaction(input).await
+}
+
+pub async fn foo_sfl1(input: FooIn, ctx: Extension<ApiContext>) -> Result<FooOut, ()> {
+    let mut tx = ctx.db.begin().await.map_err(|_| ())?;
+    return Err(());
+    let res = FooSflI::<Ctx>::foo_sfl(input, &mut tx).await;
+    if res.is_ok() {
+        tx.commit().await.map_err(|_| ())?;
+    } else {
+        tx.rollback().await.map_err(|_| ())?;
+    }
+    res.map_err(|_| ())
 }
