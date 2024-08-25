@@ -3,12 +3,10 @@ mod common_test_artctps;
 use common_test_artctps::{common_test, BarBfCfgTestInput, CfgTestInput, FooSflCfgTestInput};
 use foa::context::{Cfg, CfgCtx};
 use foa::db::sqlx::pg::{Db, Itself};
-use sqlx::{Error as SqlxError, PgPool, Postgres, Transaction};
+use sqlx::{PgPool, Postgres, Transaction};
 use tokio;
 
 mod t1 {
-    use foa::error::FoaError;
-
     use super::*;
 
     #[derive(Debug)]
@@ -37,7 +35,7 @@ mod t1 {
     }
 
     impl Db for Ctx {
-        async fn pool_tx<'c, CTX>(&'c self) -> Result<Transaction<'c, Postgres>, FoaError<CTX>> {
+        async fn pool_tx<'c>(&'c self) -> Result<Transaction<'c, Postgres>, sqlx::Error> {
             let pool =
                 PgPool::connect("postgres://testuser:testpassword@localhost:9999/testdb").await?;
             pool.begin().await.map_err(|err| err.into())
@@ -60,8 +58,6 @@ mod t1 {
 }
 
 mod t2 {
-    use foa::error::FoaError;
-
     use super::*;
 
     #[derive(Debug)]
@@ -90,7 +86,7 @@ mod t2 {
     }
 
     impl Db for Ctx {
-        async fn pool_tx<'c, CTX>(&'c self) -> Result<Transaction<'c, Postgres>, FoaError<CTX>> {
+        async fn pool_tx<'c>(&'c self) -> Result<Transaction<'c, Postgres>, sqlx::Error> {
             let pool =
                 PgPool::connect("postgres://testuser:testpassword@localhost:9999/testdb").await?;
             pool.begin().await.map_err(|err| err.into())

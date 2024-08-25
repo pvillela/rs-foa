@@ -1,5 +1,5 @@
 use crate::error::{ErrorKind, FoaError};
-use sqlx::{Error as SqlxError, PgConnection, Postgres, Transaction};
+use sqlx::{PgConnection, Postgres, Transaction};
 use std::future::Future;
 
 // pub trait Transaction<CTX> {
@@ -105,9 +105,9 @@ use std::future::Future;
 
 pub trait Db {
     #[allow(async_fn_in_trait)]
-    fn pool_tx<'c, CTX>(
+    fn pool_tx<'c>(
         &'c self,
-    ) -> impl Future<Output = Result<Transaction<'c, Postgres>, FoaError<CTX>>> + Send;
+    ) -> impl Future<Output = Result<Transaction<'c, Postgres>, sqlx::Error>> + Send;
 }
 
 pub trait Itself<CTX> {
@@ -116,8 +116,8 @@ pub trait Itself<CTX> {
 
 pub const DB_ERROR: ErrorKind<0, true> = ErrorKind("DB_ERROR", "database error");
 
-impl<CTX> From<SqlxError> for FoaError<CTX> {
-    fn from(cause: SqlxError) -> Self {
+impl<CTX> From<sqlx::Error> for FoaError<CTX> {
+    fn from(cause: sqlx::Error) -> Self {
         FoaError::new_with_cause_std(&DB_ERROR, cause)
     }
 }

@@ -8,8 +8,9 @@ use foa::{
     context::{Cfg, CfgCtx},
     db::sqlx::pg::{AsyncFnTx, Db, Itself},
     error::FoaError,
+    web::axum::PgSfl,
 };
-use sqlx::{Error as SqlxError, PgPool, Postgres, Transaction};
+use sqlx::{PgPool, Postgres, Transaction};
 
 #[derive(Debug)]
 pub struct Ctx;
@@ -39,7 +40,7 @@ impl CfgCtx for Ctx {
 // struct Ctx;
 
 impl Db for Ctx {
-    async fn pool_tx<'c, CTX>(&'c self) -> Result<Transaction<'c, Postgres>, FoaError<CTX>> {
+    async fn pool_tx<'c>(&'c self) -> Result<Transaction<'c, Postgres>, sqlx::Error> {
         let pool =
             PgPool::connect("postgres://testuser:testpassword@localhost:9999/testdb").await?;
         pool.begin().await.map_err(|err| err.into())
@@ -62,14 +63,11 @@ pub async fn foo_sfl(input: FooIn) -> Result<FooOut, FoaError<Ctx>> {
     FooSflI::<Ctx>::exec_with_transaction(input).await
 }
 
-pub async fn foo_sfl1(input: FooIn, ctx: Extension<ApiContext>) -> Result<FooOut, ()> {
-    let mut tx = ctx.db.begin().await.map_err(|_| ())?;
-    return Err(());
-    let res = FooSflI::<Ctx>::foo_sfl(input, &mut tx).await;
-    if res.is_ok() {
-        tx.commit().await.map_err(|_| ())?;
-    } else {
-        tx.rollback().await.map_err(|_| ())?;
+impl PgSfl<FooIn, Result<FooOut, FoaError<Ctx>>> for FooSflI<Ctx> {
+    async fn sfl(
+        input: FooIn,
+        tx: &mut Transaction<'_, Postgres>,
+    ) -> Result<FooOut, FoaError<Ctx>> {
+        FooSflI::foo_sfl(input, tx).await
     }
-    res.map_err(|_| ())
 }
