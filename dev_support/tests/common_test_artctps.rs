@@ -1,7 +1,6 @@
 use std::fmt::Debug;
 
 use dev_support::artctps::{BarBfCfgInfo, FooIn, FooSflCfgInfo, FooSflI};
-use foa::context::Itself;
 use foa::{
     context::{Cfg, CfgCtx},
     db::sqlx::pg::Db,
@@ -44,7 +43,7 @@ impl<'a> RefInto<'a, FooSflCfgInfo<'a>> for CfgTestInput {
 
 pub async fn common_test<CTX>() -> Option<String>
 where
-    CTX: CfgCtx<Cfg: Cfg<Info = CfgTestInput>> + Db + Itself<CTX> + 'static + Send + Debug,
+    CTX: CfgCtx<Cfg: Cfg<Info = CfgTestInput>> + Db + 'static + Send + Debug,
 {
     let handle = tokio::spawn(async move { FooSflI::<CTX>::sfl(FooIn { sleep_millis: 0 }).await });
     let res = handle.await.ok().map(|x| format!("{:?}", x));

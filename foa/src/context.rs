@@ -11,13 +11,15 @@ pub trait RefCntWrapper: Sized {
     fn inner(&self) -> Self::Inner;
 }
 
-pub trait Context: RefCntWrapper + Cfg + 'static {
+pub trait Context: RefCntWrapper + 'static {
+    type CfgInfo;
+
     fn ctx_static() -> &'static OnceLock<ArcSwapAny<Self::Inner>>;
     fn new_inner() -> Self::Inner;
-    fn inner_with_updated_app_cfg(inner: &Self::Inner, cfg_info: Self::Info) -> Self::Inner;
-    fn get_app_configuration(&self) -> Self::Info;
+    fn inner_with_updated_app_cfg(inner: &Self::Inner, cfg_info: Self::CfgInfo) -> Self::Inner;
+    fn get_app_cfg(&self) -> Self::CfgInfo;
 
-    fn refresh_app_cfg(app_cfg: Self::Info) {
+    fn refresh_app_cfg(app_cfg: Self::CfgInfo) {
         let ctx_asw = get_ctx_arcswap::<Self>();
         let inner = ctx_asw.load();
         let inner = Self::inner_with_updated_app_cfg(&inner, app_cfg);
@@ -45,9 +47,21 @@ pub trait Cfg {
     fn cfg() -> Self::Info;
 }
 
+impl<T> Cfg for T
+where
+    T: Context,
+{
+    type Info = T::CfgInfo;
+
+    fn cfg() -> Self::Info {
+        Self::itself().get_app_cfg()
+    }
+}
+
 pub trait CfgCtx {
     type Cfg: Cfg;
 }
+
 pub trait LocalizedMsg {
     fn localized_msg<'a>(kind: &'a str, locale: &'a str) -> Option<&'a str>;
 }

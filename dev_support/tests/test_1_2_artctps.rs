@@ -1,10 +1,10 @@
 mod common_test_artctps;
 
 use common_test_artctps::{common_test, BarBfCfgTestInput, CfgTestInput, FooSflCfgTestInput};
-use dev_support::artctps::common::pool_tx;
-use foa::context::{Cfg, CfgCtx, Itself};
+use dev_support::artctps::common::db_pool;
+use foa::context::{Cfg, CfgCtx};
 use foa::db::sqlx::pg::Db;
-use sqlx::{Postgres, Transaction};
+use sqlx::PgPool;
 
 mod t1 {
     use super::*;
@@ -35,14 +35,8 @@ mod t1 {
     }
 
     impl Db for Ctx {
-        async fn pool_tx<'c>(&'c self) -> Result<Transaction<'c, Postgres>, sqlx::Error> {
-            pool_tx(self).await
-        }
-    }
-
-    impl Itself<Ctx> for Ctx {
-        fn itself() -> Ctx {
-            Ctx
+        async fn pool() -> Result<PgPool, sqlx::Error> {
+            db_pool().await
         }
     }
 
@@ -85,14 +79,8 @@ mod t2 {
     }
 
     impl Db for Ctx {
-        async fn pool_tx<'c>(&'c self) -> Result<Transaction<'c, Postgres>, sqlx::Error> {
-            pool_tx(self).await
-        }
-    }
-
-    impl Itself<Ctx> for Ctx {
-        fn itself() -> Ctx {
-            Ctx
+        async fn pool() -> Result<PgPool, sqlx::Error> {
+            db_pool().await
         }
     }
 

@@ -1,10 +1,7 @@
 use arc_swap::{ArcSwap, ArcSwapAny};
-use foa::context::{Context, Itself, RefCntWrapper};
-use foa::{
-    context::{Cfg, CfgCtx},
-    db::sqlx::pg::Db,
-};
-use sqlx::{PgPool, Postgres, Transaction};
+use foa::context::{Context, RefCntWrapper};
+use foa::{context::CfgCtx, db::sqlx::pg::Db};
+use sqlx::PgPool;
 use std::sync::{
     atomic::{AtomicU32, Ordering},
     Arc, OnceLock,
@@ -53,6 +50,8 @@ impl RefCntWrapper for Ctx {
 }
 
 impl Context for Ctx {
+    type CfgInfo = AppCfgInfoArc;
+
     fn ctx_static() -> &'static OnceLock<ArcSwapAny<Self::Inner>> {
         &CTX_INFO
     }
@@ -86,23 +85,15 @@ impl Context for Ctx {
         .into()
     }
 
-    fn inner_with_updated_app_cfg(inner: &Self::Inner, cfg_info: Self::Info) -> Self::Inner {
+    fn inner_with_updated_app_cfg(inner: &Self::Inner, cfg_info: Self::CfgInfo) -> Self::Inner {
         let _ = REFRESH_COUNT.fetch_add(1, Ordering::Relaxed);
         let cfg = cfg_info;
         let db = inner.db.clone();
         Ctx0 { cfg, db }.into()
     }
 
-    fn get_app_configuration(&self) -> Self::Info {
+    fn get_app_cfg(&self) -> Self::CfgInfo {
         self.0.cfg.clone()
-    }
-}
-
-impl Cfg for Ctx {
-    type Info = AppCfgInfoArc;
-
-    fn cfg() -> Self::Info {
-        Self::itself().get_app_configuration()
     }
 }
 
@@ -110,16 +101,13 @@ impl CfgCtx for Ctx {
     type Cfg = Ctx;
 }
 
-pub async fn pool_tx<'c, CTX>(_ctx: &'c CTX) -> Result<Transaction<'c, Postgres>, sqlx::Error> {
-    let pool = PgPool::connect("postgres://testuser:testpassword@localhost:9999/testdb").await?;
-    pool.begin().await.map_err(|err| err.into())
+pub async fn db_pool() -> Result<PgPool, sqlx::Error> {
+    PgPool::connect("postgres://testuser:testpassword@localhost:9999/testdb").await
 }
 
 impl Db for Ctx {
-    async fn pool_tx<'c>(&'c self) -> Result<Transaction<'c, Postgres>, sqlx::Error> {
-        let pool =
-            PgPool::connect("postgres://testuser:testpassword@localhost:9999/testdb").await?;
-        pool.begin().await.map_err(|err| err.into())
+    async fn pool() -> Result<PgPool, sqlx::Error> {
+        db_pool().await
     }
 }
 

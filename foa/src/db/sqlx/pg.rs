@@ -1,13 +1,9 @@
-use crate::context::Itself;
 use crate::error::{ErrorKind, FoaError};
-use sqlx::{Postgres, Transaction};
+use sqlx::{PgPool, Postgres, Transaction};
 use std::future::Future;
 
 pub trait Db {
-    #[allow(async_fn_in_trait)]
-    fn pool_tx<'c>(
-        &'c self,
-    ) -> impl Future<Output = Result<Transaction<'c, Postgres>, sqlx::Error>> + Send;
+    fn pool() -> impl Future<Output = Result<PgPool, sqlx::Error>> + Send;
 }
 
 pub const DB_ERROR: ErrorKind<0, true> = ErrorKind("DB_ERROR", "database error");
@@ -25,14 +21,13 @@ pub trait PgSfl<In, Out> {
 
 pub async fn pg_sfl<CTX, S, T, E, F>(input: S) -> Result<T, E>
 where
-    CTX: Db + Itself<CTX>,
+    CTX: Db,
     S: 'static + serde::Deserialize<'static>,
-    // T: Send + Sync,
     E: From<sqlx::Error>,
     F: PgSfl<S, Result<T, E>>,
 {
-    let ctx = CTX::itself();
-    let mut tx = ctx.pool_tx().await?;
+    let pool = CTX::pool().await?;
+    let mut tx = pool.begin().await?;
     let output = F::sfl(input, &mut tx).await?;
     tx.commit().await?;
     Ok(output)

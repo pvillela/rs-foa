@@ -1,7 +1,6 @@
 use super::{common::AppCfgInfoArc, BarBf, BarBfBoot, BarCtx};
 use axum;
 use axum::response::{IntoResponse, Response};
-use foa::context::Itself;
 use foa::db::sqlx::pg::{pg_sfl, Db, PgSfl};
 use foa::{
     context::{Cfg, CfgCtx},
@@ -120,7 +119,7 @@ where
 
 impl<CTX> PgSfl<FooIn, Result<FooOut, FoaError<CTX>>> for FooSflI<CTX>
 where
-    CTX: Db + Itself<CTX> + FooCtx,
+    CTX: Db + FooCtx,
 {
     async fn sfl(
         input: FooIn,
@@ -132,7 +131,7 @@ where
 
 impl<CTX> FooSflI<CTX>
 where
-    CTX: Db + Itself<CTX> + FooCtx,
+    CTX: Db + FooCtx,
 {
     pub async fn sfl(input: FooIn) -> Result<FooOut, FoaError<CTX>> {
         pg_sfl::<CTX, FooIn, FooOut, FoaError<CTX>, FooSflI<CTX>>(input).await
