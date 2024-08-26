@@ -8,3 +8,4 @@ pub mod refinto;
 pub mod string;
 pub mod web;
 pub mod wrapper;
+pub mod wrapper_discr;
