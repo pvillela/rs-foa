@@ -1,10 +1,10 @@
 mod common_test_artctps;
 
 use common_test_artctps::{common_test, BarBfCfgTestInput, CfgTestInput, FooSflCfgTestInput};
+use dev_support::artctps::common::pool_tx;
 use foa::context::{Cfg, CfgCtx, Itself};
 use foa::db::sqlx::pg::Db;
-use sqlx::{PgPool, Postgres, Transaction};
-use tokio;
+use sqlx::{Postgres, Transaction};
 
 mod t1 {
     use super::*;
@@ -36,9 +36,7 @@ mod t1 {
 
     impl Db for Ctx {
         async fn pool_tx<'c>(&'c self) -> Result<Transaction<'c, Postgres>, sqlx::Error> {
-            let pool =
-                PgPool::connect("postgres://testuser:testpassword@localhost:9999/testdb").await?;
-            pool.begin().await.map_err(|err| err.into())
+            pool_tx(self).await
         }
     }
 
@@ -52,7 +50,8 @@ mod t1 {
     async fn test1() {
         let res = common_test::<Ctx>().await;
 
-        let expected = r#"Ok(FooOut { res: "foo: a=foo_test1-foo, b=4, bar=(bar: u=12, v=bar_test1-bar-Tx.dummy() called from bar_bf_c)-Tx.dummy() called from foo_sfl_c" })"#;
+        let expected =
+            r#"Ok(FooOut { res: "foo: a=foo_test1-foo, b=4, bar=(bar: u=12, v=bar_test1-bar)" })"#;
         assert_eq!(res, Some(expected.to_owned()));
     }
 }
@@ -87,9 +86,7 @@ mod t2 {
 
     impl Db for Ctx {
         async fn pool_tx<'c>(&'c self) -> Result<Transaction<'c, Postgres>, sqlx::Error> {
-            let pool =
-                PgPool::connect("postgres://testuser:testpassword@localhost:9999/testdb").await?;
-            pool.begin().await.map_err(|err| err.into())
+            pool_tx(self).await
         }
     }
 
@@ -103,7 +100,8 @@ mod t2 {
     async fn test2() {
         let res = common_test::<Ctx>().await;
 
-        let expected = r#"Ok(FooOut { res: "foo: a=foo_test2-foo, b=5, bar=(bar: u=23, v=bar_test2-bar-Tx.dummy() called from bar_bf_c)-Tx.dummy() called from foo_sfl_c" })"#;
+        let expected =
+            r#"Ok(FooOut { res: "foo: a=foo_test2-foo, b=5, bar=(bar: u=23, v=bar_test2-bar)" })"#;
         assert_eq!(res, Some(expected.to_owned()));
     }
 }

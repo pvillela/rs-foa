@@ -110,6 +110,11 @@ impl CfgCtx for Ctx {
     type Cfg = Ctx;
 }
 
+pub async fn pool_tx<'c, CTX>(_ctx: &'c CTX) -> Result<Transaction<'c, Postgres>, sqlx::Error> {
+    let pool = PgPool::connect("postgres://testuser:testpassword@localhost:9999/testdb").await?;
+    pool.begin().await.map_err(|err| err.into())
+}
+
 impl Db for Ctx {
     async fn pool_tx<'c>(&'c self) -> Result<Transaction<'c, Postgres>, sqlx::Error> {
         let pool =
