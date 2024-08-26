@@ -1,6 +1,6 @@
 mod common_test_artctps;
 
-use common_test_artctps::{BarBfCfgTestInput, CfgTestInput, common_test, FooSflCfgTestInput};
+use common_test_artctps::{common_test, BarBfCfgTestInput, CfgTestInput, FooSflCfgTestInput};
 use foa::context::{Cfg, CfgCtx, Itself};
 use foa::db::sqlx::pg::Db;
 use sqlx::{PgPool, Postgres, Transaction};
