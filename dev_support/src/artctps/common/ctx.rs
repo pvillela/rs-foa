@@ -1,6 +1,6 @@
 use arc_swap::{ArcSwap, ArcSwapAny};
 use foa::context::{Context, RefCntWrapper};
-use foa::{context::CfgCtx, db::sqlx::pg::Db};
+use foa::db::sqlx::pg::Db;
 use sqlx::PgPool;
 use std::sync::{
     atomic::{AtomicU32, Ordering},
@@ -95,10 +95,6 @@ impl Context for Ctx {
     fn get_app_cfg(&self) -> Self::CfgInfo {
         self.0.cfg.clone()
     }
-}
-
-impl CfgCtx for Ctx {
-    type Cfg = Ctx;
 }
 
 pub async fn db_pool() -> Result<PgPool, sqlx::Error> {

@@ -62,6 +62,13 @@ pub trait CfgCtx {
     type Cfg: Cfg;
 }
 
+impl<T> CfgCtx for T
+where
+    T: Context,
+{
+    type Cfg = T;
+}
+
 pub trait LocalizedMsg {
     fn localized_msg<'a>(kind: &'a str, locale: &'a str) -> Option<&'a str>;
 }
