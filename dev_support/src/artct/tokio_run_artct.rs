@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use super::{common::AppCfgInfo, foo_artct_sfl, FooArtctIn};
 use foa::appcfg::AppCfg;
 use futures::future::join_all;

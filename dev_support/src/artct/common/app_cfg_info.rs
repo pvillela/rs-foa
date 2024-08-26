@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use crate::artct::common::{DbCfg, DummyDbPool};
 use arc_swap::ArcSwap;
 use foa::appcfg::AppCfg;

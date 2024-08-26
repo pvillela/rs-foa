@@ -1,5 +1,7 @@
-use super::{common::AppCfgInfo, Ctx, FooIn, FooSflI};
-use foa::appcfg::AppCfg;
+use super::{
+    common::{AppCfgInfo, Ctx},
+    FooIn, FooSflI,
+};
 use futures::future::join_all;
 use std::time::{Duration, Instant};
 use tokio::time::sleep;

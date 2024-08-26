@@ -1,3 +1,4 @@
+use crate::context::Itself;
 use crate::error::{ErrorKind, FoaError};
 use sqlx::{Postgres, Transaction};
 use std::future::Future;
@@ -7,10 +8,6 @@ pub trait Db {
     fn pool_tx<'c>(
         &'c self,
     ) -> impl Future<Output = Result<Transaction<'c, Postgres>, sqlx::Error>> + Send;
-}
-
-pub trait Itself<CTX> {
-    fn itself() -> CTX;
 }
 
 pub const DB_ERROR: ErrorKind<0, true> = ErrorKind("DB_ERROR", "database error");

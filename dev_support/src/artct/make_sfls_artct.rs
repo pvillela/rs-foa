@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use super::{
     common::{AppCfgInfo, AppCfgInfoArc, AppErr, DbClientDefault, DbCtx},
     FooArtctIn, FooArtctOut, FooArtctSflI,

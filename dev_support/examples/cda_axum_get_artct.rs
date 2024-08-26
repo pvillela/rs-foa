@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use axum::{routing::post, Router};
 use dev_support::artct::{common::AppCfgInfo, foo_artct_sfl};
 use foa::{appcfg::AppCfg, web::axum::handler_of};

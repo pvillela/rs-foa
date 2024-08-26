@@ -1,9 +1,10 @@
 use std::fmt::Debug;
 
 use dev_support::artctps::{BarBfCfgInfo, FooIn, FooSflCfgInfo, FooSflI};
+use foa::context::Itself;
 use foa::{
     context::{Cfg, CfgCtx},
-    db::sqlx::pg::{Db, Itself},
+    db::sqlx::pg::Db,
     refinto::RefInto,
 };
 use tokio;

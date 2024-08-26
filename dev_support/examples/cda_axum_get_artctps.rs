@@ -1,5 +1,5 @@
 use axum::Router;
-use dev_support::artctps::{Ctx, FooSflI};
+use dev_support::artctps::{common::Ctx, FooSflI};
 use foa::web::axum::handler_pg;
 
 #[tokio::main]
