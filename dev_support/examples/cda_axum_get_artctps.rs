@@ -5,7 +5,7 @@ use foa::web::axum::handler_pg;
 #[tokio::main]
 async fn main() {
     let app = Router::new().route(
-        "/users",
+        "/",
         axum::routing::post(handler_pg::<Ctx, _, _, _, FooSflI<Ctx>>),
     );
 
