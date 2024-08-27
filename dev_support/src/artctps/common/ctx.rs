@@ -1,5 +1,5 @@
 use arc_swap::{ArcSwap, ArcSwapAny};
-use foa::context::{Context, RefCntWrapper};
+use foa::context::{Context, Itself, RefCntWrapper};
 use foa::db::sqlx::pg::Db;
 use sqlx::PgPool;
 use std::sync::{
@@ -49,6 +49,19 @@ impl RefCntWrapper for Ctx {
     }
 }
 
+static DB_POOL: OnceLock<PgPool> = OnceLock::new();
+
+pub async fn db_pool() -> Result<PgPool, sqlx::Error> {
+    match DB_POOL.get() {
+        Some(db_pool) => Ok(db_pool.clone()),
+        None => {
+            let pool =
+                PgPool::connect("postgres://testuser:testpassword@localhost:9999/testdb").await?;
+            Ok(DB_POOL.get_or_init(|| pool).clone())
+        }
+    }
+}
+
 impl Context for Ctx {
     type CfgInfo = AppCfgInfoArc;
 
@@ -66,17 +79,10 @@ impl Context for Ctx {
             }
         };
 
-        let pool = {
-            tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .expect("tokio runtime error")
-                .block_on(async {
-                    PgPool::connect("postgres://testuser:testpassword@localhost:9999/testdb")
-                        .await
-                        .expect("unable to connect to Postgres")
-                })
-        };
+        let pool = DB_POOL
+            .get()
+            .expect("DB_POOL should be initialized")
+            .clone();
 
         Ctx0 {
             cfg: app_cfg.into(),
@@ -97,13 +103,9 @@ impl Context for Ctx {
     }
 }
 
-pub async fn db_pool() -> Result<PgPool, sqlx::Error> {
-    PgPool::connect("postgres://testuser:testpassword@localhost:9999/testdb").await
-}
-
 impl Db for Ctx {
     async fn pool() -> Result<PgPool, sqlx::Error> {
-        db_pool().await
+        Ok(Self::itself().0.db.clone())
     }
 }
 

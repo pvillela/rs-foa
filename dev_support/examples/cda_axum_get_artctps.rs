@@ -1,9 +1,14 @@
 use axum::Router;
-use dev_support::artctps::{common::Ctx, FooSflI};
+use dev_support::artctps::{
+    common::{db_pool, Ctx},
+    FooSflI,
+};
 use foa::web::axum::handler_pg;
 
 #[tokio::main]
 async fn main() {
+    let _ = db_pool().await; // initialize DB_POOL
+
     let app = Router::new().route(
         "/",
         axum::routing::post(handler_pg::<Ctx, _, _, _, FooSflI<Ctx>>),
