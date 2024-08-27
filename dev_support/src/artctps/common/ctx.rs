@@ -8,6 +8,8 @@ use std::sync::{
 };
 
 static CTX_INFO: OnceLock<ArcSwap<Ctx0>> = OnceLock::new();
+static DB_POOL: OnceLock<PgPool> = OnceLock::new();
+static REFRESH_COUNT: AtomicU32 = AtomicU32::new(0);
 
 #[derive(Debug, Clone)]
 pub struct AppCfgInfo {
@@ -37,6 +39,16 @@ pub struct Ctx0 {
 #[derive(Debug, Clone)]
 pub struct Ctx(Arc<Ctx0>);
 
+impl Ctx {
+    /// Initializes context.
+    ///
+    /// # Panics
+    /// If there are any errors during initialization.
+    pub async fn init() {
+        db_pool().await.expect("Ctx::init: db_pool error");
+    }
+}
+
 impl RefCntWrapper for Ctx {
     type Inner = Arc<Ctx0>;
 
@@ -48,8 +60,6 @@ impl RefCntWrapper for Ctx {
         self.0.clone()
     }
 }
-
-static DB_POOL: OnceLock<PgPool> = OnceLock::new();
 
 pub async fn db_pool() -> Result<PgPool, sqlx::Error> {
     match DB_POOL.get() {
@@ -110,5 +120,3 @@ impl Db for Ctx {
 }
 
 pub type AppCfgInfoArc = Arc<AppCfgInfo>;
-
-static REFRESH_COUNT: AtomicU32 = AtomicU32::new(0);

@@ -1,13 +1,10 @@
 use axum::Router;
-use dev_support::artctps::{
-    common::{db_pool, Ctx},
-    FooSflI,
-};
+use dev_support::artctps::{common::Ctx, FooSflI};
 use foa::web::axum::handler_pg;
 
 #[tokio::main]
 async fn main() {
-    let _ = db_pool().await; // initialize DB_POOL
+    Ctx::init().await; // initialize context
 
     let app = Router::new().route(
         "/",
