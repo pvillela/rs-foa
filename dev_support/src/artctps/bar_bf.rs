@@ -1,7 +1,6 @@
 use super::common::AppCfgInfoArc;
 use foa::{context::Cfg, error::FoaError, refinto::RefInto};
 use sqlx::PgConnection;
-use std::marker::PhantomData;
 use std::time::Duration;
 use tokio::time::sleep;
 use tracing::instrument;
@@ -28,8 +27,8 @@ pub trait BarBf<CTX> {
     async fn bar_bf(sleep_millis: u64, tx: &mut PgConnection) -> Result<String, FoaError<CTX>>;
 }
 
+/// Trait alias
 pub trait BarCtx: Cfg<CfgInfo: for<'a> RefInto<'a, BarBfCfgInfo<'a>>> {}
-
 impl<CTX> BarCtx for CTX
 where
     CTX: Cfg,
@@ -72,7 +71,3 @@ where
         Self::bar_bf_boot(sleep_millis, conn).await
     }
 }
-
-pub struct BarBfBootI<CTX>(PhantomData<CTX>);
-
-impl<CTX> BarBfBoot<CTX> for BarBfBootI<CTX> where CTX: BarCtx {}

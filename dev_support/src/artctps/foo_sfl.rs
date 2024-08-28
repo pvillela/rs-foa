@@ -47,8 +47,8 @@ pub trait FooSfl<CTX> {
     async fn foo_sfl(input: FooIn, tx: &mut PgConnection) -> Result<FooOut, FoaError<CTX>>;
 }
 
+/// Trait alias
 pub trait FooOnlyCtx: Cfg<CfgInfo: for<'a> RefInto<'a, FooSflCfgInfo<'a>>> {}
-
 impl<CTX> FooOnlyCtx for CTX
 where
     CTX: Cfg,

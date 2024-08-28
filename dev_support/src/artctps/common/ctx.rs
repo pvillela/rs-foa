@@ -18,6 +18,8 @@ pub struct AppCfgInfo {
     pub z: bool,
 }
 
+pub type AppCfgInfoArc = Arc<AppCfgInfo>;
+
 impl AppCfgInfo {
     pub fn refresh_app_configuration() {
         let count = REFRESH_COUNT.fetch_add(1, Ordering::Relaxed);
@@ -124,5 +126,3 @@ impl Db for CtxDb {
 impl DbCtx for Ctx {
     type Db = CtxDb;
 }
-
-pub type AppCfgInfoArc = Arc<AppCfgInfo>;
