@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 mod common_test_artct;
 
 use common_test_artct::{common_test, BarBfCfgTestInput, CfgTestInput, FooSflCfgTestInput};
@@ -12,9 +14,9 @@ mod t1 {
     struct CtxCfg;
 
     impl Cfg for CtxCfg {
-        type Info = CfgTestInput;
+        type CfgInfo = CfgTestInput;
 
-        fn cfg() -> Self::Info {
+        fn cfg() -> Self::CfgInfo {
             CfgTestInput {
                 foo: FooSflCfgTestInput {
                     a: "foo_artct_test1".to_owned(),
@@ -56,9 +58,9 @@ mod t2 {
     struct CtxCfg;
 
     impl Cfg for CtxCfg {
-        type Info = CfgTestInput;
+        type CfgInfo = CfgTestInput;
 
-        fn cfg() -> Self::Info {
+        fn cfg() -> Self::CfgInfo {
             CfgTestInput {
                 foo: FooSflCfgTestInput {
                     a: "foo_artct_test2".to_owned(),

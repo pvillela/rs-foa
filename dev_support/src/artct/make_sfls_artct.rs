@@ -15,9 +15,9 @@ struct Ctx;
 struct CtxCfg;
 
 impl Cfg for CtxCfg {
-    type Info = AppCfgInfoArc;
+    type CfgInfo = AppCfgInfoArc;
 
-    fn cfg() -> Self::Info {
+    fn cfg() -> Self::CfgInfo {
         AppCfgInfo::get_app_configuration()
     }
 }

@@ -51,12 +51,15 @@ pub trait FooArtctSfl<CTX> {
     async fn foo_artct_sfl(input: FooArtctIn, tx: &DummyTx<'_>) -> Result<FooArtctOut, AppErr>;
 }
 
-pub trait FooOnlyCtx: CfgCtx<Cfg: Cfg<Info: for<'a> RefInto<'a, FooArtctSflCfgInfo<'a>>>> {}
+pub trait FooOnlyCtx:
+    CfgCtx<Cfg: Cfg<CfgInfo: for<'a> RefInto<'a, FooArtctSflCfgInfo<'a>>>>
+{
+}
 
 impl<CTX> FooOnlyCtx for CTX
 where
     CTX: CfgCtx,
-    <CTX::Cfg as Cfg>::Info: for<'a> RefInto<'a, FooArtctSflCfgInfo<'a>>,
+    <CTX::Cfg as Cfg>::CfgInfo: for<'a> RefInto<'a, FooArtctSflCfgInfo<'a>>,
 {
 }
 

@@ -2,21 +2,30 @@ mod common_test_artctps;
 
 use common_test_artctps::{common_test, BarBfCfgTestInput, CfgTestInput, FooSflCfgTestInput};
 use dev_support::artctps::common::db_pool;
-use foa::context::{Cfg, CfgCtx};
-use foa::db::sqlx::pg::Db;
+use foa::{
+    context::{Cfg, DbCtx},
+    db::sqlx::pg::Db,
+};
 use sqlx::PgPool;
+
+struct CtxDb;
+
+impl Db for CtxDb {
+    async fn pool() -> Result<PgPool, sqlx::Error> {
+        db_pool().await
+    }
+}
 
 mod t1 {
     use super::*;
 
     #[derive(Debug)]
     struct Ctx;
-    struct CtxCfg;
 
-    impl Cfg for CtxCfg {
-        type Info = CfgTestInput;
+    impl Cfg for Ctx {
+        type CfgInfo = CfgTestInput;
 
-        fn cfg() -> Self::Info {
+        fn cfg() -> Self::CfgInfo {
             CfgTestInput {
                 foo: FooSflCfgTestInput {
                     a: "foo_test1".to_owned(),
@@ -30,14 +39,8 @@ mod t1 {
         }
     }
 
-    impl CfgCtx for Ctx {
-        type Cfg = CtxCfg;
-    }
-
-    impl Db for Ctx {
-        async fn pool() -> Result<PgPool, sqlx::Error> {
-            db_pool().await
-        }
+    impl DbCtx for Ctx {
+        type Db = CtxDb;
     }
 
     #[tokio::test]
@@ -55,12 +58,11 @@ mod t2 {
 
     #[derive(Debug)]
     struct Ctx;
-    struct CtxCfg;
 
-    impl Cfg for CtxCfg {
-        type Info = CfgTestInput;
+    impl Cfg for Ctx {
+        type CfgInfo = CfgTestInput;
 
-        fn cfg() -> Self::Info {
+        fn cfg() -> Self::CfgInfo {
             CfgTestInput {
                 foo: FooSflCfgTestInput {
                     a: "foo_test2".to_owned(),
@@ -74,14 +76,8 @@ mod t2 {
         }
     }
 
-    impl CfgCtx for Ctx {
-        type Cfg = CtxCfg;
-    }
-
-    impl Db for Ctx {
-        async fn pool() -> Result<PgPool, sqlx::Error> {
-            db_pool().await
-        }
+    impl DbCtx for Ctx {
+        type Db = CtxDb;
     }
 
     #[tokio::test]

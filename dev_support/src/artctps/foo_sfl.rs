@@ -1,12 +1,9 @@
 use super::{common::AppCfgInfoArc, BarBf, BarBfBoot, BarCtx};
 use axum;
 use axum::response::{IntoResponse, Response};
+use foa::context::DbCtx;
 use foa::db::sqlx::pg::{pg_sfl, Db, PgSfl};
-use foa::{
-    context::{Cfg, CfgCtx},
-    error::FoaError,
-    refinto::RefInto,
-};
+use foa::{context::Cfg, error::FoaError, refinto::RefInto};
 use serde::{Deserialize, Serialize};
 use sqlx::{PgConnection, Postgres, Transaction};
 use std::marker::PhantomData;
@@ -50,12 +47,12 @@ pub trait FooSfl<CTX> {
     async fn foo_sfl(input: FooIn, tx: &mut PgConnection) -> Result<FooOut, FoaError<CTX>>;
 }
 
-pub trait FooOnlyCtx: CfgCtx<Cfg: Cfg<Info: for<'a> RefInto<'a, FooSflCfgInfo<'a>>>> {}
+pub trait FooOnlyCtx: Cfg<CfgInfo: for<'a> RefInto<'a, FooSflCfgInfo<'a>>> {}
 
 impl<CTX> FooOnlyCtx for CTX
 where
-    CTX: CfgCtx,
-    <CTX::Cfg as Cfg>::Info: for<'a> RefInto<'a, FooSflCfgInfo<'a>>,
+    CTX: Cfg,
+    CTX::CfgInfo: for<'a> RefInto<'a, FooSflCfgInfo<'a>>,
 {
 }
 
@@ -72,7 +69,7 @@ where
     #[instrument(level = "trace", skip_all)]
     #[allow(async_fn_in_trait)]
     async fn foo_sfl_c(input: FooIn, tx: &mut PgConnection) -> Result<FooOut, FoaError<CTX>> {
-        let app_cfg_info = CTX::Cfg::cfg();
+        let app_cfg_info = CTX::cfg();
         let cfg = app_cfg_info.ref_into();
         let FooIn { sleep_millis } = input;
         sleep(Duration::from_millis(sleep_millis)).await;
@@ -119,7 +116,7 @@ where
 
 impl<CTX> PgSfl<FooIn, Result<FooOut, FoaError<CTX>>> for FooSflI<CTX>
 where
-    CTX: Db + FooCtx,
+    CTX: FooCtx,
 {
     async fn sfl(
         input: FooIn,
@@ -131,7 +128,7 @@ where
 
 impl<CTX> FooSflI<CTX>
 where
-    CTX: Db + FooCtx,
+    CTX: FooCtx + DbCtx<Db: Db>,
 {
     pub async fn sfl(input: FooIn) -> Result<FooOut, FoaError<CTX>> {
         pg_sfl::<CTX, FooIn, FooOut, FoaError<CTX>, FooSflI<CTX>>(input).await

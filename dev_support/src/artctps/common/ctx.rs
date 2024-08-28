@@ -1,5 +1,5 @@
 use arc_swap::{ArcSwap, ArcSwapAny};
-use foa::context::{Context, Itself, RefCntWrapper};
+use foa::context::{Context, DbCtx, Itself, RefCntWrapper};
 use foa::db::sqlx::pg::Db;
 use sqlx::PgPool;
 use std::sync::{
@@ -113,10 +113,16 @@ impl Context for Ctx {
     }
 }
 
-impl Db for Ctx {
+pub struct CtxDb;
+
+impl Db for CtxDb {
     async fn pool() -> Result<PgPool, sqlx::Error> {
-        Ok(Self::itself().0.db.clone())
+        Ok(Ctx::itself().0.db.clone())
     }
+}
+
+impl DbCtx for Ctx {
+    type Db = CtxDb;
 }
 
 pub type AppCfgInfoArc = Arc<AppCfgInfo>;

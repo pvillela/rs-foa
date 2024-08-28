@@ -1,3 +1,4 @@
+use crate::context::DbCtx;
 use crate::db::sqlx::pg::{pg_sfl, Db, PgSfl};
 use crate::error::FoaError;
 use axum::response::IntoResponse;
@@ -17,7 +18,7 @@ where
 
 pub async fn handler_pg<CTX, S, T, E, F>(Json(input): Json<S>) -> Result<Json<T>, E>
 where
-    CTX: Db,
+    CTX: DbCtx<Db: Db>,
     S: 'static + serde::Deserialize<'static>,
     T: IntoResponse + Send + Sync,
     E: From<sqlx::Error>,

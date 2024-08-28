@@ -42,26 +42,28 @@ where
 }
 
 pub trait Cfg {
-    type Info;
+    type CfgInfo;
 
-    fn cfg() -> Self::Info;
+    fn cfg() -> Self::CfgInfo;
 }
 
 impl<T> Cfg for T
 where
     T: Context,
 {
-    type Info = T::CfgInfo;
+    type CfgInfo = T::CfgInfo;
 
-    fn cfg() -> Self::Info {
+    fn cfg() -> Self::CfgInfo {
         Self::itself().get_app_cfg()
     }
 }
 
+#[deprecated]
 pub trait CfgCtx {
     type Cfg: Cfg;
 }
 
+#[allow(deprecated)]
 impl<T> CfgCtx for T
 where
     T: Context,

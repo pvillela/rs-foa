@@ -1,9 +1,5 @@
 use super::common::AppCfgInfoArc;
-use foa::{
-    context::{Cfg, CfgCtx},
-    error::FoaError,
-    refinto::RefInto,
-};
+use foa::{context::Cfg, error::FoaError, refinto::RefInto};
 use sqlx::PgConnection;
 use std::marker::PhantomData;
 use std::time::Duration;
@@ -32,12 +28,12 @@ pub trait BarBf<CTX> {
     async fn bar_bf(sleep_millis: u64, tx: &mut PgConnection) -> Result<String, FoaError<CTX>>;
 }
 
-pub trait BarCtx: CfgCtx<Cfg: Cfg<Info: for<'a> RefInto<'a, BarBfCfgInfo<'a>>>> {}
+pub trait BarCtx: Cfg<CfgInfo: for<'a> RefInto<'a, BarBfCfgInfo<'a>>> {}
 
 impl<CTX> BarCtx for CTX
 where
-    CTX: CfgCtx,
-    <CTX::Cfg as Cfg>::Info: for<'a> RefInto<'a, BarBfCfgInfo<'a>>,
+    CTX: Cfg,
+    CTX::CfgInfo: for<'a> RefInto<'a, BarBfCfgInfo<'a>>,
 {
 }
 
@@ -57,7 +53,7 @@ where
         sleep_millis: u64,
         _conn: &mut PgConnection,
     ) -> Result<String, FoaError<CTX>> {
-        let app_cfg_info = CTX::Cfg::cfg();
+        let app_cfg_info = CTX::cfg();
         let cfg = app_cfg_info.ref_into();
         sleep(Duration::from_millis(sleep_millis)).await;
         let u = cfg.u;

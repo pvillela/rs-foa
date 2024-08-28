@@ -31,12 +31,12 @@ pub trait BarArtctBf<CTX> {
     async fn bar_artct_bf(sleep_millis: u64, tx: &DummyTx<'_>) -> Result<String, AppErr>;
 }
 
-pub trait BarCtx: CfgCtx<Cfg: Cfg<Info: for<'a> RefInto<'a, BarArtctBfCfgInfo<'a>>>> {}
+pub trait BarCtx: CfgCtx<Cfg: Cfg<CfgInfo: for<'a> RefInto<'a, BarArtctBfCfgInfo<'a>>>> {}
 
 impl<CTX> BarCtx for CTX
 where
     CTX: CfgCtx,
-    <CTX::Cfg as Cfg>::Info: for<'a> RefInto<'a, BarArtctBfCfgInfo<'a>>,
+    <CTX::Cfg as Cfg>::CfgInfo: for<'a> RefInto<'a, BarArtctBfCfgInfo<'a>>,
 {
 }
 

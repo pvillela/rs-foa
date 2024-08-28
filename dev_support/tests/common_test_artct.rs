@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use dev_support::artct::{
     common::{AppErr, AsyncFnTx, DbCtx},
     BarArtctBfCfgInfo, FooArtctIn, FooArtctOut, FooArtctSflCfgInfo, FooArtctSflI, FooCtx,
@@ -50,7 +52,7 @@ where
 
 pub async fn common_test<CTX>() -> Option<String>
 where
-    CTX: CfgCtx<Cfg: Cfg<Info = CfgTestInput>> + DbCtx + 'static,
+    CTX: CfgCtx<Cfg: Cfg<CfgInfo = CfgTestInput>> + DbCtx + 'static,
 {
     let handle =
         tokio::spawn(async move { foo_artct_sfl::<CTX>(FooArtctIn { sleep_millis: 0 }).await });
