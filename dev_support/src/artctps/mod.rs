@@ -6,7 +6,13 @@ pub use bar_bf::*;
 mod foo_sfl;
 pub use foo_sfl::*;
 
-// mod make_sfls;
-// pub use make_sfls::*;
+mod init_daf;
+pub use init_daf::*;
+
+mod read_daf;
+pub use read_daf::*;
+
+mod update_daf;
+pub use update_daf::*;
 
 pub mod tokio_run;

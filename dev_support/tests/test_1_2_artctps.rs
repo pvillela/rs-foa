@@ -28,13 +28,9 @@ mod t1 {
         fn cfg() -> Self::CfgInfo {
             CfgTestInput {
                 foo: FooSflCfgTestInput {
-                    a: "foo_test1".to_owned(),
-                    b: 1,
+                    a: "Paulo".to_owned(),
                 },
-                bar: BarBfCfgTestInput {
-                    u: 11,
-                    v: "bar_test1".to_owned(),
-                },
+                bar: BarBfCfgTestInput { u: 11 },
             }
         }
     }
@@ -65,13 +61,9 @@ mod t2 {
         fn cfg() -> Self::CfgInfo {
             CfgTestInput {
                 foo: FooSflCfgTestInput {
-                    a: "foo_test2".to_owned(),
-                    b: 2,
+                    a: "Paulo".to_owned(),
                 },
-                bar: BarBfCfgTestInput {
-                    u: 22,
-                    v: "bar_test2".to_owned(),
-                },
+                bar: BarBfCfgTestInput { u: 22 },
             }
         }
     }

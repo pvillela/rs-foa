@@ -65,10 +65,7 @@ pub async fn run(input: RunIn) {
         tokio::spawn(async move {
             let mut res: usize = 0;
             for j in 0..repeats {
-                let out = foo_sfl(FooIn {
-                    sleep_millis: per_call_sleep_units * unit_time_millis,
-                })
-                .await;
+                let out = foo_sfl(FooIn { age_delta: 11 }).await;
                 res = format!("{:?}", out).len();
                 if i == 0 && j % increment_to_print == 0 {
                     println!(

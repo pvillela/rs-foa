@@ -1,6 +1,8 @@
 use std::fmt::Debug;
 
-use dev_support::artctps::{BarBfCfgInfo, FooIn, FooSflCfgInfo, FooSflI};
+use dev_support::artctps::{
+    BarBfCfgInfo, FooIn, FooSflCfgInfo, FooSflI, ReadDafCfgInfo, UpdateDafCfgInfo,
+};
 use foa::{
     context::{Cfg, DbCtx},
     db::sqlx::pg::Db,
@@ -10,12 +12,10 @@ use tokio;
 
 pub struct BarBfCfgTestInput {
     pub u: i32,
-    pub v: String,
 }
 
 pub struct FooSflCfgTestInput {
     pub a: String,
-    pub b: i32,
 }
 
 pub struct CfgTestInput {
@@ -23,21 +23,29 @@ pub struct CfgTestInput {
     pub foo: FooSflCfgTestInput,
 }
 
-impl<'a> RefInto<'a, BarBfCfgInfo<'a>> for CfgTestInput {
-    fn ref_into(&'a self) -> BarBfCfgInfo<'a> {
+impl<'a> RefInto<'a, BarBfCfgInfo> for CfgTestInput {
+    fn ref_into(&'a self) -> BarBfCfgInfo {
         BarBfCfgInfo {
-            u: self.bar.u,
-            v: &self.bar.v,
+            age_increment: self.bar.u,
         }
+    }
+}
+
+impl<'a> RefInto<'a, ReadDafCfgInfo<'a>> for CfgTestInput {
+    fn ref_into(&'a self) -> ReadDafCfgInfo<'a> {
+        ReadDafCfgInfo { name: &self.foo.a }
+    }
+}
+
+impl<'a> RefInto<'a, UpdateDafCfgInfo<'a>> for CfgTestInput {
+    fn ref_into(&'a self) -> UpdateDafCfgInfo<'a> {
+        UpdateDafCfgInfo { name: &self.foo.a }
     }
 }
 
 impl<'a> RefInto<'a, FooSflCfgInfo<'a>> for CfgTestInput {
     fn ref_into(&'a self) -> FooSflCfgInfo<'a> {
-        FooSflCfgInfo {
-            a: &self.foo.a,
-            b: self.foo.b,
-        }
+        FooSflCfgInfo { name: &self.foo.a }
     }
 }
 
@@ -45,7 +53,7 @@ pub async fn common_test<CTX>() -> Option<String>
 where
     CTX: Cfg<CfgInfo = CfgTestInput> + DbCtx<Db: Db> + 'static + Send + Debug,
 {
-    let handle = tokio::spawn(async move { FooSflI::<CTX>::sfl(FooIn { sleep_millis: 0 }).await });
+    let handle = tokio::spawn(async move { FooSflI::<CTX>::sfl(FooIn { age_delta: 0 }).await });
     let res = handle.await.ok().map(|x| format!("{:?}", x));
     println!("{:?}", res);
     res

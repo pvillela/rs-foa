@@ -1,45 +1,30 @@
 use super::common::AppCfgInfoArc;
-use foa::{context::Cfg, error::FoaError, refinto::RefInto};
-use sqlx::PgConnection;
-use std::time::Duration;
-use tokio::time::sleep;
+use foa::{context::Cfg, refinto::RefInto};
 use tracing::instrument;
 
-pub type BarIn = u64;
-pub type BarOut = String;
-
-pub struct BarBfCfgInfo<'a> {
-    pub u: i32,
-    pub v: &'a str,
+pub struct BarBfCfgInfo {
+    pub age_increment: i32,
 }
 
-impl<'a> RefInto<'a, BarBfCfgInfo<'a>> for AppCfgInfoArc {
-    fn ref_into(&'a self) -> BarBfCfgInfo<'a> {
+impl<'a> RefInto<'a, BarBfCfgInfo> for AppCfgInfoArc {
+    fn ref_into(&'a self) -> BarBfCfgInfo {
         BarBfCfgInfo {
-            u: self.y,
-            v: &self.x,
+            age_increment: self.y,
         }
     }
 }
 
 pub trait BarBf<CTX> {
-    #[allow(async_fn_in_trait)]
-    async fn bar_bf(sleep_millis: u64, tx: &mut PgConnection) -> Result<String, FoaError<CTX>>;
+    fn bar_bf(base_age: i32, age_delta: i32) -> i32;
 }
 
 /// Trait alias
-pub trait BarCtx: Cfg<CfgInfo: for<'a> RefInto<'a, BarBfCfgInfo<'a>>> {}
+pub trait BarCtx: Cfg<CfgInfo: for<'a> RefInto<'a, BarBfCfgInfo>> {}
 impl<CTX> BarCtx for CTX
 where
     CTX: Cfg,
-    CTX::CfgInfo: for<'a> RefInto<'a, BarBfCfgInfo<'a>>,
+    CTX::CfgInfo: for<'a> RefInto<'a, BarBfCfgInfo>,
 {
-}
-
-pub fn bar_core(u: i32, v: String) -> String {
-    let u = u + 1;
-    let v = v + "-bar";
-    format!("bar: u={}, v={}", u, v)
 }
 
 pub trait BarBfBoot<CTX>
@@ -47,18 +32,10 @@ where
     CTX: BarCtx,
 {
     #[instrument(level = "trace", skip_all)]
-    #[allow(async_fn_in_trait)]
-    async fn bar_bf_boot(
-        sleep_millis: u64,
-        _conn: &mut PgConnection,
-    ) -> Result<String, FoaError<CTX>> {
+    fn bar_bf_boot(base_age: i32, age_delta: i32) -> i32 {
         let app_cfg_info = CTX::cfg();
         let cfg = app_cfg_info.ref_into();
-        sleep(Duration::from_millis(sleep_millis)).await;
-        let u = cfg.u;
-        let v = cfg.v.to_owned();
-        let res = bar_core(u, v);
-        Ok(res)
+        base_age + age_delta + cfg.age_increment
     }
 }
 
@@ -67,7 +44,7 @@ where
     T: BarBfBoot<CTX>,
     CTX: BarCtx,
 {
-    async fn bar_bf(sleep_millis: u64, conn: &mut PgConnection) -> Result<String, FoaError<CTX>> {
-        Self::bar_bf_boot(sleep_millis, conn).await
+    fn bar_bf(base_age: i32, age_delta: i32) -> i32 {
+        Self::bar_bf_boot(base_age, age_delta)
     }
 }

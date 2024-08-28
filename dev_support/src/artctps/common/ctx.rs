@@ -2,6 +2,7 @@ use arc_swap::{ArcSwap, ArcSwapAny};
 use foa::context::{Context, DbCtx, Itself, RefCntWrapper};
 use foa::db::sqlx::pg::Db;
 use sqlx::PgPool;
+use std::i32;
 use std::sync::{
     atomic::{AtomicU32, Ordering},
     Arc, OnceLock,
@@ -15,7 +16,8 @@ static REFRESH_COUNT: AtomicU32 = AtomicU32::new(0);
 pub struct AppCfgInfo {
     pub x: String,
     pub y: i32,
-    pub z: bool,
+    pub z: i32,
+    pub refresh_count: u32,
 }
 
 pub type AppCfgInfoArc = Arc<AppCfgInfo>;
@@ -24,9 +26,10 @@ impl AppCfgInfo {
     pub fn refresh_app_configuration() {
         let count = REFRESH_COUNT.fetch_add(1, Ordering::Relaxed);
         let cfg_info = AppCfgInfo {
-            x: format!("refreshed-{}", count),
-            y: 1042,
-            z: true,
+            x: "Paulo".into(),
+            y: count as i32,
+            z: 2,
+            refresh_count: count,
         };
         Ctx::refresh_app_cfg(cfg_info.into());
     }
@@ -85,9 +88,10 @@ impl Context for Ctx {
         let app_cfg = {
             REFRESH_COUNT.store(1, Ordering::Relaxed);
             AppCfgInfo {
-                x: "initial".to_owned(),
-                y: 42,
-                z: false,
+                x: "Paulo".into(),
+                y: 1,
+                z: 2,
+                refresh_count: 1,
             }
         };
 
