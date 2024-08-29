@@ -14,6 +14,9 @@ use sqlx::{Postgres, Transaction};
 use std::marker::PhantomData;
 use tracing::instrument;
 
+//=================
+// This code section defines the stereotype signature
+
 #[derive(Clone, Deserialize, Debug)]
 pub struct FooIn {
     pub age_delta: i32,
@@ -27,32 +30,20 @@ pub struct FooOut {
     pub refresh_count: u32,
 }
 
-impl IntoResponse for FooOut {
-    fn into_response(self) -> Response {
-        axum::Json(self).into_response()
-    }
-}
-
-pub struct FooSflCfgInfo<'a> {
-    pub name: &'a str,
-    pub count: u32,
-}
-
-impl<'a> RefInto<'a, FooSflCfgInfo<'a>> for AppCfgInfoArc {
-    fn ref_into(&'a self) -> FooSflCfgInfo<'a> {
-        FooSflCfgInfo {
-            name: &self.x,
-            count: self.refresh_count,
-        }
-    }
-}
-
 pub trait FooSfl<CTX> {
     #[allow(async_fn_in_trait)]
     async fn foo_sfl(
         input: FooIn,
         tx: &mut Transaction<'_, Postgres>,
     ) -> Result<FooOut, FoaError<CTX>>;
+}
+
+//=================
+// This code section implements the stereotype but depends on signatures only
+
+pub struct FooSflCfgInfo<'a> {
+    pub name: &'a str,
+    pub count: u32,
 }
 
 /// Trait alias
@@ -89,8 +80,8 @@ where
     }
 }
 
-//==================
-// Addition of type dependencies
+//=================
+// This code section depends on dependencies implementations
 
 /// Trait alias
 pub trait FooCtx: FooOnlyCtx + BarCtx + ReadDafCtx + UpdateDafCtx {}
@@ -108,7 +99,28 @@ mod illustrative {
 }
 
 /// Stereotype instance
-pub struct FooSflI<CTX>(PhantomData<CTX>);
+pub struct FooSflI<CTX: FooCtx>(PhantomData<CTX>);
+
+//=================
+// This code section depends on application configuration implementation
+
+impl<'a> RefInto<'a, FooSflCfgInfo<'a>> for AppCfgInfoArc {
+    fn ref_into(&'a self) -> FooSflCfgInfo<'a> {
+        FooSflCfgInfo {
+            name: &self.x,
+            count: self.refresh_count,
+        }
+    }
+}
+
+//=================
+// This code section depends on platform stechnology-specific frameworks
+
+impl IntoResponse for FooOut {
+    fn into_response(self) -> Response {
+        axum::Json(self).into_response()
+    }
+}
 
 impl<CTX> PgSfl<FooIn, Result<FooOut, FoaError<CTX>>> for FooSflI<CTX>
 where

@@ -3,19 +3,19 @@ use foa::{context::Cfg, error::FoaError, refinto::RefInto};
 use sqlx::{Postgres, Transaction};
 use tracing::instrument;
 
-pub struct ReadDafCfgInfo<'a> {
-    pub name: &'a str,
-}
-
-impl<'a> RefInto<'a, ReadDafCfgInfo<'a>> for AppCfgInfoArc {
-    fn ref_into(&'a self) -> ReadDafCfgInfo {
-        ReadDafCfgInfo { name: &self.x }
-    }
-}
+//=================
+// This code section defines the stereotype signature
 
 pub trait ReadDaf<CTX> {
     #[allow(async_fn_in_trait)]
     async fn read_daf(tx: &mut Transaction<'_, Postgres>) -> Result<i32, FoaError<CTX>>;
+}
+
+//=================
+// This code section implements the stereotype but depends on signatures only
+
+pub struct ReadDafCfgInfo<'a> {
+    pub name: &'a str,
 }
 
 /// Trait alias
@@ -45,3 +45,22 @@ where
         Ok(age)
     }
 }
+
+//=================
+// This code section depends on dependencies implementations
+
+// *** N/A ***
+
+//=================
+// This code section depends on application configuration implementation
+
+impl<'a> RefInto<'a, ReadDafCfgInfo<'a>> for AppCfgInfoArc {
+    fn ref_into(&'a self) -> ReadDafCfgInfo {
+        ReadDafCfgInfo { name: &self.x }
+    }
+}
+
+//=================
+// This code section depends on platform stechnology-specific frameworks
+
+// *** N/A ***

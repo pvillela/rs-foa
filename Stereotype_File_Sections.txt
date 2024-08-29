@@ -1,0 +1,15 @@
+
+//=================
+// This code section defines the stereotype signature
+
+//=================
+// This code section implements the stereotype but depends on signatures only
+
+//=================
+// This code section depends on dependencies implementations
+
+//=================
+// This code section depends on application configuration implementation
+
+//=================
+// This code section depends on platform stechnology-specific frameworks

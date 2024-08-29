@@ -10,23 +10,20 @@ use foa::{
 use sqlx::{Postgres, Transaction};
 use tracing::instrument;
 
-pub struct InitDafCfgInfo<'a> {
-    pub name: &'a str,
-    pub initial_age: i32,
-}
-
-impl<'a> RefInto<'a, InitDafCfgInfo<'a>> for AppCfgInfoArc {
-    fn ref_into(&'a self) -> InitDafCfgInfo {
-        InitDafCfgInfo {
-            name: &self.x,
-            initial_age: self.y,
-        }
-    }
-}
+//=================
+// This code section defines the stereotype signature
 
 pub trait InitDaf<CTX> {
     #[allow(async_fn_in_trait)]
     async fn init_daf(tx: &mut Transaction<'_, Postgres>) -> Result<(), FoaError<CTX>>;
+}
+
+//=================
+// This code section implements the stereotype but depends on signatures only
+
+pub struct InitDafCfgInfo<'a> {
+    pub name: &'a str,
+    pub initial_age: i32,
 }
 
 /// Trait alias
@@ -70,7 +67,27 @@ where
 }
 
 /// Stereotype instance
-pub struct InitDafI<CTX>(PhantomData<CTX>);
+pub struct InitDafI<CTX: InitDafCtx>(PhantomData<CTX>);
+
+//=================
+// This code section depends on dependencies implementations
+
+// *** N/A ***
+
+//=================
+// This code section depends on application configuration implementation
+
+impl<'a> RefInto<'a, InitDafCfgInfo<'a>> for AppCfgInfoArc {
+    fn ref_into(&'a self) -> InitDafCfgInfo {
+        InitDafCfgInfo {
+            name: &self.x,
+            initial_age: self.y,
+        }
+    }
+}
+
+//=================
+// This code section depends on platform stechnology-specific frameworks
 
 impl<CTX> PgSfl<(), Result<(), FoaError<CTX>>> for InitDafI<CTX>
 where
