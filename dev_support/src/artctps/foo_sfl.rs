@@ -122,10 +122,14 @@ impl IntoResponse for FooOut {
     }
 }
 
-impl<CTX> PgSfl<FooIn, Result<FooOut, FoaError<CTX>>> for FooSflI<CTX>
+impl<CTX> PgSfl for FooSflI<CTX>
 where
     CTX: FooCtx,
 {
+    type In = FooIn;
+    type Out = FooOut;
+    type E = FoaError<CTX>;
+
     async fn sfl(
         input: FooIn,
         tx: &mut Transaction<'_, Postgres>,
@@ -139,6 +143,6 @@ where
     CTX: FooCtx + DbCtx<Db: Db>,
 {
     pub async fn sfl(input: FooIn) -> Result<FooOut, FoaError<CTX>> {
-        pg_sfl::<CTX, FooIn, FooOut, FoaError<CTX>, FooSflI<CTX>>(input).await
+        pg_sfl::<CTX, FooSflI<CTX>>(input).await
     }
 }

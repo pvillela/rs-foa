@@ -16,15 +16,14 @@ where
     move |Json(input)| f(input)
 }
 
-pub async fn handler_pg<CTX, S, T, E, F>(Json(input): Json<S>) -> Result<Json<T>, E>
+pub async fn handler_pg<CTX, F>(Json(input): Json<F::In>) -> Result<Json<F::Out>, F::E>
 where
     CTX: DbCtx<Db: Db>,
-    S: 'static + serde::Deserialize<'static>,
-    T: IntoResponse + Send + Sync,
-    E: From<sqlx::Error>,
-    F: PgSfl<S, Result<T, E>>,
+    F: PgSfl,
+    F::In: 'static + serde::Deserialize<'static>,
+    F::Out: IntoResponse + Send + Sync,
 {
-    let output = pg_sfl::<CTX, S, T, E, F>(input).await?;
+    let output = pg_sfl::<CTX, F>(input).await?;
     Ok(Json(output))
 }
 

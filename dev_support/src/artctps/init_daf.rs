@@ -89,10 +89,14 @@ impl<'a> RefInto<'a, InitDafCfgInfo<'a>> for AppCfgInfoArc {
 //=================
 // This code section depends on platform stechnology-specific frameworks
 
-impl<CTX> PgSfl<(), Result<(), FoaError<CTX>>> for InitDafI<CTX>
+impl<CTX> PgSfl for InitDafI<CTX>
 where
     CTX: InitDafCtx,
 {
+    type In = ();
+    type Out = ();
+    type E = FoaError<CTX>;
+
     async fn sfl(_: (), tx: &mut Transaction<'_, Postgres>) -> Result<(), FoaError<CTX>> {
         InitDafI::<CTX>::init_daf(tx).await
     }
@@ -103,6 +107,6 @@ where
     CTX: InitDafCtx + DbCtx<Db: Db>,
 {
     pub async fn sfl() -> Result<(), FoaError<CTX>> {
-        pg_sfl::<CTX, (), (), FoaError<CTX>, InitDafI<CTX>>(()).await
+        pg_sfl::<CTX, InitDafI<CTX>>(()).await
     }
 }

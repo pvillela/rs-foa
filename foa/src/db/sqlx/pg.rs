@@ -17,17 +17,19 @@ impl<CTX> From<sqlx::Error> for FoaError<CTX> {
     }
 }
 
-pub trait PgSfl<In, Out> {
+pub trait PgSfl {
+    type In;
+    type Out;
+    type E: From<sqlx::Error>;
+
     #[allow(async_fn_in_trait)]
-    async fn sfl(input: In, tx: &mut Transaction<Postgres>) -> Out;
+    async fn sfl(input: Self::In, tx: &mut Transaction<Postgres>) -> Result<Self::Out, Self::E>;
 }
 
-pub async fn pg_sfl<CTX, S, T, E, F>(input: S) -> Result<T, E>
+pub async fn pg_sfl<CTX, F>(input: F::In) -> Result<F::Out, F::E>
 where
     CTX: DbCtx<Db: Db>,
-    S: 'static + serde::Deserialize<'static>,
-    E: From<sqlx::Error>,
-    F: PgSfl<S, Result<T, E>>,
+    F: PgSfl,
 {
     let pool = CTX::Db::pool().await?;
     let mut tx = pool.begin().await?;
