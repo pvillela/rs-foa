@@ -1,60 +1,79 @@
 use std::fmt::Debug;
 
 use dev_support::artctps::{
-    BarBfCfgInfo, FooIn, FooSflCfgInfo, FooSflI, ReadDafCfgInfo, UpdateDafCfgInfo,
+    BarBfCfgInfo, FooIn, FooOut, FooSflCfgInfo, FooSflI, InitDafCfgInfo, InitDafI, ReadDafCfgInfo,
+    UpdateDafCfgInfo,
 };
 use foa::{
     context::{Cfg, DbCtx},
     db::sqlx::pg::Db,
+    error::FoaError,
     refinto::RefInto,
 };
 use tokio;
 
 pub struct BarBfCfgTestInput {
-    pub u: i32,
+    pub incr: i32,
 }
 
 pub struct FooSflCfgTestInput {
-    pub a: String,
+    pub n: String,
+    pub c: u32,
+}
+
+pub struct InitDafCfgTestinput {
+    pub init_age: i32,
 }
 
 pub struct CfgTestInput {
     pub bar: BarBfCfgTestInput,
     pub foo: FooSflCfgTestInput,
+    pub init: InitDafCfgTestinput,
 }
 
 impl<'a> RefInto<'a, BarBfCfgInfo> for CfgTestInput {
     fn ref_into(&'a self) -> BarBfCfgInfo {
         BarBfCfgInfo {
-            age_increment: self.bar.u,
+            age_increment: self.bar.incr,
         }
     }
 }
 
 impl<'a> RefInto<'a, ReadDafCfgInfo<'a>> for CfgTestInput {
     fn ref_into(&'a self) -> ReadDafCfgInfo<'a> {
-        ReadDafCfgInfo { name: &self.foo.a }
+        ReadDafCfgInfo { name: &self.foo.n }
     }
 }
 
 impl<'a> RefInto<'a, UpdateDafCfgInfo<'a>> for CfgTestInput {
     fn ref_into(&'a self) -> UpdateDafCfgInfo<'a> {
-        UpdateDafCfgInfo { name: &self.foo.a }
+        UpdateDafCfgInfo { name: &self.foo.n }
     }
 }
 
 impl<'a> RefInto<'a, FooSflCfgInfo<'a>> for CfgTestInput {
     fn ref_into(&'a self) -> FooSflCfgInfo<'a> {
-        FooSflCfgInfo { name: &self.foo.a }
+        FooSflCfgInfo {
+            name: &self.foo.n,
+            count: self.foo.c,
+        }
     }
 }
 
-pub async fn common_test<CTX>() -> Option<String>
+impl<'a> RefInto<'a, InitDafCfgInfo<'a>> for CfgTestInput {
+    fn ref_into(&'a self) -> InitDafCfgInfo<'a> {
+        InitDafCfgInfo {
+            name: &self.foo.n,
+            initial_age: self.init.init_age,
+        }
+    }
+}
+
+pub async fn common_test<CTX>() -> Result<FooOut, FoaError<CTX>>
 where
     CTX: Cfg<CfgInfo = CfgTestInput> + DbCtx<Db: Db> + 'static + Send + Debug,
 {
-    let handle = tokio::spawn(async move { FooSflI::<CTX>::sfl(FooIn { age_delta: 0 }).await });
-    let res = handle.await.ok().map(|x| format!("{:?}", x));
-    println!("{:?}", res);
-    res
+    InitDafI::<CTX>::sfl().await?;
+    let handle = tokio::spawn(async move { FooSflI::<CTX>::sfl(FooIn { age_delta: 1 }).await });
+    handle.await.expect("common_test_artctps tokio spawn error")
 }

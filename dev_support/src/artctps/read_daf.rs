@@ -27,13 +27,13 @@ where
 {
 }
 
-pub trait ReadDafBoot<CTX>
+impl<CTX, T> ReadDaf<CTX> for T
 where
     CTX: ReadDafCtx,
 {
     #[instrument(level = "trace", skip_all)]
     #[allow(async_fn_in_trait)]
-    async fn read_daf_boot(tx: &mut Transaction<'_, Postgres>) -> Result<i32, FoaError<CTX>> {
+    async fn read_daf(tx: &mut Transaction<'_, Postgres>) -> Result<i32, FoaError<CTX>> {
         let app_cfg_info = CTX::cfg();
         let cfg = app_cfg_info.ref_into();
 
@@ -43,15 +43,5 @@ where
             .await?;
 
         Ok(age)
-    }
-}
-
-impl<CTX, T> ReadDaf<CTX> for T
-where
-    T: ReadDafBoot<CTX>,
-    CTX: ReadDafCtx,
-{
-    async fn read_daf(tx: &mut Transaction<'_, Postgres>) -> Result<i32, FoaError<CTX>> {
-        Self::read_daf_boot(tx).await
     }
 }

@@ -27,24 +27,14 @@ where
 {
 }
 
-pub trait BarBfBoot<CTX>
+impl<CTX, T> BarBf<CTX> for T
 where
     CTX: BarCtx,
 {
     #[instrument(level = "trace", skip_all)]
-    fn bar_bf_boot(base_age: i32, age_delta: i32) -> i32 {
+    fn bar_bf(base_age: i32, age_delta: i32) -> i32 {
         let app_cfg_info = CTX::cfg();
         let cfg = app_cfg_info.ref_into();
         base_age + age_delta + cfg.age_increment
-    }
-}
-
-impl<CTX, T> BarBf<CTX> for T
-where
-    T: BarBfBoot<CTX>,
-    CTX: BarCtx,
-{
-    fn bar_bf(base_age: i32, age_delta: i32) -> i32 {
-        Self::bar_bf_boot(base_age, age_delta)
     }
 }

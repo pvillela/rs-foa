@@ -8,6 +8,8 @@ use std::sync::{
     Arc, OnceLock,
 };
 
+use crate::artctps::InitDafI;
+
 static CTX_INFO: OnceLock<ArcSwap<Ctx0>> = OnceLock::new();
 static DB_POOL: OnceLock<PgPool> = OnceLock::new();
 static REFRESH_COUNT: AtomicU32 = AtomicU32::new(0);
@@ -27,8 +29,8 @@ impl AppCfgInfo {
         let count = REFRESH_COUNT.fetch_add(1, Ordering::Relaxed);
         let cfg_info = AppCfgInfo {
             x: "Paulo".into(),
-            y: count as i32,
-            z: 2,
+            y: 100,
+            z: 20,
             refresh_count: count,
         };
         Ctx::refresh_app_cfg(cfg_info.into());
@@ -51,6 +53,9 @@ impl Ctx {
     /// If there are any errors during initialization.
     pub async fn init() {
         db_pool().await.expect("Ctx::init: db_pool error");
+        InitDafI::<Ctx>::sfl()
+            .await
+            .expect("Ctx::init: data initialization error");
     }
 }
 
@@ -89,7 +94,7 @@ impl Context for Ctx {
             REFRESH_COUNT.store(1, Ordering::Relaxed);
             AppCfgInfo {
                 x: "Paulo".into(),
-                y: 1,
+                y: 10,
                 z: 2,
                 refresh_count: 1,
             }

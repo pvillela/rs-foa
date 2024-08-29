@@ -1,18 +1,25 @@
+use std::marker::PhantomData;
+
 use super::common::AppCfgInfoArc;
-use foa::{context::Cfg, error::FoaError, refinto::RefInto};
+use foa::{
+    context::{Cfg, DbCtx},
+    db::sqlx::pg::{pg_sfl, Db, PgSfl},
+    error::FoaError,
+    refinto::RefInto,
+};
 use sqlx::{Postgres, Transaction};
 use tracing::instrument;
 
 pub struct InitDafCfgInfo<'a> {
     pub name: &'a str,
-    pub age: i32,
+    pub initial_age: i32,
 }
 
 impl<'a> RefInto<'a, InitDafCfgInfo<'a>> for AppCfgInfoArc {
     fn ref_into(&'a self) -> InitDafCfgInfo {
         InitDafCfgInfo {
             name: &self.x,
-            age: self.y,
+            initial_age: self.y,
         }
     }
 }
@@ -31,13 +38,13 @@ where
 {
 }
 
-pub trait InitDafBoot<CTX>
+impl<CTX, T> InitDaf<CTX> for T
 where
     CTX: InitDafCtx,
 {
     #[instrument(level = "trace", skip_all)]
     #[allow(async_fn_in_trait)]
-    async fn init_daf_boot(tx: &mut Transaction<'_, Postgres>) -> Result<(), FoaError<CTX>> {
+    async fn init_daf(tx: &mut Transaction<'_, Postgres>) -> Result<(), FoaError<CTX>> {
         let app_cfg_info = CTX::cfg();
         let cfg = app_cfg_info.ref_into();
 
@@ -52,7 +59,7 @@ where
         )
         .bind(cfg.name)
         .bind(cfg.name.to_owned() + "@example.com")
-        .bind(cfg.age)
+        .bind(cfg.initial_age)
         .execute(&mut **tx)
         .await?;
 
@@ -62,12 +69,23 @@ where
     }
 }
 
-impl<CTX, T> InitDaf<CTX> for T
+/// Stereotype instance
+pub struct InitDafI<CTX>(PhantomData<CTX>);
+
+impl<CTX> PgSfl<(), Result<(), FoaError<CTX>>> for InitDafI<CTX>
 where
-    T: InitDafBoot<CTX>,
     CTX: InitDafCtx,
 {
-    async fn init_daf(tx: &mut Transaction<'_, Postgres>) -> Result<(), FoaError<CTX>> {
-        Self::init_daf_boot(tx).await
+    async fn sfl(_: (), tx: &mut Transaction<'_, Postgres>) -> Result<(), FoaError<CTX>> {
+        InitDafI::<CTX>::init_daf(tx).await
+    }
+}
+
+impl<CTX> InitDafI<CTX>
+where
+    CTX: InitDafCtx + DbCtx<Db: Db>,
+{
+    pub async fn sfl() -> Result<(), FoaError<CTX>> {
+        pg_sfl::<CTX, (), (), FoaError<CTX>, InitDafI<CTX>>(()).await
     }
 }

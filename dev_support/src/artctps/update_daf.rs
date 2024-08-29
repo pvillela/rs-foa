@@ -27,16 +27,13 @@ where
 {
 }
 
-pub trait UpdateDafBoot<CTX>
+impl<CTX, T> UpdateDaf<CTX> for T
 where
     CTX: UpdateDafCtx,
 {
     #[instrument(level = "trace", skip_all)]
     #[allow(async_fn_in_trait)]
-    async fn update_daf_boot(
-        age: i32,
-        tx: &mut Transaction<'_, Postgres>,
-    ) -> Result<(), FoaError<CTX>> {
+    async fn update_daf(age: i32, tx: &mut Transaction<'_, Postgres>) -> Result<(), FoaError<CTX>> {
         let app_cfg_info = CTX::cfg();
         let cfg = app_cfg_info.ref_into();
 
@@ -49,15 +46,5 @@ where
         assert_eq!(res.rows_affected(), 1, "update_daf_boot");
 
         Ok(())
-    }
-}
-
-impl<CTX, T> UpdateDaf<CTX> for T
-where
-    T: UpdateDafBoot<CTX>,
-    CTX: UpdateDafCtx,
-{
-    async fn update_daf(age: i32, tx: &mut Transaction<'_, Postgres>) -> Result<(), FoaError<CTX>> {
-        Self::update_daf_boot(age, tx).await
     }
 }
