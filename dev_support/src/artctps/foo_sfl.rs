@@ -96,6 +96,17 @@ where
 pub trait FooCtx: FooOnlyCtx + BarCtx + ReadDafCtx + UpdateDafCtx {}
 impl<CTX> FooCtx for CTX where CTX: FooOnlyCtx + BarCtx + ReadDafCtx + UpdateDafCtx {}
 
+/// Any type parameterized by `CTX` where `CTX: FooCtx` implements `FooSfl<CTX>` as
+/// it is recursively true for its dependencies.
+#[cfg(test)]
+#[allow(unused)]
+mod illustrative {
+    use super::*;
+
+    trait FooSflAlias<CTX>: FooSfl<CTX> {}
+    impl<CTX, T> FooSflAlias<CTX> for T where CTX: FooCtx {}
+}
+
 /// Stereotype instance
 pub struct FooSflI<CTX>(PhantomData<CTX>);
 
