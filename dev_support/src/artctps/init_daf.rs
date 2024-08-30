@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use super::common::AppCfgInfoArc;
 use foa::{
     context::Cfg,
-    db::sqlx::{txnl_sfl, AsyncTxFn, PgDb},
+    db::sqlx::{AsyncTxFn, PgDb},
     error::FoaError,
     refinto::RefInto,
 };
@@ -89,25 +89,15 @@ impl<'a> RefInto<'a, InitDafCfgInfo<'a>> for AppCfgInfoArc {
 //=================
 // This section has additional platform technology-specific code
 
-impl<CTX> AsyncTxFn for InitDafI<CTX>
+impl<CTX> AsyncTxFn<CTX> for InitDafI<CTX>
 where
     CTX: InitDafCtx + PgDb,
 {
     type In = ();
     type Out = ();
     type E = FoaError<CTX>;
-    type Database = CTX::Database;
 
     async fn call(_: (), tx: &mut Transaction<'_, Postgres>) -> Result<(), FoaError<CTX>> {
         InitDafI::<CTX>::init_daf(tx).await
-    }
-}
-
-impl<CTX> InitDafI<CTX>
-where
-    CTX: InitDafCtx + PgDb,
-{
-    pub async fn sfl() -> Result<(), FoaError<CTX>> {
-        txnl_sfl::<CTX, InitDafI<CTX>>(()).await
     }
 }

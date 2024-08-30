@@ -5,7 +5,7 @@ use axum::{
 };
 use foa::{
     context::Cfg,
-    db::sqlx::{txnl_sfl, AsyncTxFn, PgDb},
+    db::sqlx::{AsyncTxFn, PgDb},
     error::FoaError,
     refinto::RefInto,
 };
@@ -122,28 +122,18 @@ impl IntoResponse for FooOut {
     }
 }
 
-impl<CTX> AsyncTxFn for FooSflI<CTX>
+impl<CTX> AsyncTxFn<CTX> for FooSflI<CTX>
 where
     CTX: FooCtx + PgDb,
 {
     type In = FooIn;
     type Out = FooOut;
     type E = FoaError<CTX>;
-    type Database = CTX::Database;
 
     async fn call(
         input: FooIn,
         tx: &mut Transaction<'_, Postgres>,
     ) -> Result<FooOut, FoaError<CTX>> {
         FooSflI::<CTX>::foo_sfl(input, tx).await
-    }
-}
-
-impl<CTX> FooSflI<CTX>
-where
-    CTX: FooCtx + PgDb,
-{
-    pub async fn sfl(input: FooIn) -> Result<FooOut, FoaError<CTX>> {
-        txnl_sfl::<CTX, FooSflI<CTX>>(input).await
     }
 }

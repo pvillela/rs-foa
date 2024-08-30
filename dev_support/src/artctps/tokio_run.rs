@@ -2,6 +2,7 @@ use super::{
     common::{AppCfgInfo, Ctx},
     FooIn, FooSflI,
 };
+use foa::db::sqlx::AsyncTxFn;
 use futures::future::join_all;
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
@@ -17,7 +18,7 @@ pub struct RunIn {
 }
 
 pub async fn run(input: RunIn) {
-    let foo_sfl = FooSflI::<Ctx>::sfl;
+    let foo_sfl = FooSflI::<Ctx>::in_tx;
 
     let RunIn {
         unit_time_millis,

@@ -20,27 +20,26 @@ impl<CTX> From<sqlx::Error> for FoaError<CTX> {
     }
 }
 
-pub trait AsyncTxFn {
+pub trait AsyncTxFn<CTX>
+where
+    CTX: Db,
+{
     type In;
     type Out;
     type E: From<sqlx::Error>;
-    type Database: Database;
 
     #[allow(async_fn_in_trait)]
     async fn call(
         input: Self::In,
-        tx: &mut Transaction<Self::Database>,
+        tx: &mut Transaction<CTX::Database>,
     ) -> Result<Self::Out, Self::E>;
-}
 
-pub async fn txnl_sfl<CTX, F>(input: F::In) -> Result<F::Out, F::E>
-where
-    CTX: Db<Database = F::Database>,
-    F: AsyncTxFn,
-{
-    let pool = CTX::pool().await?;
-    let mut tx = pool.begin().await?;
-    let output = F::call(input, &mut tx).await?;
-    tx.commit().await?;
-    Ok(output)
+    #[allow(async_fn_in_trait)]
+    async fn in_tx(input: Self::In) -> Result<Self::Out, Self::E> {
+        let pool = CTX::pool().await?;
+        let mut tx = pool.begin().await?;
+        let output = Self::call(input, &mut tx).await?;
+        tx.commit().await?;
+        Ok(output)
+    }
 }

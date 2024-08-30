@@ -1,6 +1,6 @@
 use arc_swap::{ArcSwap, ArcSwapAny};
 use foa::context::{Context, Itself, RefCntWrapper};
-use foa::db::sqlx::Db;
+use foa::db::sqlx::{AsyncTxFn, Db};
 use sqlx::{Pool, Postgres};
 use std::i32;
 use std::sync::{
@@ -61,7 +61,7 @@ impl Ctx {
     /// If there are any errors during initialization.
     pub async fn init() {
         db_pool().await.expect("Ctx::init: db_pool error");
-        InitDafI::<Ctx>::sfl()
+        InitDafI::<Ctx>::in_tx(())
             .await
             .expect("Ctx::init: data initialization error");
     }
