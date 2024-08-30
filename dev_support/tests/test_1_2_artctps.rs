@@ -68,6 +68,7 @@ mod t2 {
         }
     }
 
+    #[ignore = "Can't run concurrently with test1"]
     #[tokio::test]
     async fn test2() {
         let res = common_test::<Ctx<2>>().await;

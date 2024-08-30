@@ -11,7 +11,6 @@ pub struct RunIn {
     pub app_cfg_first_refresh_units: u64,
     pub app_cfg_refresh_delta_units: u64,
     pub app_cfg_refresh_count: u64,
-    pub per_call_sleep_units: u64,
     pub increment_to_print: usize,
     pub concurrency: usize,
     pub repeats: usize,
@@ -25,17 +24,14 @@ pub async fn run(input: RunIn) {
         app_cfg_first_refresh_units,
         app_cfg_refresh_delta_units,
         app_cfg_refresh_count,
-        per_call_sleep_units,
         increment_to_print,
         concurrency,
         repeats,
     } = input;
 
     println!(
-        "\n*** run -- {} ms sleep per call, {} concurrency, {} repeats",
-        per_call_sleep_units * unit_time_millis,
-        concurrency,
-        repeats
+        "\n*** run -- {} concurrency, {} repeats",
+        concurrency, repeats
     );
 
     let start_time = Instant::now();
@@ -82,16 +78,20 @@ pub async fn run(input: RunIn) {
 
     let handles1 = (0..concurrency).map(run_concurrent).collect::<Vec<_>>();
 
+    println!("about to join handle_r");
     let _ = handle_r
         .await
         .ok()
         .expect("app configuration refresh task failed");
+    println!("joined handle_r");
 
+    println!("about to join handles1");
     let res1: usize = join_all(handles1)
         .await
         .iter()
         .map(|x| x.as_ref().ok().expect("Failure in first batch of tasks."))
         .sum();
+    println!("joined handles1");
 
     let average = (res1 as f64) / (concurrency as f64);
 
