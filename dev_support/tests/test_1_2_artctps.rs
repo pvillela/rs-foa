@@ -9,12 +9,14 @@ use foa::{
     context::{Cfg, DbCtx},
     db::sqlx::pg::Db,
 };
-use sqlx::PgPool;
+use sqlx::{Pool, Postgres};
 
 struct CtxDb;
 
 impl Db for CtxDb {
-    async fn pool() -> Result<PgPool, sqlx::Error> {
+    type DB = Postgres;
+
+    async fn pool() -> Result<Pool<Postgres>, sqlx::Error> {
         db_pool().await
     }
 }

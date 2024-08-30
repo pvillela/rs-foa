@@ -1,7 +1,7 @@
 use arc_swap::{ArcSwap, ArcSwapAny};
 use foa::context::{Context, DbCtx, Itself, RefCntWrapper};
 use foa::db::sqlx::pg::Db;
-use sqlx::PgPool;
+use sqlx::{Pool, Postgres};
 use std::i32;
 use std::sync::{
     atomic::{AtomicU32, Ordering},
@@ -11,7 +11,7 @@ use std::sync::{
 use crate::artctps::InitDafI;
 
 static CTX_INFO: OnceLock<ArcSwap<Ctx0>> = OnceLock::new();
-static DB_POOL: OnceLock<PgPool> = OnceLock::new();
+static DB_POOL: OnceLock<Pool<Postgres>> = OnceLock::new();
 static REFRESH_COUNT: AtomicU32 = AtomicU32::new(0);
 
 #[derive(Debug, Clone)]
@@ -40,7 +40,7 @@ impl AppCfgInfo {
 #[derive(Debug, Clone)]
 pub struct Ctx0 {
     cfg: AppCfgInfoArc,
-    db: PgPool,
+    db: Pool<Postgres>,
 }
 
 #[derive(Debug, Clone)]
@@ -71,12 +71,12 @@ impl RefCntWrapper for Ctx {
     }
 }
 
-pub async fn db_pool() -> Result<PgPool, sqlx::Error> {
+pub async fn db_pool() -> Result<Pool<Postgres>, sqlx::Error> {
     match DB_POOL.get() {
         Some(db_pool) => Ok(db_pool.clone()),
         None => {
             let pool =
-                PgPool::connect("postgres://testuser:testpassword@localhost:9999/testdb").await?;
+                Pool::connect("postgres://testuser:testpassword@localhost:9999/testdb").await?;
             Ok(DB_POOL.get_or_init(|| pool).clone())
         }
     }
@@ -127,7 +127,9 @@ impl Context for Ctx {
 pub struct CtxDb;
 
 impl Db for CtxDb {
-    async fn pool() -> Result<PgPool, sqlx::Error> {
+    type DB = Postgres;
+
+    async fn pool() -> Result<Pool<Self::DB>, sqlx::Error> {
         Ok(Ctx::itself().0.db.clone())
     }
 }

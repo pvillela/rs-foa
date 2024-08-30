@@ -1,14 +1,14 @@
 use super::common::AppCfgInfoArc;
-use foa::{context::Cfg, error::FoaError, refinto::RefInto};
+use foa::{context::Cfg, db::sqlx::pg::SqlxDbCtx, error::FoaError, refinto::RefInto};
 use sqlx::{Postgres, Transaction};
 use tracing::instrument;
 
 //=================
 // This code section defines the stereotype signature
 
-pub trait ReadDaf<CTX> {
+pub trait ReadDaf<CTX: SqlxDbCtx> {
     #[allow(async_fn_in_trait)]
-    async fn read_daf(tx: &mut Transaction<'_, Postgres>) -> Result<i32, FoaError<CTX>>;
+    async fn read_daf(tx: &mut Transaction<'_, CTX::Database>) -> Result<i32, FoaError<CTX>>;
 }
 
 //=================
@@ -29,11 +29,11 @@ where
 
 impl<CTX, T> ReadDaf<CTX> for T
 where
-    CTX: ReadDafCtx,
+    CTX: ReadDafCtx + SqlxDbCtx<Database = Postgres>,
 {
     #[instrument(level = "trace", skip_all)]
     #[allow(async_fn_in_trait)]
-    async fn read_daf(tx: &mut Transaction<'_, Postgres>) -> Result<i32, FoaError<CTX>> {
+    async fn read_daf(tx: &mut Transaction<'_, CTX::Database>) -> Result<i32, FoaError<CTX>> {
         let app_cfg_info = CTX::cfg();
         let cfg = app_cfg_info.ref_into();
 

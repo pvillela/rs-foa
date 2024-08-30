@@ -5,12 +5,12 @@ use axum::{
 };
 use foa::{
     context::{Cfg, DbCtx},
-    db::sqlx::pg::{pg_sfl, Db, PgSfl},
+    db::sqlx::pg::{txnl_sfl, Db, SqlxDbCtx, TxSfl},
     error::FoaError,
     refinto::RefInto,
 };
 use serde::{Deserialize, Serialize};
-use sqlx::{Postgres, Transaction};
+use sqlx::{Database, Executor, Postgres, Transaction};
 use std::marker::PhantomData;
 use tracing::instrument;
 
@@ -30,12 +30,14 @@ pub struct FooOut {
     pub refresh_count: u32,
 }
 
-pub trait FooSfl<CTX> {
+pub trait FooSfl<CTX, DB>
+where
+    // CTX: SqlxDbCtx<DB>,
+    DB: Database,
+    for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
+{
     #[allow(async_fn_in_trait)]
-    async fn foo_sfl(
-        input: FooIn,
-        tx: &mut Transaction<'_, Postgres>,
-    ) -> Result<FooOut, FoaError<CTX>>;
+    async fn foo_sfl(input: FooIn, tx: &mut Transaction<'_, DB>) -> Result<FooOut, FoaError<CTX>>;
 }
 
 //=================
@@ -57,14 +59,14 @@ where
 
 impl<CTX, T> FooSfl<CTX> for T
 where
-    CTX: FooOnlyCtx,
+    CTX: FooOnlyCtx + SqlxDbCtx,
     T: BarBf<CTX> + ReadDaf<CTX> + UpdateDaf<CTX>,
 {
     #[instrument(level = "trace", skip_all)]
     #[allow(async_fn_in_trait)]
     async fn foo_sfl(
         input: FooIn,
-        tx: &mut Transaction<'_, Postgres>,
+        tx: &mut Transaction<'_, CTX::Database>,
     ) -> Result<FooOut, FoaError<CTX>> {
         let app_cfg_info = CTX::cfg();
         let cfg = app_cfg_info.ref_into();
@@ -94,8 +96,8 @@ impl<CTX> FooCtx for CTX where CTX: FooOnlyCtx + BarCtx + ReadDafCtx + UpdateDaf
 mod illustrative {
     use super::*;
 
-    trait FooSflAlias<CTX>: FooSfl<CTX> {}
-    impl<CTX, T> FooSflAlias<CTX> for T where CTX: FooCtx {}
+    trait FooSflAlias<CTX: SqlxDbCtx>: FooSfl<CTX> {}
+    impl<CTX, T> FooSflAlias<CTX> for T where CTX: FooCtx + SqlxDbCtx<Database = Postgres> {}
 }
 
 /// Stereotype instance
@@ -122,17 +124,18 @@ impl IntoResponse for FooOut {
     }
 }
 
-impl<CTX> PgSfl for FooSflI<CTX>
+impl<CTX> TxSfl for FooSflI<CTX>
 where
-    CTX: FooCtx,
+    CTX: FooCtx + SqlxDbCtx<Database = Postgres>,
 {
     type In = FooIn;
     type Out = FooOut;
     type E = FoaError<CTX>;
+    type DB = <<CTX as DbCtx>::Db as Db>::DB;
 
-    async fn sfl(
+    async fn tx_sfl(
         input: FooIn,
-        tx: &mut Transaction<'_, Postgres>,
+        tx: &mut Transaction<'_, Self::DB>,
     ) -> Result<FooOut, FoaError<CTX>> {
         FooSflI::<CTX>::foo_sfl(input, tx).await
     }
@@ -140,9 +143,9 @@ where
 
 impl<CTX> FooSflI<CTX>
 where
-    CTX: FooCtx + DbCtx<Db: Db>,
+    CTX: FooCtx + SqlxDbCtx<Database = Postgres>,
 {
     pub async fn sfl(input: FooIn) -> Result<FooOut, FoaError<CTX>> {
-        pg_sfl::<CTX, FooSflI<CTX>>(input).await
+        txnl_sfl::<CTX, FooSflI<CTX>>(input).await
     }
 }

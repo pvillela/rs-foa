@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use super::common::AppCfgInfoArc;
 use foa::{
     context::{Cfg, DbCtx},
-    db::sqlx::pg::{pg_sfl, Db, PgSfl},
+    db::sqlx::pg::{txnl_sfl, Db, SqlxDbCtx, TxSfl},
     error::FoaError,
     refinto::RefInto,
 };
@@ -89,24 +89,25 @@ impl<'a> RefInto<'a, InitDafCfgInfo<'a>> for AppCfgInfoArc {
 //=================
 // This code section depends on platform stechnology-specific frameworks
 
-impl<CTX> PgSfl for InitDafI<CTX>
+impl<CTX> TxSfl for InitDafI<CTX>
 where
-    CTX: InitDafCtx,
+    CTX: InitDafCtx + SqlxDbCtx<Database = Postgres>,
 {
     type In = ();
     type Out = ();
     type E = FoaError<CTX>;
+    type DB = <<CTX as DbCtx>::Db as Db>::DB;
 
-    async fn sfl(_: (), tx: &mut Transaction<'_, Postgres>) -> Result<(), FoaError<CTX>> {
+    async fn tx_sfl(_: (), tx: &mut Transaction<'_, Self::DB>) -> Result<(), FoaError<CTX>> {
         InitDafI::<CTX>::init_daf(tx).await
     }
 }
 
 impl<CTX> InitDafI<CTX>
 where
-    CTX: InitDafCtx + DbCtx<Db: Db>,
+    CTX: InitDafCtx + SqlxDbCtx<Database = Postgres>,
 {
     pub async fn sfl() -> Result<(), FoaError<CTX>> {
-        pg_sfl::<CTX, InitDafI<CTX>>(()).await
+        txnl_sfl::<CTX, InitDafI<CTX>>(()).await
     }
 }
