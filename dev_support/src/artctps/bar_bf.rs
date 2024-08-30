@@ -3,14 +3,14 @@ use foa::{context::Cfg, refinto::RefInto};
 use tracing::instrument;
 
 //=================
-// This code section defines the stereotype signature
+// This section defines the stereotype signature
 
 pub trait BarBf<CTX> {
     fn bar_bf(base_age: i32, age_delta: i32) -> i32;
 }
 
 //=================
-// This code section implements the stereotype but depends on signatures only
+// This section implements the stereotype but depends on signatures only
 
 pub struct BarBfCfgInfo {
     pub age_increment: i32,
@@ -38,12 +38,12 @@ where
 }
 
 //=================
-// This code section depends on dependencies implementations
+// This section depends on dependencies implementations
 
 // *** N/A ***
 
 //=================
-// This code section depends on application configuration implementation
+// This section depends on application configuration implementation
 
 impl<'a> RefInto<'a, BarBfCfgInfo> for AppCfgInfoArc {
     fn ref_into(&'a self) -> BarBfCfgInfo {
@@ -54,6 +54,6 @@ impl<'a> RefInto<'a, BarBfCfgInfo> for AppCfgInfoArc {
 }
 
 //=================
-// This code section depends on platform stechnology-specific frameworks
+// This section has additional platform stechnology-specific code
 
 // *** N/A ***

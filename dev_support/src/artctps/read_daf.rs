@@ -4,7 +4,7 @@ use sqlx::{Postgres, Transaction};
 use tracing::instrument;
 
 //=================
-// This code section defines the stereotype signature
+// This section defines the stereotype signature
 
 pub trait ReadDaf<CTX> {
     #[allow(async_fn_in_trait)]
@@ -12,7 +12,7 @@ pub trait ReadDaf<CTX> {
 }
 
 //=================
-// This code section implements the stereotype but depends on signatures only
+// This section implements the stereotype but depends on signatures only
 
 pub struct ReadDafCfgInfo<'a> {
     pub name: &'a str,
@@ -47,12 +47,12 @@ where
 }
 
 //=================
-// This code section depends on dependencies implementations
+// This section depends on dependencies implementations
 
 // *** N/A ***
 
 //=================
-// This code section depends on application configuration implementation
+// This section depends on application configuration implementation
 
 impl<'a> RefInto<'a, ReadDafCfgInfo<'a>> for AppCfgInfoArc {
     fn ref_into(&'a self) -> ReadDafCfgInfo {
@@ -61,6 +61,6 @@ impl<'a> RefInto<'a, ReadDafCfgInfo<'a>> for AppCfgInfoArc {
 }
 
 //=================
-// This code section depends on platform stechnology-specific frameworks
+// This section has additional platform stechnology-specific code
 
 // *** N/A ***
