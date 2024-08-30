@@ -5,7 +5,7 @@ use common_test_artctps::{
 };
 use dev_support::artctps::common::db_pool;
 use dev_support::artctps::FooOut;
-use foa::{context::Cfg, db::sqlx::pg::Db};
+use foa::{context::Cfg, db::sqlx::Db};
 use sqlx::PgPool;
 
 #[derive(Debug)]

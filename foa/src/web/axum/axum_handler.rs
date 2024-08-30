@@ -1,4 +1,4 @@
-use crate::db::sqlx::pg::{pg_sfl, Db, PgSfl};
+use crate::db::sqlx::{pg_sfl, Db, PgSfl};
 use crate::error::FoaError;
 use axum::response::IntoResponse;
 use axum::Json;

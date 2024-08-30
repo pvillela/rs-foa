@@ -4,7 +4,7 @@ use dev_support::artctps::{
     BarBfCfgInfo, FooIn, FooOut, FooSflCfgInfo, FooSflI, InitDafCfgInfo, InitDafI, ReadDafCfgInfo,
     UpdateDafCfgInfo,
 };
-use foa::{context::Cfg, db::sqlx::pg::Db, error::FoaError, refinto::RefInto};
+use foa::{context::Cfg, db::sqlx::Db, error::FoaError, refinto::RefInto};
 use tokio;
 
 pub struct BarBfCfgTestInput {

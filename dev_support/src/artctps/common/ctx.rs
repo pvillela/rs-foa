@@ -1,6 +1,6 @@
 use arc_swap::{ArcSwap, ArcSwapAny};
 use foa::context::{Context, Itself, RefCntWrapper};
-use foa::db::sqlx::pg::Db;
+use foa::db::sqlx::Db;
 use sqlx::PgPool;
 use std::i32;
 use std::sync::{

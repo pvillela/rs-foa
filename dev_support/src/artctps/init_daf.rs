@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use super::common::AppCfgInfoArc;
 use foa::{
     context::Cfg,
-    db::sqlx::pg::{pg_sfl, Db, PgSfl},
+    db::sqlx::{pg_sfl, Db, PgSfl},
     error::FoaError,
     refinto::RefInto,
 };
