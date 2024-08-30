@@ -6,12 +6,14 @@ use common_test_artctps::{
 use dev_support::artctps::common::db_pool;
 use dev_support::artctps::FooOut;
 use foa::{context::Cfg, db::sqlx::Db};
-use sqlx::PgPool;
+use sqlx::{PgPool, Postgres};
 
 #[derive(Debug)]
 struct Ctx<const K: u8> {}
 
 impl<const K: u8> Db for Ctx<K> {
+    type Database = Postgres;
+
     async fn pool() -> Result<PgPool, sqlx::Error> {
         db_pool().await
     }

@@ -54,6 +54,6 @@ impl<'a> RefInto<'a, BarBfCfgInfo> for AppCfgInfoArc {
 }
 
 //=================
-// This section has additional platform stechnology-specific code
+// This section has additional platform technology-specific code
 
 // *** N/A ***

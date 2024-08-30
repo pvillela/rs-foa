@@ -4,7 +4,7 @@ use dev_support::artctps::{
     BarBfCfgInfo, FooIn, FooOut, FooSflCfgInfo, FooSflI, InitDafCfgInfo, InitDafI, ReadDafCfgInfo,
     UpdateDafCfgInfo,
 };
-use foa::{context::Cfg, db::sqlx::Db, error::FoaError, refinto::RefInto};
+use foa::{context::Cfg, db::sqlx::PgDb, error::FoaError, refinto::RefInto};
 use tokio;
 
 pub struct BarBfCfgTestInput {
@@ -66,7 +66,7 @@ impl<'a> RefInto<'a, InitDafCfgInfo<'a>> for CfgTestInput {
 
 pub async fn common_test<CTX>() -> Result<FooOut, FoaError<CTX>>
 where
-    CTX: Cfg<CfgInfo = CfgTestInput> + Db + 'static + Send + Debug,
+    CTX: Cfg<CfgInfo = CfgTestInput> + PgDb + 'static + Send + Debug,
 {
     InitDafI::<CTX>::sfl().await?;
     let handle = tokio::spawn(async move { FooSflI::<CTX>::sfl(FooIn { age_delta: 1 }).await });

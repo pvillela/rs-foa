@@ -1,4 +1,4 @@
-use crate::db::sqlx::{pg_sfl, Db, PgSfl};
+use crate::db::sqlx::{txnl_sfl, AsyncTxFn, Db};
 use crate::error::FoaError;
 use axum::response::IntoResponse;
 use axum::Json;
@@ -17,12 +17,12 @@ where
 
 pub async fn handler_pg<CTX, F>(Json(input): Json<F::In>) -> Result<Json<F::Out>, F::E>
 where
-    CTX: Db,
-    F: PgSfl,
+    CTX: Db<Database = F::Database>,
+    F: AsyncTxFn,
     F::In: 'static + serde::Deserialize<'static>,
     F::Out: IntoResponse + Send + Sync,
 {
-    let output = pg_sfl::<CTX, F>(input).await?;
+    let output = txnl_sfl::<CTX, F>(input).await?;
     Ok(Json(output))
 }
 

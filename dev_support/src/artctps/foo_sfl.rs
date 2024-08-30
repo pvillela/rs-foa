@@ -5,7 +5,7 @@ use axum::{
 };
 use foa::{
     context::Cfg,
-    db::sqlx::{pg_sfl, Db, PgSfl},
+    db::sqlx::{txnl_sfl, AsyncTxFn, PgDb},
     error::FoaError,
     refinto::RefInto,
 };
@@ -114,7 +114,7 @@ impl<'a> RefInto<'a, FooSflCfgInfo<'a>> for AppCfgInfoArc {
 }
 
 //=================
-// This section has additional platform stechnology-specific code
+// This section has additional platform technology-specific code
 
 impl IntoResponse for FooOut {
     fn into_response(self) -> Response {
@@ -122,15 +122,16 @@ impl IntoResponse for FooOut {
     }
 }
 
-impl<CTX> PgSfl for FooSflI<CTX>
+impl<CTX> AsyncTxFn for FooSflI<CTX>
 where
-    CTX: FooCtx,
+    CTX: FooCtx + PgDb,
 {
     type In = FooIn;
     type Out = FooOut;
     type E = FoaError<CTX>;
+    type Database = CTX::Database;
 
-    async fn sfl(
+    async fn call(
         input: FooIn,
         tx: &mut Transaction<'_, Postgres>,
     ) -> Result<FooOut, FoaError<CTX>> {
@@ -140,9 +141,9 @@ where
 
 impl<CTX> FooSflI<CTX>
 where
-    CTX: FooCtx + Db,
+    CTX: FooCtx + PgDb,
 {
     pub async fn sfl(input: FooIn) -> Result<FooOut, FoaError<CTX>> {
-        pg_sfl::<CTX, FooSflI<CTX>>(input).await
+        txnl_sfl::<CTX, FooSflI<CTX>>(input).await
     }
 }
