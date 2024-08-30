@@ -4,7 +4,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use foa::{
-    context::{Cfg, DbCtx},
+    context::Cfg,
     db::sqlx::pg::{pg_sfl, Db, PgSfl},
     error::FoaError,
     refinto::RefInto,
@@ -140,7 +140,7 @@ where
 
 impl<CTX> FooSflI<CTX>
 where
-    CTX: FooCtx + DbCtx<Db: Db>,
+    CTX: FooCtx + Db,
 {
     pub async fn sfl(input: FooIn) -> Result<FooOut, FoaError<CTX>> {
         pg_sfl::<CTX, FooSflI<CTX>>(input).await

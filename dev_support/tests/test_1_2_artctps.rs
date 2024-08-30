@@ -5,68 +5,55 @@ use common_test_artctps::{
 };
 use dev_support::artctps::common::db_pool;
 use dev_support::artctps::FooOut;
-use foa::{
-    context::{Cfg, DbCtx},
-    db::sqlx::pg::Db,
-};
+use foa::{context::Cfg, db::sqlx::pg::Db};
 use sqlx::PgPool;
 
-struct CtxDb;
+#[derive(Debug)]
+struct Ctx<const K: u8> {}
 
-impl Db for CtxDb {
+impl<const K: u8> Db for Ctx<K> {
     async fn pool() -> Result<PgPool, sqlx::Error> {
         db_pool().await
     }
 }
 
-// mod t1 {
+mod t1 {
+    use super::*;
 
-//     use super::*;
+    impl Cfg for Ctx<1> {
+        type CfgInfo = CfgTestInput;
 
-//     #[derive(Debug, PartialEq)]
-//     struct Ctx;
+        fn cfg() -> Self::CfgInfo {
+            CfgTestInput {
+                foo: FooSflCfgTestInput {
+                    n: "Paulo".to_owned(),
+                    c: 42,
+                },
+                bar: BarBfCfgTestInput { incr: 11 },
+                init: InitDafCfgTestinput { init_age: 10 },
+            }
+        }
+    }
 
-//     impl Cfg for Ctx {
-//         type CfgInfo = CfgTestInput;
+    #[tokio::test]
+    async fn test1() {
+        let res = common_test::<Ctx<1>>().await;
+        let res_str = format!("{res:?}");
+        let res_opt = res.ok();
 
-//         fn cfg() -> Self::CfgInfo {
-//             CfgTestInput {
-//                 foo: FooSflCfgTestInput {
-//                     n: "Paulo".to_owned(),
-//                     c: 42,
-//                 },
-//                 bar: BarBfCfgTestInput { incr: 11 },
-//                 init: InitDafCfgTestinput { init_age: 10 },
-//             }
-//         }
-//     }
-
-//     impl DbCtx for Ctx {
-//         type Db = CtxDb;
-//     }
-
-//     #[tokio::test]
-//     async fn test1() {
-//         let res = common_test::<Ctx>().await;
-//         let res_str = format!("{res:?}");
-//         let res_opt = res.ok();
-
-//         let expected = FooOut {
-//             name: Ctx::cfg().foo.n,
-//             new_age: 1 + Ctx::cfg().init.init_age + Ctx::cfg().bar.incr,
-//             refresh_count: Ctx::cfg().foo.c,
-//         };
-//         assert_eq!(res_opt, Some(expected), "res={res_str}");
-//     }
-// }
+        let expected = FooOut {
+            name: Ctx::<1>::cfg().foo.n,
+            new_age: 1 + Ctx::<1>::cfg().init.init_age + Ctx::<1>::cfg().bar.incr,
+            refresh_count: Ctx::<1>::cfg().foo.c,
+        };
+        assert_eq!(res_opt, Some(expected), "res={res_str}");
+    }
+}
 
 mod t2 {
     use super::*;
 
-    #[derive(Debug)]
-    struct Ctx;
-
-    impl Cfg for Ctx {
+    impl Cfg for Ctx<2> {
         type CfgInfo = CfgTestInput;
 
         fn cfg() -> Self::CfgInfo {
@@ -81,20 +68,16 @@ mod t2 {
         }
     }
 
-    impl DbCtx for Ctx {
-        type Db = CtxDb;
-    }
-
     #[tokio::test]
     async fn test2() {
-        let res = common_test::<Ctx>().await;
+        let res = common_test::<Ctx<2>>().await;
         let res_str = format!("{res:?}");
         let res_opt = res.ok();
 
         let expected = FooOut {
-            name: Ctx::cfg().foo.n,
-            new_age: 1 + Ctx::cfg().init.init_age + Ctx::cfg().bar.incr,
-            refresh_count: Ctx::cfg().foo.c,
+            name: Ctx::<2>::cfg().foo.n,
+            new_age: 1 + Ctx::<2>::cfg().init.init_age + Ctx::<2>::cfg().bar.incr,
+            refresh_count: Ctx::<2>::cfg().foo.c,
         };
         assert_eq!(res_opt, Some(expected), "res={res_str}");
     }

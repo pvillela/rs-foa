@@ -84,10 +84,6 @@ pub trait ErrCtx: Debug + Send + Sync + 'static {
     type LocalizedMsg: LocalizedMsg;
 }
 
-pub trait DbCtx {
-    type Db;
-}
-
 pub trait SecCtx {
     // TBD
 }

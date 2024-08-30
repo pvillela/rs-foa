@@ -1,7 +1,4 @@
-use crate::{
-    context::DbCtx,
-    error::{ErrorKind, FoaError},
-};
+use crate::error::{ErrorKind, FoaError};
 use sqlx::{PgPool, Postgres, Transaction};
 use std::future::Future;
 
@@ -28,10 +25,10 @@ pub trait PgSfl {
 
 pub async fn pg_sfl<CTX, F>(input: F::In) -> Result<F::Out, F::E>
 where
-    CTX: DbCtx<Db: Db>,
+    CTX: Db,
     F: PgSfl,
 {
-    let pool = CTX::Db::pool().await?;
+    let pool = CTX::pool().await?;
     let mut tx = pool.begin().await?;
     let output = F::sfl(input, &mut tx).await?;
     tx.commit().await?;

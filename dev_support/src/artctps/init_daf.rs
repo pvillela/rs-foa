@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use super::common::AppCfgInfoArc;
 use foa::{
-    context::{Cfg, DbCtx},
+    context::Cfg,
     db::sqlx::pg::{pg_sfl, Db, PgSfl},
     error::FoaError,
     refinto::RefInto,
@@ -104,7 +104,7 @@ where
 
 impl<CTX> InitDafI<CTX>
 where
-    CTX: InitDafCtx + DbCtx<Db: Db>,
+    CTX: InitDafCtx + Db,
 {
     pub async fn sfl() -> Result<(), FoaError<CTX>> {
         pg_sfl::<CTX, InitDafI<CTX>>(()).await
