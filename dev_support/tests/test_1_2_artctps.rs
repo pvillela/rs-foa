@@ -37,8 +37,7 @@ mod t1 {
         }
     }
 
-    #[tokio::test]
-    async fn test1() {
+    pub(super) async fn test_serial() {
         let res = common_test::<Ctx<1>>().await;
         let res_str = format!("{res:?}");
         let res_opt = res.ok();
@@ -70,9 +69,7 @@ mod t2 {
         }
     }
 
-    #[ignore = "Can't run concurrently with test1"]
-    #[tokio::test]
-    async fn test2() {
+    pub(super) async fn test_serial() {
         let res = common_test::<Ctx<2>>().await;
         let res_str = format!("{res:?}");
         let res_opt = res.ok();
@@ -84,4 +81,10 @@ mod t2 {
         };
         assert_eq!(res_opt, Some(expected), "res={res_str}");
     }
+}
+
+#[tokio::test]
+async fn test_serial_1_2() {
+    t1::test_serial().await;
+    t2::test_serial().await;
 }

@@ -1,8 +1,6 @@
-use std::fmt::Debug;
-
 use dev_support::artctps::{
-    BarBfCfgInfo, FooIn, FooOut, FooSflCfgInfo, FooSflI, InitDafCfgInfo, InitDafI, ReadDafCfgInfo,
-    UpdateDafCfgInfo,
+    BarBfCfgInfo, FooCtx, FooIn, FooOut, FooSfl, FooSflCfgInfo, FooSflI, InitDaf, InitDafCfgInfo,
+    InitDafCtx, InitDafI, ReadDafCfgInfo, UpdateDafCfgInfo,
 };
 use foa::{
     context::Cfg,
@@ -10,7 +8,9 @@ use foa::{
     error::FoaError,
     refinto::RefInto,
 };
-use tokio;
+use sqlx::{Postgres, Transaction};
+use std::{fmt::Debug, marker::PhantomData};
+use tokio::{self};
 
 pub struct BarBfCfgTestInput {
     pub incr: i32,
@@ -69,11 +69,31 @@ impl<'a> RefInto<'a, InitDafCfgInfo<'a>> for CfgTestInput {
     }
 }
 
+pub struct TestFooSflI<CTX>(PhantomData<CTX>);
+
+impl<CTX> AsyncTxFn<CTX> for TestFooSflI<CTX>
+where
+    CTX: FooCtx + InitDafCtx + PgDb,
+{
+    type In = FooIn;
+    type Out = FooOut;
+    type E = FoaError<CTX>;
+
+    async fn call(
+        input: FooIn,
+        tx: &mut Transaction<'_, Postgres>,
+    ) -> Result<FooOut, FoaError<CTX>> {
+        InitDafI::<CTX>::init_daf(tx).await?;
+        FooSflI::<CTX>::foo_sfl(input, tx).await
+    }
+}
+
 pub async fn common_test<CTX>() -> Result<FooOut, FoaError<CTX>>
 where
     CTX: Cfg<CfgInfo = CfgTestInput> + PgDb + 'static + Send + Debug,
 {
     InitDafI::<CTX>::in_tx(()).await?;
-    let handle = tokio::spawn(async move { FooSflI::<CTX>::in_tx(FooIn { age_delta: 1 }).await });
+    let handle =
+        tokio::spawn(async move { TestFooSflI::<CTX>::in_tx(FooIn { age_delta: 1 }).await });
     handle.await.expect("common_test_artctps tokio spawn error")
 }
