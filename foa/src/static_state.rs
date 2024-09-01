@@ -4,10 +4,14 @@ use std::{
     sync::{Arc, OnceLock},
 };
 
-pub trait StaticState<S: 'static> {
-    fn get_static() -> &'static OnceLock<S>;
+pub trait StaticState<D = ()> {
+    type State: 'static;
 
-    fn get_or_init_state<E>(f: impl FnOnce() -> Result<S, E>) -> Result<&'static S, E> {
+    fn get_static() -> &'static OnceLock<Self::State>;
+
+    fn get_or_init_state<E>(
+        f: impl FnOnce() -> Result<Self::State, E>,
+    ) -> Result<&'static Self::State, E> {
         let static_ref = Self::get_static();
         let state_opt = static_ref.get();
         match state_opt {
@@ -20,10 +24,10 @@ pub trait StaticState<S: 'static> {
     }
 
     #[allow(async_fn_in_trait)]
-    async fn get_or_init_state_async<E, F, Fut>(f: F) -> Result<&'static S, E>
+    async fn get_or_init_state_async<E, F, Fut>(f: F) -> Result<&'static Self::State, E>
     where
         F: FnOnce() -> Fut,
-        Fut: Future<Output = Result<S, E>>,
+        Fut: Future<Output = Result<Self::State, E>>,
     {
         let static_ref = Self::get_static();
         let state_opt = static_ref.get();
@@ -36,19 +40,23 @@ pub trait StaticState<S: 'static> {
         }
     }
 
-    fn try_state() -> Option<&'static S> {
+    fn try_state() -> Option<&'static Self::State> {
         Self::get_static().get()
     }
 
-    fn state() -> &'static S {
+    fn state() -> &'static Self::State {
         Self::try_state().expect("static state should be initialized")
     }
 }
 
-pub trait StaticStateMut<S: 'static> {
-    fn get_static() -> &'static OnceLock<ArcSwap<S>>;
+pub trait StaticStateMut<D = ()> {
+    type State: 'static;
 
-    fn get_or_init_state<E>(f: impl FnOnce() -> Result<S, E>) -> Result<Arc<S>, E> {
+    fn get_static() -> &'static OnceLock<ArcSwap<Self::State>>;
+
+    fn get_or_init_state<E>(
+        f: impl FnOnce() -> Result<Self::State, E>,
+    ) -> Result<Arc<Self::State>, E> {
         let static_ref = Self::get_static();
         let asw_opt = static_ref.get();
         let state_arc = match asw_opt {
@@ -63,10 +71,10 @@ pub trait StaticStateMut<S: 'static> {
     }
 
     #[allow(async_fn_in_trait)]
-    async fn get_or_init_state_async<E, F, Fut>(f: F) -> Result<Arc<S>, E>
+    async fn get_or_init_state_async<E, F, Fut>(f: F) -> Result<Arc<Self::State>, E>
     where
         F: FnOnce() -> Fut,
-        Fut: Future<Output = Result<S, E>>,
+        Fut: Future<Output = Result<Self::State, E>>,
     {
         let static_ref = Self::get_static();
         let asw_opt = static_ref.get();
@@ -81,7 +89,7 @@ pub trait StaticStateMut<S: 'static> {
         Ok(state_arc)
     }
 
-    fn update_state(state: S) {
+    fn update_state(state: Self::State) {
         let static_ref = Self::get_static();
         let asw_opt = static_ref.get();
         match asw_opt {
@@ -94,11 +102,11 @@ pub trait StaticStateMut<S: 'static> {
         };
     }
 
-    fn try_state() -> Option<Arc<S>> {
+    fn try_state() -> Option<Arc<Self::State>> {
         Self::get_static().get().map(|asw| asw.load().clone())
     }
 
-    fn state() -> Arc<S> {
+    fn state() -> Arc<Self::State> {
         let asw = Self::get_static()
             .get()
             .expect("static state should be initialized");

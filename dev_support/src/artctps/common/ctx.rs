@@ -44,13 +44,17 @@ pub async fn db_pool() -> Result<Pool<Postgres>, sqlx::Error> {
 #[derive(Debug, Clone)]
 pub struct Ctx;
 
-impl StaticState<CtxInfo> for Ctx {
+impl StaticState for Ctx {
+    type State = CtxInfo;
+
     fn get_static() -> &'static OnceLock<CtxInfo> {
         &CTX_INFO
     }
 }
 
-impl StaticStateMut<AppCfgInfo> for Ctx {
+impl StaticStateMut for Ctx {
+    type State = AppCfgInfo;
+
     fn get_static() -> &'static OnceLock<ArcSwap<AppCfgInfo>> {
         &APP_CFG_INFO
     }
@@ -60,7 +64,7 @@ impl Cfg for Ctx {
     type CfgInfo = AppCfgInfoArc;
 
     fn cfg() -> Self::CfgInfo {
-        <Ctx as StaticStateMut<_>>::state()
+        <Ctx as StaticStateMut>::state()
     }
 }
 
@@ -68,7 +72,7 @@ impl Db for Ctx {
     type Database = Postgres;
 
     async fn pool() -> Result<Pool<Postgres>, sqlx::Error> {
-        Ok(<Ctx as StaticState<_>>::state().db.clone())
+        Ok(<Ctx as StaticState>::state().db.clone())
     }
 }
 
