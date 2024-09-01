@@ -1,10 +1,7 @@
 use std::time::Duration;
 
 use axum::Router;
-use dev_support::artctps::{
-    common::{AppCfgInfo, Ctx},
-    FooSflI,
-};
+use dev_support::artctps::{common::Ctx, FooSflI};
 use foa::web::axum::handler_pg;
 
 #[tokio::main]
@@ -14,7 +11,9 @@ async fn main() {
     let h = tokio::spawn(async {
         loop {
             tokio::time::sleep(Duration::from_millis(500)).await;
-            AppCfgInfo::refresh_app_configuration();
+            Ctx::refresh_app_cfg_info()
+                .await
+                .expect("Ctx::read_app_cfg_info() error");
         }
     });
 

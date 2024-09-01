@@ -1,7 +1,4 @@
-use super::{
-    common::{AppCfgInfo, Ctx},
-    FooIn, FooSflI,
-};
+use super::{common::Ctx, FooIn, FooSflI};
 use foa::db::sqlx::AsyncTxFn;
 use futures::future::join_all;
 use std::time::{Duration, Instant};
@@ -50,7 +47,9 @@ pub async fn run(input: RunIn) {
                 app_cfg_refresh_delta_units * unit_time_millis,
             ))
             .await;
-            AppCfgInfo::refresh_app_configuration();
+            Ctx::refresh_app_cfg_info()
+                .await
+                .expect("Ctx::read_app_cfg_info() error");
             println!(
                 "App configuration refreshed at elapsed time {:?}.",
                 start_time.elapsed()
