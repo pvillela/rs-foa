@@ -3,7 +3,7 @@ mod common_test_artctps;
 use common_test_artctps::{
     common_test, BarBfCfgTestInput, CfgTestInput, FooSflCfgTestInput, InitDafCfgTestinput,
 };
-use dev_support::artctps::common::db_pool;
+use dev_support::artctps::common::new_db_pool;
 use dev_support::artctps::FooOut;
 use foa::{context::Cfg, db::sqlx::Db};
 use sqlx::{PgPool, Postgres};
@@ -15,7 +15,7 @@ impl<const K: u8> Db for Ctx<K> {
     type Database = Postgres;
 
     async fn pool() -> Result<PgPool, sqlx::Error> {
-        db_pool().await
+        new_db_pool().await
     }
 }
 

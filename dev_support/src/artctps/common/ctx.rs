@@ -1,8 +1,9 @@
+use crate::artctps::InitDafI;
 use arc_swap::ArcSwap;
 use foa::context::Cfg;
 use foa::db::sqlx::{AsyncTxFn, Db};
 use foa::error::FoaError;
-use foa::static_state::{StaticState, StaticStateMut};
+use foa::static_state::StaticStateMut;
 use sqlx::{Pool, Postgres};
 use std::i32;
 use std::sync::{
@@ -10,10 +11,7 @@ use std::sync::{
     Arc, OnceLock,
 };
 
-use crate::artctps::InitDafI;
-
-static APP_CFG_INFO: OnceLock<ArcSwap<AppCfgInfo>> = OnceLock::new();
-static CTX_INFO: OnceLock<CtxInfo> = OnceLock::new();
+static CTX_INFO: OnceLock<ArcSwap<CtxInfo>> = OnceLock::new();
 static REFRESH_COUNT: AtomicU32 = AtomicU32::new(0);
 
 #[derive(Debug, Clone)]
@@ -28,35 +26,22 @@ pub type AppCfgInfoArc = Arc<AppCfgInfo>;
 
 #[derive(Debug, Clone)]
 pub struct CtxInfo {
+    app_cfg: AppCfgInfoArc,
     db: Pool<Postgres>,
 }
 
-pub async fn db_pool() -> Result<Pool<Postgres>, sqlx::Error> {
-    let f = || async {
-        let pool = Pool::connect("postgres://testuser:testpassword@localhost:9999/testdb").await?;
-        Ok(CtxInfo { db: pool })
-    };
-    <Ctx as StaticState<_>>::get_or_init_state_async(f)
-        .await
-        .map(|info| info.db.clone())
+pub async fn new_db_pool() -> Result<Pool<Postgres>, sqlx::Error> {
+    Pool::connect("postgres://testuser:testpassword@localhost:9999/testdb").await
 }
 
 #[derive(Debug, Clone)]
 pub struct Ctx;
 
-impl StaticState for Ctx {
+impl StaticStateMut for Ctx {
     type State = CtxInfo;
 
-    fn get_static() -> &'static OnceLock<CtxInfo> {
+    fn get_static() -> &'static OnceLock<ArcSwap<CtxInfo>> {
         &CTX_INFO
-    }
-}
-
-impl StaticStateMut for Ctx {
-    type State = AppCfgInfo;
-
-    fn get_static() -> &'static OnceLock<ArcSwap<AppCfgInfo>> {
-        &APP_CFG_INFO
     }
 }
 
@@ -64,7 +49,7 @@ impl Cfg for Ctx {
     type CfgInfo = AppCfgInfoArc;
 
     fn cfg() -> Self::CfgInfo {
-        <Ctx as StaticStateMut>::state()
+        Ctx::state().app_cfg.clone()
     }
 }
 
@@ -72,7 +57,7 @@ impl Db for Ctx {
     type Database = Postgres;
 
     async fn pool() -> Result<Pool<Postgres>, sqlx::Error> {
-        Ok(<Ctx as StaticState>::state().db.clone())
+        Ok(Ctx::state().db.clone())
     }
 }
 
@@ -82,37 +67,49 @@ impl Ctx {
     /// # Panics
     /// If there are any errors during initialization.
     pub async fn init() {
-        Self::refresh_app_cfg_info()
+        Self::refresh_cfg()
             .await
             .expect("Ctx::init: read_app_cfg_info error");
-        db_pool().await.expect("Ctx::init: db_pool error");
+        new_db_pool().await.expect("Ctx::init: db_pool error");
         InitDafI::<Ctx>::in_tx(())
             .await
             .expect("Ctx::init: data initialization error");
     }
 
-    /// Simulates reading app config info from external source.
-    pub async fn refresh_app_cfg_info() -> Result<(), FoaError<Ctx>> {
-        let f = || async {
-            let count = REFRESH_COUNT.fetch_add(1, Ordering::Relaxed);
-            let app_cfg_info = match REFRESH_COUNT.load(Ordering::Relaxed) {
-                0 => AppCfgInfo {
-                    x: "Paulo".into(),
-                    y: 10,
-                    z: 2,
-                    refresh_count: count,
-                },
-                _ => AppCfgInfo {
-                    x: "Paulo".into(),
-                    y: 100,
-                    z: 20,
-                    refresh_count: count,
-                },
-            };
-            Ok::<AppCfgInfo, FoaError<Ctx>>(app_cfg_info)
+    /// Simulates reading [`AppCfgInfo`] from external source.
+    pub async fn read_app_cfg_info() -> Result<AppCfgInfo, FoaError<Ctx>> {
+        let count = REFRESH_COUNT.fetch_add(1, Ordering::Relaxed);
+        let app_cfg_info = match REFRESH_COUNT.load(Ordering::Relaxed) {
+            0 => AppCfgInfo {
+                x: "Paulo".into(),
+                y: 10,
+                z: 2,
+                refresh_count: count,
+            },
+            _ => AppCfgInfo {
+                x: "Paulo".into(),
+                y: 100,
+                z: 20,
+                refresh_count: count,
+            },
         };
-        let app_cfg_info = f().await?;
-        <Ctx as StaticStateMut<_>>::update_state(app_cfg_info);
+        Ok(app_cfg_info)
+    }
+
+    /// Refreshes [`CtxInfo`] based on [`AppCfgInfo`] read from external source.
+    pub async fn refresh_cfg() -> Result<(), FoaError<Ctx>> {
+        let app_cfg = Arc::new(Self::read_app_cfg_info().await?);
+        let new_state = match Self::try_state() {
+            None => CtxInfo {
+                app_cfg,
+                db: new_db_pool().await?,
+            },
+            Some(state) => CtxInfo {
+                app_cfg,
+                db: state.db.clone(),
+            },
+        };
+        Ctx::update_state(new_state);
         Ok(())
     }
 }

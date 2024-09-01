@@ -11,7 +11,7 @@ async fn main() {
     let h = tokio::spawn(async {
         loop {
             tokio::time::sleep(Duration::from_millis(500)).await;
-            Ctx::refresh_app_cfg_info()
+            Ctx::refresh_cfg()
                 .await
                 .expect("Ctx::read_app_cfg_info() error");
         }

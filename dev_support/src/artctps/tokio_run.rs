@@ -47,7 +47,7 @@ pub async fn run(input: RunIn) {
                 app_cfg_refresh_delta_units * unit_time_millis,
             ))
             .await;
-            Ctx::refresh_app_cfg_info()
+            Ctx::refresh_cfg()
                 .await
                 .expect("Ctx::read_app_cfg_info() error");
             println!(
