@@ -1,9 +1,13 @@
 use crate::{
     error::{ErrorKind, FoaError},
-    tokio::task_local::TaskLocalCtx,
+    tokio::task_local::{TaskLocal, TaskLocalCtx},
 };
 use sqlx::{Database, Pool, Postgres, Transaction};
 use std::future::Future;
+
+pub trait DbCtx {
+    type Db: Db;
+}
 
 pub trait Db {
     type Database: Database;
@@ -12,8 +16,8 @@ pub trait Db {
 }
 
 /// Type alias
-pub trait PgDb: Db<Database = Postgres> {}
-impl<T> PgDb for T where T: Db<Database = Postgres> {}
+pub trait PgDbCtx: DbCtx<Db: Db<Database = Postgres>> {}
+impl<T> PgDbCtx for T where T: DbCtx<Db: Db<Database = Postgres>> {}
 
 pub const DB_ERROR: ErrorKind<0, true> = ErrorKind("DB_ERROR", "database error");
 
@@ -25,7 +29,7 @@ impl<CTX> From<sqlx::Error> for FoaError<CTX> {
 
 pub trait AsyncTxFn<CTX>
 where
-    CTX: Db,
+    CTX: DbCtx,
 {
     type In;
     type Out;
@@ -34,12 +38,12 @@ where
     #[allow(async_fn_in_trait)]
     async fn call(
         input: Self::In,
-        tx: &mut Transaction<CTX::Database>,
+        tx: &mut Transaction<<CTX::Db as Db>::Database>,
     ) -> Result<Self::Out, Self::E>;
 
     #[allow(async_fn_in_trait)]
     async fn in_tx(input: Self::In) -> Result<Self::Out, Self::E> {
-        let pool = CTX::pool().await?;
+        let pool = CTX::Db::pool().await?;
         let mut tx = pool.begin().await?;
         let output = Self::call(input, &mut tx).await?;
         tx.commit().await?;
@@ -49,7 +53,7 @@ where
 
 pub trait AsyncTlTxFn<CTX, D = ()>
 where
-    CTX: Db + TaskLocalCtx<D>,
+    CTX: DbCtx + TaskLocalCtx<D>,
 {
     type In;
     type Out;
@@ -58,14 +62,17 @@ where
     #[allow(async_fn_in_trait)]
     async fn call(
         input: Self::In,
-        tx: &mut Transaction<CTX::Database>,
+        tx: &mut Transaction<<CTX::Db as Db>::Database>,
     ) -> Result<Self::Out, Self::E>;
 
     #[allow(async_fn_in_trait)]
-    async fn tl_scoped_in_tx(value: CTX::ValueType, input: Self::In) -> Result<Self::Out, Self::E> {
-        let pool = CTX::pool().await?;
+    async fn tl_scoped_in_tx(
+        value: <CTX::TaskLocal as TaskLocal<D>>::ValueType,
+        input: Self::In,
+    ) -> Result<Self::Out, Self::E> {
+        let pool = CTX::Db::pool().await?;
         let mut tx = pool.begin().await?;
-        let lk = CTX::local_key();
+        let lk = CTX::TaskLocal::local_key();
         let output = lk.scope(value, Self::call(input, &mut tx)).await?;
         tx.commit().await?;
         Ok(output)

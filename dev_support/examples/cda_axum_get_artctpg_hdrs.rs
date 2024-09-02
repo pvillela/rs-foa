@@ -3,13 +3,13 @@ use std::time::Duration;
 use axum::Router;
 use dev_support::artctpg::{common::Ctx, FooIn, FooOut, FooSfl, FooSflI};
 use foa::{
-    db::sqlx::{AsyncTlTxFn, Db},
+    db::sqlx::AsyncTlTxFn,
     error::FoaError,
-    tokio::task_local::TaskLocalCtx,
+    tokio::task_local::{TaskLocal, TaskLocalCtx},
     web::axum::handler_tx_headers,
 };
 use serde::Serialize;
-use sqlx::Transaction;
+use sqlx::{Postgres, Transaction};
 
 #[derive(Serialize)]
 struct FooOutExt {
@@ -26,10 +26,10 @@ impl AsyncTlTxFn<Ctx> for F {
 
     async fn call(
         input: Self::In,
-        tx: &mut Transaction<'_, <Ctx as Db>::Database>,
+        tx: &mut Transaction<'_, Postgres>,
     ) -> Result<Self::Out, Self::E> {
         let foo = FooSflI::<Ctx>::foo_sfl(input, tx).await?;
-        let header_map = Ctx::cloned_tl_value();
+        let header_map = <Ctx as TaskLocalCtx>::TaskLocal::cloned_value();
         let headers = header_map
             .iter()
             .map(|(k, v)| (k.to_string(), v.to_str()))

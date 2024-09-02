@@ -1,17 +1,22 @@
 use crate::artctpg::InitDafI;
 use arc_swap::ArcSwap;
 use axum::http::HeaderMap;
-use foa::context::Cfg;
-use foa::db::sqlx::{AsyncTxFn, Db};
-use foa::error::FoaError;
-use foa::static_state::StaticStateMut;
-use foa::tokio::task_local::TaskLocalCtx;
-use sqlx::{Pool, Postgres};
-use std::i32;
-use std::sync::{
-    atomic::{AtomicU32, Ordering},
-    Arc, OnceLock,
+use foa::{
+    context::Cfg,
+    db::sqlx::{AsyncTxFn, Db, DbCtx},
+    error::FoaError,
+    static_state::StaticStateMut,
+    tokio::task_local::{TaskLocal, TaskLocalCtx},
 };
+use sqlx::{Pool, Postgres};
+use std::{
+    i32,
+    sync::{
+        atomic::{AtomicU32, Ordering},
+        Arc, OnceLock,
+    },
+};
+use tokio::task::LocalKey;
 
 static CTX_INFO: OnceLock<ArcSwap<CtxInfo>> = OnceLock::new();
 static REFRESH_COUNT: AtomicU32 = AtomicU32::new(0);
@@ -39,6 +44,8 @@ pub async fn new_db_pool() -> Result<Pool<Postgres>, sqlx::Error> {
 #[derive(Debug, Clone)]
 pub struct Ctx;
 
+pub struct SubCtx;
+
 impl StaticStateMut for Ctx {
     type State = CtxInfo;
 
@@ -55,12 +62,16 @@ impl Cfg for Ctx {
     }
 }
 
-impl Db for Ctx {
+impl Db for SubCtx {
     type Database = Postgres;
 
     async fn pool() -> Result<Pool<Postgres>, sqlx::Error> {
         Ok(Ctx::state().db.clone())
     }
+}
+
+impl DbCtx for Ctx {
+    type Db = SubCtx;
 }
 
 impl Ctx {
@@ -120,10 +131,14 @@ tokio::task_local! {
     static CTX_TL: HeaderMap;
 }
 
-impl TaskLocalCtx for Ctx {
+impl TaskLocal for SubCtx {
     type ValueType = HeaderMap;
 
-    fn local_key() -> &'static tokio::task::LocalKey<Self::ValueType> {
+    fn local_key() -> &'static LocalKey<Self::ValueType> {
         &CTX_TL
     }
+}
+
+impl TaskLocalCtx for Ctx {
+    type TaskLocal = SubCtx;
 }

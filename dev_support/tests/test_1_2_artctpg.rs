@@ -5,18 +5,25 @@ use common_test_artctpg::{
 };
 use dev_support::artctpg::common::new_db_pool;
 use dev_support::artctpg::FooOut;
-use foa::{context::Cfg, db::sqlx::Db};
+use foa::{
+    context::Cfg,
+    db::sqlx::{Db, DbCtx},
+};
 use sqlx::{PgPool, Postgres};
 
 #[derive(Debug)]
-struct Ctx<const K: u8> {}
+struct Ctx<const K: u8, const L: u8 = 0> {}
 
-impl<const K: u8> Db for Ctx<K> {
+impl<const K: u8> Db for Ctx<K, 1> {
     type Database = Postgres;
 
     async fn pool() -> Result<PgPool, sqlx::Error> {
         new_db_pool().await
     }
+}
+
+impl<const K: u8> DbCtx for Ctx<K> {
+    type Db = Ctx<K, 1>;
 }
 
 mod t1 {

@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use super::common::AppCfgInfoArc;
 use foa::{
     context::Cfg,
-    db::sqlx::{AsyncTxFn, PgDb},
+    db::sqlx::{AsyncTxFn, PgDbCtx},
     error::FoaError,
     refinto::RefInto,
 };
@@ -91,7 +91,7 @@ impl<'a> RefInto<'a, InitDafCfgInfo<'a>> for AppCfgInfoArc {
 
 impl<CTX> AsyncTxFn<CTX> for InitDafI<CTX>
 where
-    CTX: InitDafCtx + PgDb,
+    CTX: InitDafCtx + PgDbCtx,
 {
     type In = ();
     type Out = ();

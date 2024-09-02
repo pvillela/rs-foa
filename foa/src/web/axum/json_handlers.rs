@@ -1,10 +1,10 @@
-use crate::db::sqlx::{AsyncTlTxFn, AsyncTxFn, Db};
-use crate::tokio::task_local::TaskLocalCtx;
-use axum::http::HeaderMap;
-use axum::response::IntoResponse;
-use axum::Json;
-use futures::Future;
+use crate::{
+    db::sqlx::{AsyncTlTxFn, AsyncTxFn, DbCtx},
+    tokio::task_local::{TaskLocal, TaskLocalCtx},
+};
+use axum::{http::HeaderMap, response::IntoResponse, Json};
 use serde::{Deserialize, Serialize};
+use std::future::Future;
 
 pub fn handler_of<S, T, Fut>(
     f: impl Fn(S) -> Fut + 'static + Send + Sync + Clone,
@@ -19,7 +19,7 @@ where
 
 pub async fn handler_tx<CTX, F>(Json(input): Json<F::In>) -> Result<Json<F::Out>, Json<F::E>>
 where
-    CTX: Db,
+    CTX: DbCtx,
     F: AsyncTxFn<CTX>,
     F::In: Deserialize<'static> + 'static,
     F::Out: Serialize,
@@ -34,7 +34,8 @@ pub async fn handler_tx_headers<CTX, F, D>(
     Json(input): Json<F::In>,
 ) -> Result<Json<F::Out>, Json<F::E>>
 where
-    CTX: Db + TaskLocalCtx<D, ValueType = HeaderMap>,
+    CTX: DbCtx + TaskLocalCtx<D>,
+    CTX::TaskLocal: TaskLocal<D, ValueType = HeaderMap>,
     F: AsyncTlTxFn<CTX, D>,
     F::In: Deserialize<'static> + 'static,
     F::Out: Serialize,

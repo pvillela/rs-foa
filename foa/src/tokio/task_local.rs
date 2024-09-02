@@ -1,20 +1,24 @@
 use tokio::task::LocalKey;
 
 pub trait TaskLocalCtx<D = ()> {
+    type TaskLocal: TaskLocal<D>;
+}
+
+pub trait TaskLocal<D = ()> {
     type ValueType: 'static;
 
     fn local_key() -> &'static LocalKey<Self::ValueType>;
 
-    fn with_tl<U>(f: impl FnOnce(&Self::ValueType) -> U) -> U {
+    fn with<U>(f: impl FnOnce(&Self::ValueType) -> U) -> U {
         let lk = Self::local_key();
         lk.with(|v| f(v))
     }
 
-    fn cloned_tl_value() -> Self::ValueType
+    fn cloned_value() -> Self::ValueType
     where
         Self::ValueType: Clone,
     {
-        Self::with_tl(|v| v.clone())
+        Self::with(|v| v.clone())
     }
 }
 
@@ -26,8 +30,11 @@ pub trait TaskLocalScopedFn<CTX: TaskLocalCtx<D>, D = ()> {
     async fn call(input: Self::In) -> Self::Out;
 
     #[allow(async_fn_in_trait)]
-    async fn tl_scoped(value: CTX::ValueType, input: Self::In) -> Self::Out {
-        let lk = CTX::local_key();
+    async fn tl_scoped(
+        value: <CTX::TaskLocal as TaskLocal<D>>::ValueType,
+        input: Self::In,
+    ) -> Self::Out {
+        let lk = CTX::TaskLocal::local_key();
         lk.scope(value, Self::call(input)).await
     }
 }
@@ -47,15 +54,21 @@ mod test {
         static CTX_TL: TlWithLocale;
     }
 
-    async fn foo_sfl<CTX: TaskLocalCtx<ValueType: Clone>>() -> (CTX::ValueType, CTX::ValueType) {
-        let v1 = CTX::cloned_tl_value();
-        let v2 = CTX::with_tl(|v| v.clone());
+    async fn foo_sfl<CTX: TaskLocalCtx>() -> (
+        <CTX::TaskLocal as TaskLocal>::ValueType,
+        <CTX::TaskLocal as TaskLocal>::ValueType,
+    )
+    where
+        <CTX::TaskLocal as TaskLocal>::ValueType: Clone,
+    {
+        let v1 = CTX::TaskLocal::cloned_value();
+        let v2 = CTX::TaskLocal::with(|v| v.clone());
         (v1, v2)
     }
 
-    struct Ctx;
+    struct Ctx<const K: u8 = 0>;
 
-    impl TaskLocalCtx for Ctx {
+    impl TaskLocal for Ctx<1> {
         type ValueType = TlWithLocale;
 
         fn local_key() -> &'static LocalKey<Self::ValueType> {
@@ -63,14 +76,18 @@ mod test {
         }
     }
 
+    impl TaskLocalCtx for Ctx {
+        type TaskLocal = Ctx<1>;
+    }
+
     struct FooI<CTX>(PhantomData<CTX>);
 
-    impl<CTX: TaskLocalCtx<ValueType: Clone>> TaskLocalScopedFn<CTX> for FooI<CTX> {
+    impl TaskLocalScopedFn<Ctx> for FooI<Ctx> {
         type In = ();
-        type Out = (CTX::ValueType, CTX::ValueType);
+        type Out = (TlWithLocale, TlWithLocale);
 
         async fn call(_input: Self::In) -> Self::Out {
-            foo_sfl::<CTX>().await
+            foo_sfl::<Ctx>().await
         }
     }
 

@@ -1,7 +1,7 @@
 use super::{common::AppCfgInfoArc, BarBf, BarCtx, ReadDaf, ReadDafCtx, UpdateDaf, UpdateDafCtx};
 use foa::{
     context::Cfg,
-    db::sqlx::{AsyncTxFn, PgDb},
+    db::sqlx::{AsyncTxFn, PgDbCtx},
     error::FoaError,
     refinto::RefInto,
 };
@@ -114,7 +114,7 @@ impl<'a> RefInto<'a, FooSflCfgInfo<'a>> for AppCfgInfoArc {
 
 impl<CTX> AsyncTxFn<CTX> for FooSflI<CTX>
 where
-    CTX: FooCtx + PgDb,
+    CTX: FooCtx + PgDbCtx,
 {
     type In = FooIn;
     type Out = FooOut;

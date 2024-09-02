@@ -4,7 +4,7 @@ use dev_support::artctpg::{
 };
 use foa::{
     context::Cfg,
-    db::sqlx::{AsyncTxFn, PgDb},
+    db::sqlx::{AsyncTxFn, PgDbCtx},
     error::FoaError,
     refinto::RefInto,
 };
@@ -73,7 +73,7 @@ pub struct TestFooSflI<CTX>(PhantomData<CTX>);
 
 impl<CTX> AsyncTxFn<CTX> for TestFooSflI<CTX>
 where
-    CTX: FooCtx + InitDafCtx + PgDb,
+    CTX: FooCtx + InitDafCtx + PgDbCtx,
 {
     type In = FooIn;
     type Out = FooOut;
@@ -90,7 +90,7 @@ where
 
 pub async fn common_test<CTX>() -> Result<FooOut, FoaError<CTX>>
 where
-    CTX: Cfg<CfgInfo = CfgTestInput> + PgDb + 'static + Send + Debug,
+    CTX: Cfg<CfgInfo = CfgTestInput> + PgDbCtx + 'static + Send + Debug,
 {
     InitDafI::<CTX>::in_tx(()).await?;
     let handle =
