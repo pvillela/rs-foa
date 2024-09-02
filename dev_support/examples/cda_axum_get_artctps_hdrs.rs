@@ -29,7 +29,7 @@ impl AsyncTlTxFn<Ctx> for F {
         tx: &mut Transaction<'_, <Ctx as Db>::Database>,
     ) -> Result<Self::Out, Self::E> {
         let foo = FooSflI::<Ctx>::foo_sfl(input, tx).await?;
-        let header_map = Ctx::tl_value();
+        let header_map = Ctx::cloned_tl_value();
         let headers = header_map
             .iter()
             .map(|(k, v)| (k.to_string(), v.to_str()))

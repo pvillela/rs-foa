@@ -121,9 +121,9 @@ tokio::task_local! {
 }
 
 impl TaskLocalCtx for Ctx {
-    type TaskLocalType = HeaderMap;
+    type ValueType = HeaderMap;
 
-    fn get_static() -> &'static tokio::task::LocalKey<Self::TaskLocalType> {
+    fn local_key() -> &'static tokio::task::LocalKey<Self::ValueType> {
         &CTX_TL
     }
 }

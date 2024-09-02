@@ -62,13 +62,10 @@ where
     ) -> Result<Self::Out, Self::E>;
 
     #[allow(async_fn_in_trait)]
-    async fn tl_scoped_in_tx(
-        value: CTX::TaskLocalType,
-        input: Self::In,
-    ) -> Result<Self::Out, Self::E> {
+    async fn tl_scoped_in_tx(value: CTX::ValueType, input: Self::In) -> Result<Self::Out, Self::E> {
         let pool = CTX::pool().await?;
         let mut tx = pool.begin().await?;
-        let lk = CTX::get_static();
+        let lk = CTX::local_key();
         let output = lk.scope(value, Self::call(input, &mut tx)).await?;
         tx.commit().await?;
         Ok(output)

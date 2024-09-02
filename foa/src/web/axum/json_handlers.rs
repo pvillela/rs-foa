@@ -34,7 +34,7 @@ pub async fn handler_tx_headers<CTX, F, D>(
     Json(input): Json<F::In>,
 ) -> Result<Json<F::Out>, Json<F::E>>
 where
-    CTX: Db + TaskLocalCtx<D, TaskLocalType = HeaderMap>,
+    CTX: Db + TaskLocalCtx<D, ValueType = HeaderMap>,
     F: AsyncTlTxFn<CTX, D>,
     F::In: Deserialize<'static> + 'static,
     F::Out: Serialize,
