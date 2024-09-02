@@ -8,23 +8,35 @@ use foa::{
     tokio::task_local::TaskLocalCtx,
     web::axum::handler_tx_headers,
 };
+use serde::Serialize;
 use sqlx::Transaction;
+
+#[derive(Serialize)]
+struct FooOutExt {
+    foo: FooOut,
+    headers: Vec<(String, String)>,
+}
 
 struct F;
 
 impl AsyncTlTxFn<Ctx> for F {
     type In = FooIn;
-    type Out = FooOut;
+    type Out = FooOutExt;
     type E = FoaError<Ctx>;
 
     async fn call(
         input: Self::In,
         tx: &mut Transaction<'_, <Ctx as Db>::Database>,
     ) -> Result<Self::Out, Self::E> {
-        let mut foo_out = FooSflI::<Ctx>::foo_sfl(input, tx).await?;
-        let headers = Ctx::tl_value();
-        foo_out.name = format!("{:?}", headers);
-        Ok(foo_out)
+        let foo = FooSflI::<Ctx>::foo_sfl(input, tx).await?;
+        let header_map = Ctx::tl_value();
+        let headers = header_map
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_str()))
+            .filter(|(_, v)| v.is_ok())
+            .map(|(k, v)| (k.to_string(), v.unwrap().to_owned()))
+            .collect::<Vec<_>>();
+        Ok(FooOutExt { foo, headers })
     }
 }
 

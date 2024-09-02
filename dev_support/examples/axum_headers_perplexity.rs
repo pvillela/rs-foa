@@ -1,3 +1,6 @@
+//! Based on https://www.perplexity.ai/search/show-an-axum-post-service-exam-HywavVUyR4Ka1KgsY1OthQ,
+//! with corrections.
+
 use axum::{extract::Json, http::HeaderMap, routing::post, Router};
 use serde::{Deserialize, Serialize};
 
