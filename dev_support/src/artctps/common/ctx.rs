@@ -1,9 +1,11 @@
 use crate::artctps::InitDafI;
 use arc_swap::ArcSwap;
+use axum::http::HeaderMap;
 use foa::context::Cfg;
 use foa::db::sqlx::{AsyncTxFn, Db};
 use foa::error::FoaError;
 use foa::static_state::StaticStateMut;
+use foa::tokio::task_local::TaskLocalCtx;
 use sqlx::{Pool, Postgres};
 use std::i32;
 use std::sync::{
@@ -111,5 +113,17 @@ impl Ctx {
         };
         Ctx::update_state(new_state);
         Ok(())
+    }
+}
+
+tokio::task_local! {
+    static CTX_TL: HeaderMap;
+}
+
+impl TaskLocalCtx for Ctx {
+    type TaskLocalType = HeaderMap;
+
+    fn get_static() -> &'static tokio::task::LocalKey<Self::TaskLocalType> {
+        &CTX_TL
     }
 }

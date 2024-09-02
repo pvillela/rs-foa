@@ -6,6 +6,7 @@ pub mod nodebug;
 pub mod refinto;
 pub mod static_state;
 pub mod string;
+pub mod tokio;
 pub mod web;
 pub mod wrapper;
 pub mod wrapper_discr;

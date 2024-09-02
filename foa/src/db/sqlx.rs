@@ -1,4 +1,7 @@
-use crate::error::{ErrorKind, FoaError};
+use crate::{
+    error::{ErrorKind, FoaError},
+    tokio::task_local::TaskLocalCtx,
+};
 use sqlx::{Database, Pool, Postgres, Transaction};
 use std::future::Future;
 
@@ -39,6 +42,34 @@ where
         let pool = CTX::pool().await?;
         let mut tx = pool.begin().await?;
         let output = Self::call(input, &mut tx).await?;
+        tx.commit().await?;
+        Ok(output)
+    }
+}
+
+pub trait AsyncTlTxFn<CTX, D = ()>
+where
+    CTX: Db + TaskLocalCtx<D>,
+{
+    type In;
+    type Out;
+    type E: From<sqlx::Error>;
+
+    #[allow(async_fn_in_trait)]
+    async fn call(
+        input: Self::In,
+        tx: &mut Transaction<CTX::Database>,
+    ) -> Result<Self::Out, Self::E>;
+
+    #[allow(async_fn_in_trait)]
+    async fn tl_scoped_in_tx(
+        value: CTX::TaskLocalType,
+        input: Self::In,
+    ) -> Result<Self::Out, Self::E> {
+        let pool = CTX::pool().await?;
+        let mut tx = pool.begin().await?;
+        let lk = CTX::get_static();
+        let output = lk.scope(value, Self::call(input, &mut tx)).await?;
         tx.commit().await?;
         Ok(output)
     }

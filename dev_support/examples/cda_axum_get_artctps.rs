@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use axum::Router;
 use dev_support::artctps::{common::Ctx, FooSflI};
-use foa::web::axum::handler_pg;
+use foa::web::axum::handler_tx;
 
 #[tokio::main]
 async fn main() {
@@ -17,7 +17,7 @@ async fn main() {
         }
     });
 
-    let app = Router::new().route("/", axum::routing::post(handler_pg::<Ctx, FooSflI<Ctx>>));
+    let app = Router::new().route("/", axum::routing::post(handler_tx::<Ctx, FooSflI<Ctx>>));
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:8080")
         .await
