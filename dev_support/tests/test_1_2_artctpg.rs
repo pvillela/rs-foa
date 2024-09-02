@@ -1,10 +1,10 @@
-mod common_test_artctps;
+mod common_test_artctpg;
 
-use common_test_artctps::{
+use common_test_artctpg::{
     common_test, BarBfCfgTestInput, CfgTestInput, FooSflCfgTestInput, InitDafCfgTestinput,
 };
-use dev_support::artctps::common::new_db_pool;
-use dev_support::artctps::FooOut;
+use dev_support::artctpg::common::new_db_pool;
+use dev_support::artctpg::FooOut;
 use foa::{context::Cfg, db::sqlx::Db};
 use sqlx::{PgPool, Postgres};
 

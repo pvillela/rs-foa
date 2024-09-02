@@ -1,4 +1,4 @@
-use dev_support::artctps::{
+use dev_support::artctpg::{
     BarBfCfgInfo, FooCtx, FooIn, FooOut, FooSfl, FooSflCfgInfo, FooSflI, InitDaf, InitDafCfgInfo,
     InitDafCtx, InitDafI, ReadDafCfgInfo, UpdateDafCfgInfo,
 };

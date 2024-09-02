@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use axum::Router;
-use dev_support::artctps::{common::Ctx, FooIn, FooOut, FooSfl, FooSflI};
+use dev_support::artctpg::{common::Ctx, FooIn, FooOut, FooSfl, FooSflI};
 use foa::{
     db::sqlx::{AsyncTlTxFn, Db},
     error::FoaError,

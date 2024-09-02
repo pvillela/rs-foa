@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use axum::Router;
-use dev_support::artctps::{common::Ctx, FooSflI};
+use dev_support::artctpg::{common::Ctx, FooSflI};
 use foa::web::axum::handler_tx;
 
 #[tokio::main]
