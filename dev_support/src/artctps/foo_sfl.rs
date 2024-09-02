@@ -1,8 +1,4 @@
 use super::{common::AppCfgInfoArc, BarBf, BarCtx, ReadDaf, ReadDafCtx, UpdateDaf, UpdateDafCtx};
-use axum::{
-    self,
-    response::{IntoResponse, Response},
-};
 use foa::{
     context::Cfg,
     db::sqlx::{AsyncTxFn, PgDb},
@@ -115,12 +111,6 @@ impl<'a> RefInto<'a, FooSflCfgInfo<'a>> for AppCfgInfoArc {
 
 //=================
 // This section has additional platform technology-specific code
-
-impl IntoResponse for FooOut {
-    fn into_response(self) -> Response {
-        axum::Json(self).into_response()
-    }
-}
 
 impl<CTX> AsyncTxFn<CTX> for FooSflI<CTX>
 where
