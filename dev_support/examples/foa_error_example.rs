@@ -15,14 +15,14 @@ struct Ctx0TypeI;
 
 impl Locale for Ctx0TypeI {
     fn locale<'a>() -> &'a str {
-        "en-ca"
+        "en-CA"
     }
 }
 
 impl LocalizedMsg for Ctx0TypeI {
     fn localized_msg<'a>(kind: &'a str, locale: &'a str) -> Option<&'a str> {
         let res = match locale {
-            "en-ca" => match kind {
+            "en-CA" => match kind {
                 "ERROR0" => "no args",
                 "ERROR1" => "one arg is '{}' and that's it",
                 "ERROR2" => "two args are '{}' and '{}' and that's it",

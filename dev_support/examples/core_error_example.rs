@@ -11,12 +11,12 @@ use std::{
 
 static ERROR_DISPLAY_MAP: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
     HashMap::from([
-        ("err_kind_0-en-ca", "no args"),
-        ("err_kind_1-en-ca", "one arg is {} and that's it"),
-        ("err_kind_2-en-ca", "two args are {} and {} and that's it"),
-        ("err_kind_0-pt-br", "nenhum parâmetro"),
-        ("err_kind_1-pt-br", "um parâmetro {} e é só"),
-        ("err_kind_2-pt-br", "dois parâmetros {} e {} e nada mais"),
+        ("err_kind_0-en-CA", "no args"),
+        ("err_kind_1-en-CA", "one arg is {} and that's it"),
+        ("err_kind_2-en-CA", "two args are {} and {} and that's it"),
+        ("err_kind_0-pt-BR", "nenhum parâmetro"),
+        ("err_kind_1-pt-BR", "um parâmetro {} e é só"),
+        ("err_kind_2-pt-BR", "dois parâmetros {} e {} e nada mais"),
     ])
 });
 
@@ -25,13 +25,13 @@ const ERROR_KIND_1: &str = "err_kind_1";
 const ERROR_KIND_2: &str = "err_kind_2";
 
 static LOCALE_SELECTOR: AtomicUsize = AtomicUsize::new(0);
-const LOCALES: [&str; 3] = ["en-ca", "pt-br", "es-es"];
+const LOCALES: [&str; 3] = ["en-CA", "pt-BR", "es-ES"];
 
 #[derive(Debug, Clone)]
 struct Ctx1;
-struct Ctx1TypeI;
+struct SubCtx1;
 
-impl LocalizedMsg for Ctx1TypeI {
+impl LocalizedMsg for SubCtx1 {
     fn localized_msg<'a>(kind: &'a str, locale: &'a str) -> Option<&'a str> {
         let key = kind.to_owned() + "-" + locale;
         let raw_msg = ERROR_DISPLAY_MAP.get(&key.borrow())?;
@@ -39,31 +39,31 @@ impl LocalizedMsg for Ctx1TypeI {
     }
 }
 
-impl Locale for Ctx1TypeI {
+impl Locale for SubCtx1 {
     fn locale<'a>() -> &'a str {
         LOCALES[LOCALE_SELECTOR.load(Ordering::Relaxed)]
     }
 }
 
 impl ErrCtx for Ctx1 {
-    type Locale = Ctx1TypeI;
-    type LocalizedMsg = Ctx1TypeI;
+    type Locale = SubCtx1;
+    type LocalizedMsg = SubCtx1;
 }
 
 #[derive(Debug, Clone)]
 struct Ctx2;
-struct Ctx2TypeI;
+struct SubCtx2;
 
-impl LocalizedMsg for Ctx2TypeI {
+impl LocalizedMsg for SubCtx2 {
     fn localized_msg<'a>(kind: &'a str, locale: &'a str) -> Option<&'a str> {
         let res = match locale {
-            "en-ca" => match kind {
+            "en-CA" => match kind {
                 "err_kind_0" => "no args",
                 "err_kind_1" => "one arg is {} and that's it",
                 "err_kind_2" => "two args are {} and {} and that's it",
                 _ => return None,
             },
-            "pt-br" => match kind {
+            "pt-BR" => match kind {
                 "err_kind_0" => "nenhum parâmetro",
                 "err_kind_1" => "um parâmetro {} e é só",
                 "err_kind_2" => "dois parâmetros {} e {} e nada mais",
@@ -75,15 +75,15 @@ impl LocalizedMsg for Ctx2TypeI {
     }
 }
 
-impl Locale for Ctx2TypeI {
+impl Locale for SubCtx2 {
     fn locale<'a>() -> &'a str {
         LOCALES[LOCALE_SELECTOR.load(Ordering::Relaxed)]
     }
 }
 
 impl ErrCtx for Ctx2 {
-    type Locale = Ctx2TypeI;
-    type LocalizedMsg = Ctx2TypeI;
+    type Locale = SubCtx2;
+    type LocalizedMsg = SubCtx2;
 }
 
 type MyCoreError1 = CoreError<Ctx1>;

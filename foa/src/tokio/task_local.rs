@@ -95,7 +95,7 @@ mod test {
     async fn test() {
         let h = tokio::spawn(async {
             let tlc = TlWithLocale {
-                locale: "en-ca".into(),
+                locale: "en-CA".into(),
             };
             FooI::<Ctx>::tl_scoped(tlc, ()).await
         });
@@ -104,10 +104,10 @@ mod test {
             foo_out,
             (
                 TlWithLocale {
-                    locale: "en-ca".into(),
+                    locale: "en-CA".into(),
                 },
                 TlWithLocale {
-                    locale: "en-ca".into(),
+                    locale: "en-CA".into(),
                 }
             )
         );

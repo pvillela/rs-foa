@@ -59,14 +59,14 @@ struct Ctx0TypeI;
 impl LocalizedMsg for Ctx0TypeI {
     fn localized_msg<'a>(kind: &'a str, locale: &'a str) -> Option<&'a str> {
         let res = match locale {
-            "en-ca" => match kind {
+            "en-CA" => match kind {
                 "err_kind_0" => "no args",
                 "err_kind_1" => "one arg is {} and that's it",
                 "err_kind_2" => "two args are {} and {} and that's it",
                 "MixedError1" => "example of error enum localization: {}, {}, and {} are the args",
                 _ => return None,
             },
-            "pt-br" => match kind {
+            "pt-BR" => match kind {
                 "err_kind_0" => "nenhum parâmetro",
                 "err_kind_1" => "um parâmetro {} e é só",
                 "err_kind_2" => "dois parâmetros {} e {} e nada mais",
@@ -80,7 +80,7 @@ impl LocalizedMsg for Ctx0TypeI {
 
 impl Locale for Ctx0TypeI {
     fn locale<'a>() -> &'a str {
-        "en-ca"
+        "en-CA"
     }
 }
 
