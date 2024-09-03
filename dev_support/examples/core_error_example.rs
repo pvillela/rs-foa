@@ -6,6 +6,7 @@ use once_cell::sync::Lazy;
 use std::{
     borrow::Borrow,
     collections::HashMap,
+    ops::Deref,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
@@ -32,15 +33,15 @@ struct Ctx1;
 struct SubCtx1;
 
 impl LocalizedMsg for SubCtx1 {
-    fn localized_msg<'a>(kind: &'a str, locale: &'a str) -> Option<&'a str> {
-        let key = kind.to_owned() + "-" + locale;
+    fn localized_msg<'a>(kind: &'a str, locale: impl Deref<Target = str>) -> Option<&'a str> {
+        let key = kind.to_owned() + "-" + &locale;
         let raw_msg = ERROR_DISPLAY_MAP.get(&key.borrow())?;
         Some(*raw_msg)
     }
 }
 
 impl Locale for SubCtx1 {
-    fn locale<'a>() -> &'a str {
+    fn locale() -> impl Deref<Target = str> {
         LOCALES[LOCALE_SELECTOR.load(Ordering::Relaxed)]
     }
 }
@@ -55,8 +56,8 @@ struct Ctx2;
 struct SubCtx2;
 
 impl LocalizedMsg for SubCtx2 {
-    fn localized_msg<'a>(kind: &'a str, locale: &'a str) -> Option<&'a str> {
-        let res = match locale {
+    fn localized_msg<'a>(kind: &'a str, locale: impl Deref<Target = str>) -> Option<&'a str> {
+        let res = match locale.as_ref() {
             "en-CA" => match kind {
                 "err_kind_0" => "no args",
                 "err_kind_1" => "one arg is {} and that's it",
@@ -76,7 +77,7 @@ impl LocalizedMsg for SubCtx2 {
 }
 
 impl Locale for SubCtx2 {
-    fn locale<'a>() -> &'a str {
+    fn locale() -> impl Deref<Target = str> {
         LOCALES[LOCALE_SELECTOR.load(Ordering::Relaxed)]
     }
 }

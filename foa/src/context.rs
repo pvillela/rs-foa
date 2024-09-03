@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, ops::Deref};
 
 //=============
 // Context traits
@@ -14,11 +14,15 @@ pub trait Cfg {
 }
 
 pub trait LocalizedMsg {
-    fn localized_msg<'a>(kind: &'a str, locale: &'a str) -> Option<&'a str>;
+    fn localized_msg<'a>(kind: &'a str, locale: impl Deref<Target = str>) -> Option<&'a str>;
 }
 
 pub trait Locale {
-    fn locale<'a>() -> &'a str;
+    fn locale() -> impl Deref<Target = str>;
+}
+
+pub trait LocaleSelf {
+    fn locale(&self) -> &str;
 }
 
 pub trait ErrCtx: Debug + Send + Sync + 'static {
@@ -38,13 +42,13 @@ pub type NullCtx = ();
 pub struct NullCtxTypeI;
 
 impl LocalizedMsg for NullCtxTypeI {
-    fn localized_msg<'a>(_kind: &'a str, _locale: &'a str) -> Option<&'a str> {
+    fn localized_msg<'a>(_kind: &'a str, _locale: impl Deref<Target = str>) -> Option<&'a str> {
         None
     }
 }
 
 impl Locale for NullCtxTypeI {
-    fn locale<'a>() -> &'a str {
+    fn locale() -> impl Deref<Target = str> {
         ""
     }
 }

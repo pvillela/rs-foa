@@ -6,7 +6,7 @@ use foa::{
 };
 use regex::Regex;
 use serde::Serialize;
-use std::{fmt::Debug, marker::PhantomData};
+use std::{fmt::Debug, marker::PhantomData, ops::Deref};
 use thiserror::Error;
 
 #[derive(Error, Debug, Serialize)]
@@ -57,8 +57,8 @@ struct Ctx0;
 struct Ctx0TypeI;
 
 impl LocalizedMsg for Ctx0TypeI {
-    fn localized_msg<'a>(kind: &'a str, locale: &'a str) -> Option<&'a str> {
-        let res = match locale {
+    fn localized_msg<'a>(kind: &'a str, locale: impl Deref<Target = str>) -> Option<&'a str> {
+        let res = match locale.as_ref() {
             "en-CA" => match kind {
                 "err_kind_0" => "no args",
                 "err_kind_1" => "one arg is {} and that's it",
@@ -79,7 +79,7 @@ impl LocalizedMsg for Ctx0TypeI {
 }
 
 impl Locale for Ctx0TypeI {
-    fn locale<'a>() -> &'a str {
+    fn locale() -> impl Deref<Target = str> {
         "en-CA"
     }
 }

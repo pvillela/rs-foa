@@ -1,4 +1,4 @@
-use std::{error::Error, fmt::Debug};
+use std::{error::Error, fmt::Debug, ops::Deref};
 
 use foa::{
     context::{ErrCtx, Locale, LocalizedMsg},
@@ -14,14 +14,14 @@ struct Ctx0;
 struct Ctx0TypeI;
 
 impl Locale for Ctx0TypeI {
-    fn locale<'a>() -> &'a str {
+    fn locale() -> impl Deref<Target = str> {
         "en-CA"
     }
 }
 
 impl LocalizedMsg for Ctx0TypeI {
-    fn localized_msg<'a>(kind: &'a str, locale: &'a str) -> Option<&'a str> {
-        let res = match locale {
+    fn localized_msg<'a>(kind: &'a str, locale: impl Deref<Target = str>) -> Option<&'a str> {
+        let res = match locale.as_ref() {
             "en-CA" => match kind {
                 "ERROR0" => "no args",
                 "ERROR1" => "one arg is '{}' and that's it",
