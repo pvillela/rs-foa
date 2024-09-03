@@ -14,6 +14,7 @@ use sqlx::{Postgres, Transaction};
 #[derive(Serialize)]
 struct FooOutExt {
     foo: FooOut,
+    locale: String,
     headers: Vec<(String, String)>,
 }
 
@@ -30,13 +31,24 @@ impl AsyncTlTxFn<Ctx> for F {
     ) -> Result<Self::Out, Self::E> {
         let foo = FooSflI::<Ctx>::foo_sfl(input, tx).await?;
         let header_map = <Ctx as TaskLocalCtx>::TaskLocal::cloned_value();
+        let locale = {
+            let header_value = header_map.get("Accept-Language");
+            match header_value {
+                None => "en-CA",
+                Some(v) => v.to_str().unwrap_or("en-CA"),
+            }
+        };
         let headers = header_map
             .iter()
             .map(|(k, v)| (k.to_string(), v.to_str()))
             .filter(|(_, v)| v.is_ok())
             .map(|(k, v)| (k.to_string(), v.unwrap().to_owned()))
             .collect::<Vec<_>>();
-        Ok(FooOutExt { foo, headers })
+        Ok(FooOutExt {
+            foo,
+            locale: locale.into(),
+            headers,
+        })
     }
 }
 
