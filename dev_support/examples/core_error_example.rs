@@ -1,5 +1,5 @@
 use foa::{
-    context::{ErrCtx, Locale, LocalizedMsg},
+    context::{ErrCtx, Locale, LocaleCtx, LocalizedMsg},
     error::CoreError,
 };
 use once_cell::sync::Lazy;
@@ -46,8 +46,11 @@ impl Locale for SubCtx1 {
     }
 }
 
-impl ErrCtx for Ctx1 {
+impl LocaleCtx for Ctx1 {
     type Locale = SubCtx1;
+}
+
+impl ErrCtx for Ctx1 {
     type LocalizedMsg = SubCtx1;
 }
 
@@ -82,8 +85,10 @@ impl Locale for SubCtx2 {
     }
 }
 
-impl ErrCtx for Ctx2 {
+impl LocaleCtx for Ctx2 {
     type Locale = SubCtx2;
+}
+impl ErrCtx for Ctx2 {
     type LocalizedMsg = SubCtx2;
 }
 
@@ -91,7 +96,7 @@ type MyCoreError1 = CoreError<Ctx1>;
 type MyCoreError2 = CoreError<Ctx2>;
 
 fn main() {
-    println!("=================== Ctx");
+    println!("=================== Ctx1");
     println!();
     {
         let err0 = MyCoreError1::new(ERROR_KIND_0, vec![]);
@@ -137,7 +142,7 @@ fn main() {
         }
     }
 
-    println!("=================== Ctx1");
+    println!("=================== Ctx2");
     println!();
     {
         let err0 = MyCoreError2::new(ERROR_KIND_0, vec![]);

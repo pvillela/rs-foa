@@ -1,12 +1,15 @@
 use crate::artctpg::InitDafI;
 use arc_swap::ArcSwap;
-use axum::http::HeaderMap;
 use foa::{
-    context::Cfg,
+    context::{Cfg, Locale, LocaleCtx},
     db::sqlx::{AsyncTxFn, Db, DbCtx},
     error::FoaError,
     static_state::StaticStateMut,
-    tokio::task_local::{TaskLocal, TaskLocalCtx},
+    tokio::{
+        task_local::{TaskLocal, TaskLocalCtx},
+        task_local_ext::locale_from_task_local,
+    },
+    web::axum::TlHeaders,
 };
 use sqlx::{Pool, Postgres};
 use std::{
@@ -128,17 +131,27 @@ impl Ctx {
 }
 
 tokio::task_local! {
-    static CTX_TL: HeaderMap;
+    static CTX_TL: TlHeaders;
 }
 
 impl TaskLocal for SubCtx {
-    type ValueType = HeaderMap;
+    type ValueType = TlHeaders;
 
     fn local_key() -> &'static LocalKey<Self::ValueType> {
         &CTX_TL
     }
 }
 
+impl Locale for SubCtx {
+    fn locale() -> impl std::ops::Deref<Target = str> {
+        locale_from_task_local::<Self, ()>()
+    }
+}
+
 impl TaskLocalCtx for Ctx {
     type TaskLocal = SubCtx;
+}
+
+impl LocaleCtx for Ctx {
+    type Locale = SubCtx;
 }

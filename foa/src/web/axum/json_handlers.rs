@@ -1,4 +1,5 @@
 use crate::{
+    context::LocaleSelf,
     db::sqlx::{AsyncTlTxFn, AsyncTxFn, DbCtx},
     tokio::task_local::{TaskLocal, TaskLocalCtx},
 };
@@ -29,18 +30,33 @@ where
     Ok(Json(output))
 }
 
+#[derive(Clone)]
+pub struct TlHeaders {
+    pub headers: HeaderMap,
+}
+
+impl LocaleSelf for TlHeaders {
+    fn locale(&self) -> &str {
+        let header_value = self.headers.get("Accept-Language");
+        match header_value {
+            None => "en-CA",
+            Some(v) => v.to_str().unwrap_or("en-CA"),
+        }
+    }
+}
+
 pub async fn handler_tx_headers<CTX, F, D>(
     headers: HeaderMap,
     Json(input): Json<F::In>,
 ) -> Result<Json<F::Out>, Json<F::E>>
 where
     CTX: DbCtx + TaskLocalCtx<D>,
-    CTX::TaskLocal: TaskLocal<D, ValueType = HeaderMap>,
+    CTX::TaskLocal: TaskLocal<D, ValueType = TlHeaders>,
     F: AsyncTlTxFn<CTX, D>,
     F::In: Deserialize<'static> + 'static,
     F::Out: Serialize,
     F::E: Serialize,
 {
-    let output = F::tl_scoped_in_tx(headers, input).await?;
+    let output = F::tl_scoped_in_tx(TlHeaders { headers }, input).await?;
     Ok(Json(output))
 }

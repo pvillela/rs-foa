@@ -1,9 +1,10 @@
 use super::{common::AppCfgInfoArc, BarBf, BarCtx, ReadDaf, ReadDafCtx, UpdateDaf, UpdateDafCtx};
 use foa::{
-    context::Cfg,
-    db::sqlx::{AsyncTxFn, PgDbCtx},
+    context::{Cfg, Locale, LocaleCtx},
+    db::sqlx::{AsyncTlTxFn, AsyncTxFn, PgDbCtx},
     error::FoaError,
     refinto::RefInto,
+    tokio::task_local::TaskLocalCtx,
 };
 use serde::{Deserialize, Serialize};
 use sqlx::{Postgres, Transaction};
@@ -24,6 +25,7 @@ pub struct FooOut {
     pub name: String,
     pub new_age: i32,
     pub refresh_count: u32,
+    pub locale: String,
 }
 
 pub trait FooSfl<CTX> {
@@ -53,7 +55,7 @@ where
 
 impl<CTX, T> FooSfl<CTX> for T
 where
-    CTX: FooOnlyCtx,
+    CTX: FooOnlyCtx + LocaleCtx,
     T: BarBf<CTX> + ReadDaf<CTX> + UpdateDaf<CTX>,
 {
     #[instrument(level = "trace", skip_all)]
@@ -67,11 +69,13 @@ where
         let FooIn { age_delta } = input;
         let stored_age = Self::read_daf(tx).await?;
         let new_age = Self::bar_bf(stored_age, age_delta);
+        let locale = CTX::Locale::locale();
         Self::update_daf(new_age, tx).await?;
         Ok(FooOut {
             name: cfg.name.into(),
             new_age,
             refresh_count: cfg.count,
+            locale: locale.to_string(),
         })
     }
 }
@@ -91,7 +95,7 @@ mod illustrative {
     use super::*;
 
     trait FooSflAlias<CTX>: FooSfl<CTX> {}
-    impl<CTX, T> FooSflAlias<CTX> for T where CTX: FooCtx {}
+    impl<CTX, T> FooSflAlias<CTX> for T where CTX: FooCtx + LocaleCtx {}
 }
 
 /// Stereotype instance
@@ -114,7 +118,7 @@ impl<'a> RefInto<'a, FooSflCfgInfo<'a>> for AppCfgInfoArc {
 
 impl<CTX> AsyncTxFn<CTX> for FooSflI<CTX>
 where
-    CTX: FooCtx + PgDbCtx,
+    CTX: FooCtx + LocaleCtx + PgDbCtx,
 {
     type In = FooIn;
     type Out = FooOut;
@@ -125,5 +129,22 @@ where
         tx: &mut Transaction<'_, Postgres>,
     ) -> Result<FooOut, FoaError<CTX>> {
         FooSflI::<CTX>::foo_sfl(input, tx).await
+    }
+}
+
+impl<CTX> AsyncTlTxFn<CTX> for FooSflI<CTX>
+where
+    CTX: FooCtx + LocaleCtx + PgDbCtx + TaskLocalCtx,
+{
+    type In = FooIn;
+    type Out = FooOut;
+    type E = FoaError<CTX>;
+
+    async fn call(
+        input: Self::In,
+        tx: &mut Transaction<'_, Postgres>,
+    ) -> Result<Self::Out, Self::E> {
+        let foo_out = FooSflI::<CTX>::foo_sfl(input, tx).await?;
+        Ok(foo_out)
     }
 }

@@ -1,7 +1,7 @@
 use std::{error::Error, fmt::Debug, ops::Deref};
 
 use foa::{
-    context::{ErrCtx, Locale, LocalizedMsg},
+    context::{ErrCtx, Locale, LocaleCtx, LocalizedMsg},
     error::{ErrorKind, FoaError},
 };
 
@@ -11,15 +11,15 @@ const ERROR2: ErrorKind<2, true> = ErrorKind("ERROR2", "error kind with '{}' and
 
 #[derive(Debug, Clone)]
 struct Ctx0;
-struct Ctx0TypeI;
+struct SubCtx0;
 
-impl Locale for Ctx0TypeI {
+impl Locale for SubCtx0 {
     fn locale() -> impl Deref<Target = str> {
         "en-CA"
     }
 }
 
-impl LocalizedMsg for Ctx0TypeI {
+impl LocalizedMsg for SubCtx0 {
     fn localized_msg<'a>(kind: &'a str, locale: impl Deref<Target = str>) -> Option<&'a str> {
         let res = match locale.as_ref() {
             "en-CA" => match kind {
@@ -34,9 +34,12 @@ impl LocalizedMsg for Ctx0TypeI {
     }
 }
 
+impl LocaleCtx for Ctx0 {
+    type Locale = SubCtx0;
+}
+
 impl ErrCtx for Ctx0 {
-    type Locale = Ctx0TypeI;
-    type LocalizedMsg = Ctx0TypeI;
+    type LocalizedMsg = SubCtx0;
 }
 
 fn error0<CTX: ErrCtx>() -> FoaError<CTX> {

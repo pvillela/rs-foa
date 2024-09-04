@@ -1,7 +1,7 @@
 #![allow(clippy::disallowed_names)]
 
 use foa::{
-    context::{ErrCtx, Locale, LocalizedMsg},
+    context::{ErrCtx, Locale, LocaleCtx, LocalizedMsg},
     string::interpolated_localized_msg,
 };
 use regex::Regex;
@@ -54,9 +54,9 @@ where
 
 #[derive(Debug, Clone)]
 struct Ctx0;
-struct Ctx0TypeI;
+struct SubCtx0;
 
-impl LocalizedMsg for Ctx0TypeI {
+impl LocalizedMsg for SubCtx0 {
     fn localized_msg<'a>(kind: &'a str, locale: impl Deref<Target = str>) -> Option<&'a str> {
         let res = match locale.as_ref() {
             "en-CA" => match kind {
@@ -78,15 +78,18 @@ impl LocalizedMsg for Ctx0TypeI {
     }
 }
 
-impl Locale for Ctx0TypeI {
+impl Locale for SubCtx0 {
     fn locale() -> impl Deref<Target = str> {
         "en-CA"
     }
 }
 
+impl LocaleCtx for Ctx0 {
+    type Locale = SubCtx0;
+}
+
 impl ErrCtx for Ctx0 {
-    type Locale = Ctx0TypeI;
-    type LocalizedMsg = Ctx0TypeI;
+    type LocalizedMsg = SubCtx0;
 }
 
 type MyXyzError = XyzError<Ctx0>;

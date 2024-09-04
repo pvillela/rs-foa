@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use axum::Router;
 use dev_support::artctpg::{common::Ctx, FooIn, FooOut, FooSfl, FooSflI};
 use foa::{
@@ -10,11 +8,11 @@ use foa::{
 };
 use serde::Serialize;
 use sqlx::{Postgres, Transaction};
+use std::time::Duration;
 
 #[derive(Serialize)]
 struct FooOutExt {
     foo: FooOut,
-    locale: String,
     headers: Vec<(String, String)>,
 }
 
@@ -30,25 +28,15 @@ impl AsyncTlTxFn<Ctx> for F {
         tx: &mut Transaction<'_, Postgres>,
     ) -> Result<Self::Out, Self::E> {
         let foo = FooSflI::<Ctx>::foo_sfl(input, tx).await?;
-        let header_map = <Ctx as TaskLocalCtx>::TaskLocal::cloned_value();
-        let locale = {
-            let header_value = header_map.get("Accept-Language");
-            match header_value {
-                None => "en-CA",
-                Some(v) => v.to_str().unwrap_or("en-CA"),
-            }
-        };
+        let tl_value = <Ctx as TaskLocalCtx>::TaskLocal::cloned_value();
+        let header_map = tl_value.headers;
         let headers = header_map
             .iter()
             .map(|(k, v)| (k.to_string(), v.to_str()))
             .filter(|(_, v)| v.is_ok())
             .map(|(k, v)| (k.to_string(), v.unwrap().to_owned()))
             .collect::<Vec<_>>();
-        Ok(FooOutExt {
-            foo,
-            locale: locale.into(),
-            headers,
-        })
+        Ok(FooOutExt { foo, headers })
     }
 }
 

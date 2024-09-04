@@ -18,15 +18,18 @@ pub trait LocalizedMsg {
 }
 
 pub trait Locale {
-    fn locale() -> impl Deref<Target = str>;
+    fn locale() -> impl Deref<Target = str> + Send;
 }
 
 pub trait LocaleSelf {
     fn locale(&self) -> &str;
 }
 
-pub trait ErrCtx: Debug + Send + Sync + 'static {
+pub trait LocaleCtx {
     type Locale: Locale;
+}
+
+pub trait ErrCtx: LocaleCtx + Debug + Send + Sync + 'static {
     type LocalizedMsg: LocalizedMsg;
 }
 
@@ -53,7 +56,10 @@ impl Locale for NullCtxTypeI {
     }
 }
 
-impl ErrCtx for NullCtx {
+impl LocaleCtx for NullCtx {
     type Locale = NullCtxTypeI;
+}
+
+impl ErrCtx for NullCtx {
     type LocalizedMsg = NullCtxTypeI;
 }
