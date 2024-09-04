@@ -1,23 +1,23 @@
-use std::marker::PhantomData;
+use std::future::Future;
 
 pub trait AsyncFn {
     type In;
     type Out;
 
     #[allow(async_fn_in_trait)]
-    async fn invoke(input: Self::In) -> Self::Out;
+    async fn invoke(&self, input: Self::In) -> Self::Out;
 }
 
 pub trait AsyncRFn {
-    type In;
-    type Out;
+    type In: Send;
+    type Out: Send;
     type E;
 
     #[allow(async_fn_in_trait)]
-    async fn invoke(input: Self::In) -> Result<Self::Out, Self::E>;
+    fn invoke(&self, input: Self::In) -> impl Future<Output = Result<Self::Out, Self::E>> + Send;
 }
 
-pub struct AsyncRFnAsAsyncFn<F: AsyncRFn>(PhantomData<F>);
+pub struct AsyncRFnAsAsyncFn<F: AsyncRFn>(F);
 
 impl<F> AsyncFn for AsyncRFnAsAsyncFn<F>
 where
@@ -26,7 +26,7 @@ where
     type In = F::In;
     type Out = Result<F::Out, F::E>;
 
-    async fn invoke(input: Self::In) -> Self::Out {
-        F::invoke(input).await
+    async fn invoke(&self, input: Self::In) -> Self::Out {
+        self.0.invoke(input).await
     }
 }

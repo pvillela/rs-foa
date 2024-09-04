@@ -1,6 +1,6 @@
 use super::common::AppCfgInfoArc;
 use foa::{
-    context::Cfg,
+    context::{Cfg, Itself},
     db::sqlx::{AsyncTxFn, PgDbCtx},
     error::FoaError,
     refinto::RefInto,
@@ -68,6 +68,12 @@ where
 /// Stereotype instance
 pub struct InitDafI<CTX: InitDafCtx>(PhantomData<CTX>);
 
+impl<CTX: InitDafCtx> Itself for InitDafI<CTX> {
+    fn it() -> Self {
+        InitDafI(PhantomData)
+    }
+}
+
 //=================
 // This section depends on dependencies implementations
 
@@ -90,13 +96,14 @@ impl<'a> RefInto<'a, InitDafCfgInfo<'a>> for AppCfgInfoArc {
 
 impl<CTX> AsyncTxFn<CTX> for InitDafI<CTX>
 where
-    CTX: InitDafCtx + PgDbCtx,
+    CTX: InitDafCtx + PgDbCtx + Sync,
+    CTX::CfgInfo: Send,
 {
     type In = ();
     type Out = ();
     type E = FoaError<CTX>;
 
-    async fn invoke(_: (), tx: &mut Transaction<'_, Postgres>) -> Result<(), FoaError<CTX>> {
+    async fn invoke(&self, _: (), tx: &mut Transaction<'_, Postgres>) -> Result<(), FoaError<CTX>> {
         InitDafI::<CTX>::init_daf(tx).await
     }
 }

@@ -1,6 +1,6 @@
 use super::{common::AppCfgInfoArc, BarBf, BarCtx, ReadDaf, ReadDafCtx, UpdateDaf, UpdateDafCtx};
 use foa::{
-    context::{Cfg, Locale, LocaleCtx},
+    context::{Cfg, Itself, Locale, LocaleCtx},
     db::sqlx::{AsyncTxFn, PgDbCtx},
     error::FoaError,
     refinto::RefInto,
@@ -100,6 +100,12 @@ mod illustrative {
 /// Stereotype instance
 pub struct FooSflI<CTX: FooCtx>(PhantomData<CTX>);
 
+impl<CTX: FooCtx> Itself for FooSflI<CTX> {
+    fn it() -> Self {
+        FooSflI(PhantomData)
+    }
+}
+
 //=================
 // This section depends on application configuration implementation
 
@@ -117,13 +123,15 @@ impl<'a> RefInto<'a, FooSflCfgInfo<'a>> for AppCfgInfoArc {
 
 impl<CTX> AsyncTxFn<CTX> for FooSflI<CTX>
 where
-    CTX: FooCtx + LocaleCtx + PgDbCtx,
+    CTX: FooCtx + LocaleCtx + PgDbCtx + Sync,
+    CTX::CfgInfo: Send,
 {
     type In = FooIn;
     type Out = FooOut;
     type E = FoaError<CTX>;
 
     async fn invoke(
+        &self,
         input: FooIn,
         tx: &mut Transaction<'_, Postgres>,
     ) -> Result<FooOut, FoaError<CTX>> {

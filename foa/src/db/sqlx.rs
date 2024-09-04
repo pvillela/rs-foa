@@ -31,33 +31,50 @@ pub trait AsyncTxFn<CTX>
 where
     CTX: DbCtx,
 {
-    type In;
-    type Out;
+    type In: Send;
+    type Out: Send;
     type E: From<sqlx::Error>;
 
     #[allow(async_fn_in_trait)]
-    async fn invoke(
+    fn invoke(
+        &self,
         input: Self::In,
         tx: &mut Transaction<<CTX::Db as Db>::Database>,
-    ) -> Result<Self::Out, Self::E>;
+    ) -> impl Future<Output = Result<Self::Out, Self::E>> + Send;
 }
 
-pub struct InTx<CTX, F>(PhantomData<(CTX, F)>);
+struct InTx<CTX, F>(F, PhantomData<CTX>);
 
 impl<CTX, F> AsyncRFn for InTx<CTX, F>
 where
-    CTX: DbCtx,
-    F: AsyncTxFn<CTX>,
+    CTX: DbCtx + Sync,
+    F: AsyncTxFn<CTX> + Sync,
 {
     type In = F::In;
     type Out = F::Out;
     type E = F::E;
 
-    async fn invoke(input: Self::In) -> Result<Self::Out, Self::E> {
+    async fn invoke(&self, input: Self::In) -> Result<Self::Out, Self::E> {
         let pool = CTX::Db::pool().await?;
         let mut tx = pool.begin().await?;
-        let output = F::invoke(input, &mut tx).await?;
+        let output = self.0.invoke(input, &mut tx).await?;
         tx.commit().await?;
         Ok(output)
     }
+}
+
+pub async fn in_tx<CTX, F>(f: F) -> impl AsyncRFn<In = F::In, Out = F::Out, E = F::E>
+where
+    CTX: DbCtx + Sync,
+    F: AsyncTxFn<CTX> + Sync,
+{
+    InTx(f, PhantomData)
+}
+
+pub async fn invoke_in_tx<CTX, F>(f: F, input: F::In) -> Result<F::Out, F::E>
+where
+    CTX: DbCtx + Sync,
+    F: AsyncTxFn<CTX> + Sync,
+{
+    InTx(f, PhantomData).invoke(input).await
 }

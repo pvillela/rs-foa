@@ -1,6 +1,7 @@
 use axum::Router;
 use dev_support::artctpg::{common::Ctx, FooIn, FooOut, FooSfl, FooSflI};
 use foa::{
+    context::Itself,
     db::sqlx::AsyncTxFn,
     error::FoaError,
     tokio::task_local::{TaskLocal, TaskLocalCtx},
@@ -18,12 +19,19 @@ struct FooOutExt {
 
 struct F;
 
+impl Itself for F {
+    fn it() -> Self {
+        F
+    }
+}
+
 impl AsyncTxFn<Ctx> for F {
     type In = FooIn;
     type Out = FooOutExt;
     type E = FoaError<Ctx>;
 
     async fn invoke(
+        &self,
         input: Self::In,
         tx: &mut Transaction<'_, Postgres>,
     ) -> Result<Self::Out, Self::E> {

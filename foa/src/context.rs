@@ -4,7 +4,7 @@ use std::{fmt::Debug, ops::Deref};
 // Context traits
 
 pub trait Itself {
-    fn i() -> Self;
+    fn it() -> Self;
 }
 
 pub trait Cfg {

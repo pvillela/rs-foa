@@ -3,10 +3,9 @@ use dev_support::artctpg::{
     InitDafCtx, InitDafI, ReadDafCfgInfo, UpdateDafCfgInfo,
 };
 use foa::{
-    context::{Cfg, LocaleCtx},
-    db::sqlx::{AsyncTxFn, InTx, PgDbCtx},
+    context::{Cfg, Itself, LocaleCtx},
+    db::sqlx::{invoke_in_tx, AsyncTxFn, PgDbCtx},
     error::FoaError,
-    fun::AsyncRFn,
     refinto::RefInto,
 };
 use sqlx::{Postgres, Transaction};
@@ -70,17 +69,25 @@ impl<'a> RefInto<'a, InitDafCfgInfo<'a>> for CfgTestInput {
     }
 }
 
-pub struct TestFooSflI<CTX>(PhantomData<CTX>);
+struct TestFooSflI<CTX>(PhantomData<CTX>);
+
+impl<CTX> Itself for TestFooSflI<CTX> {
+    fn it() -> Self {
+        TestFooSflI(PhantomData)
+    }
+}
 
 impl<CTX> AsyncTxFn<CTX> for TestFooSflI<CTX>
 where
-    CTX: FooCtx + LocaleCtx + InitDafCtx + PgDbCtx,
+    CTX: FooCtx + LocaleCtx + InitDafCtx + PgDbCtx + Sync,
+    CTX::CfgInfo: Send,
 {
     type In = FooIn;
     type Out = FooOut;
     type E = FoaError<CTX>;
 
     async fn invoke(
+        &self,
         input: FooIn,
         tx: &mut Transaction<'_, Postgres>,
     ) -> Result<FooOut, FoaError<CTX>> {
@@ -91,12 +98,10 @@ where
 
 pub async fn common_test<CTX>() -> Result<FooOut, FoaError<CTX>>
 where
-    CTX: Cfg<CfgInfo = CfgTestInput> + LocaleCtx + PgDbCtx + 'static + Send + Debug,
+    CTX: Cfg<CfgInfo = CfgTestInput> + LocaleCtx + PgDbCtx + 'static + Send + Sync + Debug,
 {
-    InTx::<CTX, InitDafI<CTX>>::invoke(()).await?;
+    invoke_in_tx(InitDafI::it(), ()).await?;
     let handle =
-        tokio::spawn(
-            async move { InTx::<CTX, TestFooSflI<CTX>>::invoke(FooIn { age_delta: 1 }).await },
-        );
+        tokio::spawn(async move { invoke_in_tx(TestFooSflI::it(), FooIn { age_delta: 1 }).await });
     handle.await.expect("common_test_artctps tokio spawn error")
 }

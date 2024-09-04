@@ -2,10 +2,9 @@ use crate::artctpg::InitDafI;
 use arc_swap::ArcSwap;
 use axum::http::HeaderMap;
 use foa::{
-    context::{Cfg, Locale, LocaleCtx},
-    db::sqlx::{Db, DbCtx, InTx},
+    context::{Cfg, Itself, Locale, LocaleCtx},
+    db::sqlx::{invoke_in_tx, Db, DbCtx},
     error::FoaError,
-    fun::AsyncRFn,
     static_state::StaticStateMut,
     tokio::{
         task_local::{TaskLocal, TaskLocalCtx},
@@ -88,7 +87,7 @@ impl Ctx {
             .await
             .expect("Ctx::init: read_app_cfg_info error");
         new_db_pool().await.expect("Ctx::init: db_pool error");
-        InTx::<Ctx, InitDafI<Ctx>>::invoke(())
+        invoke_in_tx::<Ctx, _>(InitDafI::it(), ())
             .await
             .expect("Ctx::init: data initialization error");
     }

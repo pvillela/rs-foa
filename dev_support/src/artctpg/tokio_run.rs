@@ -1,5 +1,5 @@
 use super::{common::Ctx, FooIn, FooSflI};
-use foa::{db::sqlx::InTx, fun::AsyncRFn};
+use foa::{context::Itself, db::sqlx::invoke_in_tx};
 use futures::future::join_all;
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
@@ -15,8 +15,6 @@ pub struct RunIn {
 }
 
 pub async fn run(input: RunIn) {
-    let foo_sfl = InTx::<Ctx, FooSflI<Ctx>>::invoke;
-
     let RunIn {
         unit_time_millis,
         app_cfg_first_refresh_units,
@@ -57,23 +55,25 @@ pub async fn run(input: RunIn) {
         }
     });
 
-    let run_concurrent = |i: usize| {
-        tokio::spawn(async move {
-            let mut res: usize = 0;
-            for j in 0..repeats {
-                let out = foo_sfl(FooIn { age_delta: 11 }).await;
-                res = format!("{:?}", out).len();
-                if i == 0 && j % increment_to_print == 0 {
-                    println!(
-                        "foo executed at {:?} elapsed, res={}, out={:?}",
-                        start_time.elapsed(),
-                        res,
-                        out
-                    );
+    let run_concurrent = {
+        |i: usize| {
+            tokio::spawn(async move {
+                let mut res: usize = 0;
+                for j in 0..repeats {
+                    let out = invoke_in_tx::<Ctx, _>(FooSflI::it(), FooIn { age_delta: 11 }).await;
+                    res = format!("{:?}", out).len();
+                    if i == 0 && j % increment_to_print == 0 {
+                        println!(
+                            "foo executed at {:?} elapsed, res={}, out={:?}",
+                            start_time.elapsed(),
+                            res,
+                            out
+                        );
+                    }
                 }
-            }
-            res
-        })
+                res
+            })
+        }
     };
 
     let handles1 = (0..concurrency).map(run_concurrent).collect::<Vec<_>>();

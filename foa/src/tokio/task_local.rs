@@ -24,28 +24,54 @@ pub trait TaskLocal<D = ()> {
     }
 }
 
-pub struct TlScoped<CTX, F, D = ()>(PhantomData<(CTX, F, D)>);
+struct TlScoped<CTX, F, D = ()>(F, PhantomData<(CTX, D)>);
 
 impl<CTX, F, D> AsyncRFn for TlScoped<CTX, F, D>
 where
-    CTX: TaskLocalCtx<D>,
-    F: AsyncRFn,
+    CTX: TaskLocalCtx<D> + Sync,
+    <CTX::TaskLocal as TaskLocal<D>>::ValueType: Send,
+    F: AsyncRFn + Sync,
+    D: Sync,
 {
     type In = (<CTX::TaskLocal as TaskLocal<D>>::ValueType, F::In);
     type Out = F::Out;
     type E = F::E;
 
-    async fn invoke((value, input): Self::In) -> Result<Self::Out, Self::E> {
+    async fn invoke(&self, (value, input): Self::In) -> Result<Self::Out, Self::E> {
         let lk = CTX::TaskLocal::local_key();
-        let output = lk.scope(value, F::invoke(input)).await?;
+        let output = lk.scope(value, self.0.invoke(input)).await?;
         Ok(output)
     }
+}
+
+pub async fn tl_scoped<CTX, F, D>(
+    f: F,
+) -> impl AsyncRFn<In = (<CTX::TaskLocal as TaskLocal<D>>::ValueType, F::In), Out = F::Out, E = F::E>
+where
+    CTX: TaskLocalCtx<D> + Sync,
+    <CTX::TaskLocal as TaskLocal<D>>::ValueType: Send,
+    F: AsyncRFn + Sync,
+    D: Sync,
+{
+    TlScoped(f, PhantomData::<(CTX, D)>)
+}
+
+pub async fn invoke_tl_scoped<CTX, F, D>(
+    f: F,
+    input: (<CTX::TaskLocal as TaskLocal<D>>::ValueType, F::In),
+) -> Result<F::Out, F::E>
+where
+    CTX: TaskLocalCtx<D> + Sync,
+    <CTX::TaskLocal as TaskLocal<D>>::ValueType: Send,
+    F: AsyncRFn + Sync,
+    D: Sync,
+{
+    TlScoped(f, PhantomData::<(CTX, D)>).invoke(input).await
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use std::marker::PhantomData;
 
     #[allow(unused)]
     #[derive(Debug, Clone, PartialEq)]
@@ -83,14 +109,14 @@ mod test {
         type TaskLocal = Ctx<1>;
     }
 
-    struct FooI<CTX>(PhantomData<CTX>);
+    struct FooI<CTX>(CTX);
 
     impl AsyncRFn for FooI<Ctx> {
         type In = ();
         type Out = (TlWithLocale, TlWithLocale);
         type E = ();
 
-        async fn invoke(_input: Self::In) -> Result<Self::Out, ()> {
+        async fn invoke(&self, _input: Self::In) -> Result<Self::Out, ()> {
             Ok(foo_sfl::<Ctx>().await)
         }
     }
@@ -101,7 +127,7 @@ mod test {
             let tlc = TlWithLocale {
                 locale: "en-CA".into(),
             };
-            TlScoped::<Ctx, FooI<Ctx>>::invoke((tlc, ())).await
+            invoke_tl_scoped::<Ctx, _, _>(FooI(Ctx), (tlc, ())).await
         });
         let foo_out = h.await.unwrap();
         assert_eq!(
