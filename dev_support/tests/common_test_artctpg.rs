@@ -4,8 +4,9 @@ use dev_support::artctpg::{
 };
 use foa::{
     context::{Cfg, LocaleCtx},
-    db::sqlx::{AsyncTxFn, PgDbCtx},
+    db::sqlx::{AsyncTxFn, InTx, PgDbCtx},
     error::FoaError,
+    fun::AsyncRFn,
     refinto::RefInto,
 };
 use sqlx::{Postgres, Transaction};
@@ -79,7 +80,7 @@ where
     type Out = FooOut;
     type E = FoaError<CTX>;
 
-    async fn call(
+    async fn invoke(
         input: FooIn,
         tx: &mut Transaction<'_, Postgres>,
     ) -> Result<FooOut, FoaError<CTX>> {
@@ -92,8 +93,10 @@ pub async fn common_test<CTX>() -> Result<FooOut, FoaError<CTX>>
 where
     CTX: Cfg<CfgInfo = CfgTestInput> + LocaleCtx + PgDbCtx + 'static + Send + Debug,
 {
-    InitDafI::<CTX>::in_tx(()).await?;
+    InTx::<CTX, InitDafI<CTX>>::invoke(()).await?;
     let handle =
-        tokio::spawn(async move { TestFooSflI::<CTX>::in_tx(FooIn { age_delta: 1 }).await });
+        tokio::spawn(
+            async move { InTx::<CTX, TestFooSflI<CTX>>::invoke(FooIn { age_delta: 1 }).await },
+        );
     handle.await.expect("common_test_artctps tokio spawn error")
 }

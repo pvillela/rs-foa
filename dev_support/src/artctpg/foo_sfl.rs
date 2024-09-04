@@ -1,10 +1,9 @@
 use super::{common::AppCfgInfoArc, BarBf, BarCtx, ReadDaf, ReadDafCtx, UpdateDaf, UpdateDafCtx};
 use foa::{
     context::{Cfg, Locale, LocaleCtx},
-    db::sqlx::{AsyncTlTxFn, AsyncTxFn, PgDbCtx},
+    db::sqlx::{AsyncTxFn, PgDbCtx},
     error::FoaError,
     refinto::RefInto,
-    tokio::task_local::TaskLocalCtx,
 };
 use serde::{Deserialize, Serialize};
 use sqlx::{Postgres, Transaction};
@@ -124,27 +123,10 @@ where
     type Out = FooOut;
     type E = FoaError<CTX>;
 
-    async fn call(
+    async fn invoke(
         input: FooIn,
         tx: &mut Transaction<'_, Postgres>,
     ) -> Result<FooOut, FoaError<CTX>> {
         FooSflI::<CTX>::foo_sfl(input, tx).await
-    }
-}
-
-impl<CTX> AsyncTlTxFn<CTX> for FooSflI<CTX>
-where
-    CTX: FooCtx + LocaleCtx + PgDbCtx + TaskLocalCtx,
-{
-    type In = FooIn;
-    type Out = FooOut;
-    type E = FoaError<CTX>;
-
-    async fn call(
-        input: Self::In,
-        tx: &mut Transaction<'_, Postgres>,
-    ) -> Result<Self::Out, Self::E> {
-        let foo_out = FooSflI::<CTX>::foo_sfl(input, tx).await?;
-        Ok(foo_out)
     }
 }

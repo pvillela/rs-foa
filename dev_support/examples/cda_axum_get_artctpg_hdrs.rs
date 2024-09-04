@@ -1,7 +1,7 @@
 use axum::Router;
 use dev_support::artctpg::{common::Ctx, FooIn, FooOut, FooSfl, FooSflI};
 use foa::{
-    db::sqlx::AsyncTlTxFn,
+    db::sqlx::AsyncTxFn,
     error::FoaError,
     tokio::task_local::{TaskLocal, TaskLocalCtx},
     web::axum::handler_tx_headers,
@@ -18,18 +18,17 @@ struct FooOutExt {
 
 struct F;
 
-impl AsyncTlTxFn<Ctx> for F {
+impl AsyncTxFn<Ctx> for F {
     type In = FooIn;
     type Out = FooOutExt;
     type E = FoaError<Ctx>;
 
-    async fn call(
+    async fn invoke(
         input: Self::In,
         tx: &mut Transaction<'_, Postgres>,
     ) -> Result<Self::Out, Self::E> {
         let foo = FooSflI::<Ctx>::foo_sfl(input, tx).await?;
-        let tl_value = <Ctx as TaskLocalCtx>::TaskLocal::cloned_value();
-        let header_map = tl_value.headers;
+        let header_map = <Ctx as TaskLocalCtx>::TaskLocal::cloned_value();
         let headers = header_map
             .iter()
             .map(|(k, v)| (k.to_string(), v.to_str()))

@@ -1,3 +1,5 @@
+use crate::fun::AsyncRFn;
+use std::marker::PhantomData;
 use tokio::task::LocalKey;
 
 pub trait TaskLocalCtx<D = ()> {
@@ -22,20 +24,21 @@ pub trait TaskLocal<D = ()> {
     }
 }
 
-pub trait TaskLocalScopedFn<CTX: TaskLocalCtx<D>, D = ()> {
-    type In;
-    type Out;
+pub struct TlScoped<CTX, F, D = ()>(PhantomData<(CTX, F, D)>);
 
-    #[allow(async_fn_in_trait)]
-    async fn call(input: Self::In) -> Self::Out;
+impl<CTX, F, D> AsyncRFn for TlScoped<CTX, F, D>
+where
+    CTX: TaskLocalCtx<D>,
+    F: AsyncRFn,
+{
+    type In = (<CTX::TaskLocal as TaskLocal<D>>::ValueType, F::In);
+    type Out = F::Out;
+    type E = F::E;
 
-    #[allow(async_fn_in_trait)]
-    async fn tl_scoped(
-        value: <CTX::TaskLocal as TaskLocal<D>>::ValueType,
-        input: Self::In,
-    ) -> Self::Out {
+    async fn invoke((value, input): Self::In) -> Result<Self::Out, Self::E> {
         let lk = CTX::TaskLocal::local_key();
-        lk.scope(value, Self::call(input)).await
+        let output = lk.scope(value, F::invoke(input)).await?;
+        Ok(output)
     }
 }
 
@@ -82,12 +85,13 @@ mod test {
 
     struct FooI<CTX>(PhantomData<CTX>);
 
-    impl TaskLocalScopedFn<Ctx> for FooI<Ctx> {
+    impl AsyncRFn for FooI<Ctx> {
         type In = ();
         type Out = (TlWithLocale, TlWithLocale);
+        type E = ();
 
-        async fn call(_input: Self::In) -> Self::Out {
-            foo_sfl::<Ctx>().await
+        async fn invoke(_input: Self::In) -> Result<Self::Out, ()> {
+            Ok(foo_sfl::<Ctx>().await)
         }
     }
 
@@ -97,19 +101,19 @@ mod test {
             let tlc = TlWithLocale {
                 locale: "en-CA".into(),
             };
-            FooI::<Ctx>::tl_scoped(tlc, ()).await
+            TlScoped::<Ctx, FooI<Ctx>>::invoke((tlc, ())).await
         });
         let foo_out = h.await.unwrap();
         assert_eq!(
             foo_out,
-            (
+            Ok((
                 TlWithLocale {
                     locale: "en-CA".into(),
                 },
                 TlWithLocale {
                     locale: "en-CA".into(),
                 }
-            )
+            ))
         );
     }
 }

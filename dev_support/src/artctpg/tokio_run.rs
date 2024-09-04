@@ -1,5 +1,5 @@
 use super::{common::Ctx, FooIn, FooSflI};
-use foa::db::sqlx::AsyncTxFn;
+use foa::{db::sqlx::InTx, fun::AsyncRFn};
 use futures::future::join_all;
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
@@ -15,7 +15,7 @@ pub struct RunIn {
 }
 
 pub async fn run(input: RunIn) {
-    let foo_sfl = FooSflI::<Ctx>::in_tx;
+    let foo_sfl = InTx::<Ctx, FooSflI<Ctx>>::invoke;
 
     let RunIn {
         unit_time_millis,

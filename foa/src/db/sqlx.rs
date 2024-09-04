@@ -1,9 +1,9 @@
 use crate::{
     error::{ErrorKind, FoaError},
-    tokio::task_local::{TaskLocal, TaskLocalCtx},
+    fun::AsyncRFn,
 };
 use sqlx::{Database, Pool, Postgres, Transaction};
-use std::future::Future;
+use std::{future::Future, marker::PhantomData};
 
 pub trait DbCtx {
     type Db: Db;
@@ -36,44 +36,27 @@ where
     type E: From<sqlx::Error>;
 
     #[allow(async_fn_in_trait)]
-    async fn call(
+    async fn invoke(
         input: Self::In,
         tx: &mut Transaction<<CTX::Db as Db>::Database>,
     ) -> Result<Self::Out, Self::E>;
-
-    #[allow(async_fn_in_trait)]
-    async fn in_tx(input: Self::In) -> Result<Self::Out, Self::E> {
-        let pool = CTX::Db::pool().await?;
-        let mut tx = pool.begin().await?;
-        let output = Self::call(input, &mut tx).await?;
-        tx.commit().await?;
-        Ok(output)
-    }
 }
 
-pub trait AsyncTlTxFn<CTX, D = ()>
+pub struct InTx<CTX, F>(PhantomData<(CTX, F)>);
+
+impl<CTX, F> AsyncRFn for InTx<CTX, F>
 where
-    CTX: DbCtx + TaskLocalCtx<D>,
+    CTX: DbCtx,
+    F: AsyncTxFn<CTX>,
 {
-    type In;
-    type Out;
-    type E: From<sqlx::Error>;
+    type In = F::In;
+    type Out = F::Out;
+    type E = F::E;
 
-    #[allow(async_fn_in_trait)]
-    async fn call(
-        input: Self::In,
-        tx: &mut Transaction<<CTX::Db as Db>::Database>,
-    ) -> Result<Self::Out, Self::E>;
-
-    #[allow(async_fn_in_trait)]
-    async fn tl_scoped_in_tx(
-        value: <CTX::TaskLocal as TaskLocal<D>>::ValueType,
-        input: Self::In,
-    ) -> Result<Self::Out, Self::E> {
+    async fn invoke(input: Self::In) -> Result<Self::Out, Self::E> {
         let pool = CTX::Db::pool().await?;
         let mut tx = pool.begin().await?;
-        let lk = CTX::TaskLocal::local_key();
-        let output = lk.scope(value, Self::call(input, &mut tx)).await?;
+        let output = F::invoke(input, &mut tx).await?;
         tx.commit().await?;
         Ok(output)
     }

@@ -1,15 +1,16 @@
 use crate::artctpg::InitDafI;
 use arc_swap::ArcSwap;
+use axum::http::HeaderMap;
 use foa::{
     context::{Cfg, Locale, LocaleCtx},
-    db::sqlx::{AsyncTxFn, Db, DbCtx},
+    db::sqlx::{Db, DbCtx, InTx},
     error::FoaError,
+    fun::AsyncRFn,
     static_state::StaticStateMut,
     tokio::{
         task_local::{TaskLocal, TaskLocalCtx},
         task_local_ext::locale_from_task_local,
     },
-    web::axum::TlHeaders,
 };
 use sqlx::{Pool, Postgres};
 use std::{
@@ -87,7 +88,7 @@ impl Ctx {
             .await
             .expect("Ctx::init: read_app_cfg_info error");
         new_db_pool().await.expect("Ctx::init: db_pool error");
-        InitDafI::<Ctx>::in_tx(())
+        InTx::<Ctx, InitDafI<Ctx>>::invoke(())
             .await
             .expect("Ctx::init: data initialization error");
     }
@@ -131,11 +132,11 @@ impl Ctx {
 }
 
 tokio::task_local! {
-    static CTX_TL: TlHeaders;
+    static CTX_TL: HeaderMap;
 }
 
 impl TaskLocal for SubCtx {
-    type ValueType = TlHeaders;
+    type ValueType = HeaderMap;
 
     fn local_key() -> &'static LocalKey<Self::ValueType> {
         &CTX_TL

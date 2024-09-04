@@ -3,8 +3,8 @@ use std::{fmt::Debug, ops::Deref};
 //=============
 // Context traits
 
-pub trait Itself<CTX> {
-    fn itself() -> CTX;
+pub trait Itself {
+    fn i() -> Self;
 }
 
 pub trait Cfg {

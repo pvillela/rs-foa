@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use super::common::AppCfgInfoArc;
 use foa::{
     context::Cfg,
@@ -8,6 +6,7 @@ use foa::{
     refinto::RefInto,
 };
 use sqlx::{Postgres, Transaction};
+use std::marker::PhantomData;
 use tracing::instrument;
 
 //=================
@@ -97,7 +96,7 @@ where
     type Out = ();
     type E = FoaError<CTX>;
 
-    async fn call(_: (), tx: &mut Transaction<'_, Postgres>) -> Result<(), FoaError<CTX>> {
+    async fn invoke(_: (), tx: &mut Transaction<'_, Postgres>) -> Result<(), FoaError<CTX>> {
         InitDafI::<CTX>::init_daf(tx).await
     }
 }
