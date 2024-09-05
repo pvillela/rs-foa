@@ -29,6 +29,7 @@ pub struct TlScoped<CTX, F, D = ()>(PhantomData<(CTX, F, D)>);
 impl<CTX, F, D> AsyncRFn for TlScoped<CTX, F, D>
 where
     CTX: TaskLocalCtx<D>,
+    <CTX::TaskLocal as TaskLocal<D>>::ValueType: Send,
     F: AsyncRFn,
 {
     type In = (<CTX::TaskLocal as TaskLocal<D>>::ValueType, F::In);

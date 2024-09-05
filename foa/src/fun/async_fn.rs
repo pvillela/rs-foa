@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{future::Future, marker::PhantomData};
 
 pub trait AsyncFn {
     type In;
@@ -9,12 +9,12 @@ pub trait AsyncFn {
 }
 
 pub trait AsyncRFn {
-    type In;
-    type Out;
+    type In: Send;
+    type Out: Send;
     type E;
 
     #[allow(async_fn_in_trait)]
-    async fn invoke(input: Self::In) -> Result<Self::Out, Self::E>;
+    fn invoke(input: Self::In) -> impl Future<Output = Result<Self::Out, Self::E>> + Send;
 }
 
 pub struct AsyncRFnAsAsyncFn<F: AsyncRFn>(PhantomData<F>);

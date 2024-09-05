@@ -31,22 +31,22 @@ pub trait AsyncTxFn<CTX>
 where
     CTX: DbCtx,
 {
-    type In;
-    type Out;
+    type In: Send;
+    type Out: Send;
     type E: From<sqlx::Error>;
 
     #[allow(async_fn_in_trait)]
-    async fn invoke(
+    fn invoke(
         input: Self::In,
         tx: &mut Transaction<<CTX::Db as Db>::Database>,
-    ) -> Result<Self::Out, Self::E>;
+    ) -> impl Future<Output = Result<Self::Out, Self::E>> + Send;
 }
 
 pub struct InTx<CTX, F>(PhantomData<(CTX, F)>);
 
 impl<CTX, F> AsyncRFn for InTx<CTX, F>
 where
-    CTX: DbCtx,
+    CTX: DbCtx + Send,
     F: AsyncTxFn<CTX>,
 {
     type In = F::In;
