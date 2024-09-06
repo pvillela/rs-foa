@@ -47,6 +47,7 @@ pub async fn new_db_pool() -> Result<Pool<Postgres>, sqlx::Error> {
 #[derive(Debug, Clone)]
 pub struct Ctx;
 
+#[derive(Debug, Clone)]
 pub struct SubCtx;
 
 impl StaticStateMut for Ctx {

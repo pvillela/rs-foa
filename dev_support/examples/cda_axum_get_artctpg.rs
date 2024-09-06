@@ -1,8 +1,17 @@
 use std::time::Duration;
 
-use axum::Router;
+use axum::{http::HeaderMap, Json, Router};
 use dev_support::artctpg::{common::Ctx, FooSflI};
-use foa::web::axum::handler_tx_headers;
+use foa::{
+    context::Itself,
+    db::sqlx::{AsyncTxFn, DbCtx},
+    fun::Async2RFn,
+    tokio::task_local::{TaskLocal, TaskLocalCtx},
+    web::axum::{
+        handler, handler_of_2r_oj, handler_tx_fn, handler_tx_headers, pre_hdlr_tx_headers,
+    },
+};
+use serde::{Deserialize, Serialize};
 
 #[tokio::main]
 async fn main() {
@@ -17,10 +26,11 @@ async fn main() {
         }
     });
 
-    let app = Router::new().route(
-        "/",
-        axum::routing::post(handler_tx_headers::<Ctx, FooSflI<Ctx>, ()>),
-    );
+    let f1 = pre_hdlr_tx_headers(FooSflI::<Ctx>::it());
+
+    let handler = handler_of_2r_oj(f1);
+
+    let app = Router::new().route("/", axum::routing::post(handler));
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:8080")
         .await

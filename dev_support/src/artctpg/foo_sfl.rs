@@ -19,7 +19,7 @@ pub struct FooIn {
 }
 
 #[allow(unused)]
-#[derive(Serialize, Debug, PartialEq)]
+#[derive(Serialize, Debug, PartialEq, Clone)]
 pub struct FooOut {
     pub name: String,
     pub new_age: i32,
@@ -98,6 +98,7 @@ mod illustrative {
 }
 
 /// Stereotype instance
+#[derive(Clone)]
 pub struct FooSflI<CTX: FooCtx>(PhantomData<CTX>);
 
 impl<CTX: FooCtx> Itself for FooSflI<CTX> {
