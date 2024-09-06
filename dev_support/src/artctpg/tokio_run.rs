@@ -58,10 +58,10 @@ pub async fn run(input: RunIn) {
     let run_concurrent = {
         |i: usize| {
             tokio::spawn(async move {
+                let foo_sfl = FooSflI::make();
                 let mut res: usize = 0;
                 for j in 0..repeats {
-                    let out =
-                        invoke_in_tx::<Ctx, _>(FooSflI::make(), FooIn { age_delta: 11 }).await;
+                    let out = invoke_in_tx::<Ctx, _>(&foo_sfl, FooIn { age_delta: 11 }).await;
                     res = format!("{:?}", out).len();
                     if i == 0 && j % increment_to_print == 0 {
                         println!(

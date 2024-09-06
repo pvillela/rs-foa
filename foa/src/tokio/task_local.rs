@@ -24,9 +24,9 @@ pub trait TaskLocal<D = ()> {
     }
 }
 
-struct TlScoped<CTX, F, D = ()>(F, PhantomData<(CTX, D)>);
+struct TlScoped<'a, CTX, F, D = ()>(&'a F, PhantomData<(CTX, D)>);
 
-impl<CTX, F, D> AsyncRFn for TlScoped<CTX, F, D>
+impl<'a, CTX, F, D> AsyncRFn for TlScoped<'a, CTX, F, D>
 where
     CTX: TaskLocalCtx<D> + Sync,
     <CTX::TaskLocal as TaskLocal<D>>::ValueType: Send,
@@ -44,20 +44,20 @@ where
     }
 }
 
-pub async fn tl_scoped<CTX, F, D>(
-    f: F,
-) -> impl AsyncRFn<In = (<CTX::TaskLocal as TaskLocal<D>>::ValueType, F::In), Out = F::Out, E = F::E>
+pub async fn tl_scoped<'a, CTX, F, D>(
+    f: &'a F,
+) -> impl AsyncRFn<In = (<CTX::TaskLocal as TaskLocal<D>>::ValueType, F::In), Out = F::Out, E = F::E> + 'a
 where
-    CTX: TaskLocalCtx<D> + Sync,
+    CTX: TaskLocalCtx<D> + Sync + 'static,
     <CTX::TaskLocal as TaskLocal<D>>::ValueType: Send,
     F: AsyncRFn + Sync,
-    D: Sync,
+    D: Sync + 'static,
 {
     TlScoped(f, PhantomData::<(CTX, D)>)
 }
 
 pub async fn invoke_tl_scoped<CTX, F, D>(
-    f: F,
+    f: &F,
     input: (<CTX::TaskLocal as TaskLocal<D>>::ValueType, F::In),
 ) -> Result<F::Out, F::E>
 where
@@ -127,7 +127,7 @@ mod test {
             let tlc = TlWithLocale {
                 locale: "en-CA".into(),
             };
-            invoke_tl_scoped::<Ctx, _, _>(FooI(Ctx), (tlc, ())).await
+            invoke_tl_scoped::<Ctx, _, _>(&FooI(Ctx), (tlc, ())).await
         });
         let foo_out = h.await.unwrap();
         assert_eq!(

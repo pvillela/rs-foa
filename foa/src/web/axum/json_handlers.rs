@@ -41,7 +41,7 @@ where
     F::E: Serialize,
     MF: Make<F>,
 {
-    let output = invoke_in_tx(MF::make(), input).await?;
+    let output = invoke_in_tx(&MF::make(), input).await?;
     Ok(Json(output))
 }
 
@@ -69,7 +69,7 @@ where
     D: Sync,
     MF: Make<F>,
 {
-    let output = invoke_tl_scoped::<CTX, F, D>(MF::make(), (headers, input)).await?;
+    let output = invoke_tl_scoped::<CTX, F, D>(&MF::make(), (headers, input)).await?;
     Ok(Json(output))
 }
 
@@ -78,7 +78,7 @@ pub async fn handler_tx_headers<CTX, F, MF, D>(
     Json(input): Json<F::In>,
 ) -> Result<Json<F::Out>, Json<F::E>>
 where
-    CTX: DbCtx + TaskLocalCtx<D> + Sync,
+    CTX: DbCtx + TaskLocalCtx<D> + Sync + 'static,
     CTX::TaskLocal: TaskLocal<D, ValueType = HeaderMap>,
     F: AsyncTxFn<CTX> + Sync,
     F::In: Deserialize<'static> + 'static,
@@ -87,7 +87,8 @@ where
     D: Sync,
     MF: Make<F>,
 {
-    let f_in_tx = in_tx(MF::make()).await;
-    let output = invoke_tl_scoped::<CTX, _, _>(f_in_tx, (headers, input)).await?;
+    let f = MF::make();
+    let f_in_tx = in_tx(&f).await;
+    let output = invoke_tl_scoped::<CTX, _, D>(&f_in_tx, (headers, input)).await?;
     Ok(Json(output))
 }

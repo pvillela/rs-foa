@@ -88,7 +88,7 @@ impl Ctx {
             .await
             .expect("Ctx::init: read_app_cfg_info error");
         new_db_pool().await.expect("Ctx::init: db_pool error");
-        invoke_in_tx::<Ctx, _>(InitDafI::make(), ())
+        invoke_in_tx::<Ctx, _>(&InitDafI::make(), ())
             .await
             .expect("Ctx::init: data initialization error");
     }

@@ -101,10 +101,10 @@ pub async fn common_test<CTX>() -> Result<FooOut, FoaError<CTX>>
 where
     CTX: Cfg<CfgInfo = CfgTestInput> + LocaleCtx + PgDbCtx + 'static + Send + Sync + Debug,
 {
-    invoke_in_tx(InitDafI::make(), ()).await?;
+    invoke_in_tx(&InitDafI::make(), ()).await?;
     let handle =
         tokio::spawn(
-            async move { invoke_in_tx(TestFooSflI::make(), FooIn { age_delta: 1 }).await },
+            async move { invoke_in_tx(&TestFooSflI::make(), FooIn { age_delta: 1 }).await },
         );
     handle.await.expect("common_test_artctps tokio spawn error")
 }

@@ -43,9 +43,9 @@ where
     ) -> impl Future<Output = Result<Self::Out, Self::E>> + Send;
 }
 
-struct InTx<CTX, F>(F, PhantomData<CTX>);
+struct InTx<'a, CTX, F>(&'a F, PhantomData<CTX>);
 
-impl<CTX, F> AsyncRFn for InTx<CTX, F>
+impl<'a, CTX, F> AsyncRFn for InTx<'a, CTX, F>
 where
     CTX: DbCtx + Sync,
     F: AsyncTxFn<CTX> + Sync,
@@ -63,15 +63,15 @@ where
     }
 }
 
-pub async fn in_tx<CTX, F>(f: F) -> impl AsyncRFn<In = F::In, Out = F::Out, E = F::E>
+pub async fn in_tx<'a, CTX, F>(f: &'a F) -> impl AsyncRFn<In = F::In, Out = F::Out, E = F::E> + 'a
 where
-    CTX: DbCtx + Sync,
+    CTX: DbCtx + Sync + 'static,
     F: AsyncTxFn<CTX> + Sync,
 {
     InTx(f, PhantomData)
 }
 
-pub async fn invoke_in_tx<CTX, F>(f: F, input: F::In) -> Result<F::Out, F::E>
+pub async fn invoke_in_tx<CTX, F>(f: &F, input: F::In) -> Result<F::Out, F::E>
 where
     CTX: DbCtx + Sync,
     F: AsyncTxFn<CTX> + Sync,
