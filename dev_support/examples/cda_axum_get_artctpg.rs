@@ -5,7 +5,7 @@ use dev_support::artctpg::{common::Ctx, FooSflI};
 use foa::{
     fun::Async2RFn,
     trait_utils::Make,
-    web::axum::{handler_tx_headers, handler_tx_headers_fn},
+    web::axum::{handler_of_f_headers, handler_tx_headers, handler_tx_headers_fn},
 };
 
 #[tokio::main]
@@ -27,11 +27,15 @@ async fn main() {
             axum::routing::post(handler_tx_headers::<Ctx, FooSflI<Ctx>, FooSflI<Ctx>, ()>),
         )
         .route(
-            "/alt",
+            "/1",
             axum::routing::post({
                 let wf = handler_tx_headers_fn(FooSflI::<Ctx>::make());
                 |headers, json| async move { wf.invoke(headers, json).await }
             }),
+        )
+        .route(
+            "/2",
+            axum::routing::post(handler_of_f_headers(FooSflI::<Ctx>::make())),
         );
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:8080")

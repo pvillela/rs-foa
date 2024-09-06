@@ -7,7 +7,7 @@ use crate::{
 };
 use axum::{http::HeaderMap, response::IntoResponse, Json};
 use serde::{Deserialize, Serialize};
-use std::{future::Future, marker::PhantomData, ops::Deref, sync::Arc};
+use std::{future::Future, marker::PhantomData, ops::Deref, pin::Pin, sync::Arc};
 
 pub fn handler_of<S, T, Fut>(
     f: impl Fn(S) -> Fut + 'static + Send + Sync + Clone,
@@ -110,7 +110,7 @@ where
     }
 }
 
-pub fn handler_tx_headers_fn<'a, CTX, F, D>(f: F) -> HandlerTxHeadersFn<CTX, F, D>
+pub fn handler_tx_headers_fn<CTX, F, D>(f: F) -> HandlerTxHeadersFn<CTX, F, D>
 where
     CTX: DbCtx + TaskLocalCtx<D> + Sync + Send + 'static,
     CTX::TaskLocal: TaskLocal<D, ValueType = HeaderMap>,
@@ -146,6 +146,76 @@ where
     let g1 = handler_tx_headers_fn(f);
     let g2 = |headers, json| async move { g1.invoke(headers, json).await };
     _axum_handler_type_checker_2_args_generic(&g2);
+}
+
+// impl<CTX, F, D, M, S> Handler<(M, HeaderMap, Json<F::In>), S> for HandlerTxHeadersFn<CTX, F, D>
+// where
+//     CTX: DbCtx + TaskLocalCtx<D> + Sync + Send + 'static,
+//     CTX::TaskLocal: TaskLocal<D, ValueType = HeaderMap>,
+//     F: AsyncTxFn<CTX> + Sync + Send + 'static,
+//     F::In: Deserialize<'static> + 'static,
+//     F::Out: Serialize,
+//     F::E: Serialize,
+//     D: Sync + Send + 'static,
+//     S: Send + Sync + 'static,
+// {
+//     type Future = Pin<Box<dyn Future<Output = Response> + Send>>;
+
+//     fn call(self, req: axum::extract::Request, state: S) -> Self::Future {
+//         let g1 = self;
+//         let g2 = |headers, json| Box::pin(async move { g1.invoke(headers, json).await });
+//         // let g3 = Box::new(g2);
+//         // Handler::call(g3, req, state)
+//         Handler::call(g2, req, state)
+//     }
+// }
+
+fn handler_of_wf<CTX, F, D>(
+    wf: HandlerTxHeadersFn<CTX, F, D>,
+) -> impl Fn(
+    HeaderMap,
+    Json<F::In>,
+) -> Pin<Box<(dyn Future<Output = Result<Json<F::Out>, Json<F::E>>> + Send + 'static)>>
+       + Send
+       + Sync
+       + 'static
+       + Clone
+where
+    CTX: DbCtx + TaskLocalCtx<D> + Sync + Send + 'static,
+    CTX::TaskLocal: TaskLocal<D, ValueType = HeaderMap>,
+    F: AsyncTxFn<CTX> + Sync + Send + 'static,
+    F::In: Deserialize<'static> + 'static,
+    F::Out: Serialize,
+    F::E: Serialize,
+    D: Sync + Send + 'static,
+{
+    move |headers, json| {
+        let f = wf.clone();
+        Box::pin(async move { f.invoke(headers, json).await })
+    }
+}
+
+pub fn handler_of_f_headers<CTX, F, D>(
+    f: F,
+) -> impl Fn(
+    HeaderMap,
+    Json<F::In>,
+) -> Pin<Box<(dyn Future<Output = Result<Json<F::Out>, Json<F::E>>> + Send + 'static)>>
+       + Send
+       + Sync
+       + 'static
+       + Clone
+where
+    CTX: DbCtx + TaskLocalCtx<D> + Sync + Send + 'static,
+    CTX::TaskLocal: TaskLocal<D, ValueType = HeaderMap>,
+    F: AsyncTxFn<CTX> + Sync + Send + 'static,
+    F::In: Deserialize<'static> + 'static,
+    F::Out: Serialize,
+    F::E: Serialize,
+    D: Sync + Send + 'static,
+{
+    let wf = HandlerTxHeadersFn(f.into(), PhantomData::<(CTX, D)>);
+    handler_of_wf(wf)
 }
 
 pub async fn handler_tx_headers<CTX, F, MF, D>(
