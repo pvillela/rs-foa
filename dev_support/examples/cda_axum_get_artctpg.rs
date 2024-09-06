@@ -1,12 +1,12 @@
-use std::time::Duration;
+#![allow(deprecated)]
 
 use axum::Router;
 use dev_support::artctpg::{common::Ctx, FooSflI};
 use foa::{
-    fun::Async2RFn,
     trait_utils::Make,
-    web::axum::{handler_of_f_headers, handler_tx_headers, handler_tx_headers_fn},
+    web::axum::{handler_tx_headers, handler_tx_headers_old},
 };
+use std::time::Duration;
 
 #[tokio::main]
 async fn main() {
@@ -24,18 +24,11 @@ async fn main() {
     let app = Router::new()
         .route(
             "/",
-            axum::routing::post(handler_tx_headers::<Ctx, FooSflI<Ctx>, FooSflI<Ctx>, ()>),
+            axum::routing::post(handler_tx_headers::<_, _, _, ()>(FooSflI::<Ctx>::make())),
         )
         .route(
-            "/1",
-            axum::routing::post({
-                let wf = handler_tx_headers_fn(FooSflI::<Ctx>::make());
-                |headers, json| async move { wf.invoke(headers, json).await }
-            }),
-        )
-        .route(
-            "/2",
-            axum::routing::post(handler_of_f_headers(FooSflI::<Ctx>::make())),
+            "/depr",
+            axum::routing::post(handler_tx_headers_old::<Ctx, FooSflI<Ctx>, FooSflI<Ctx>, ()>),
         );
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:8080")

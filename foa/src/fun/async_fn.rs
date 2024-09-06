@@ -1,4 +1,4 @@
-use std::future::Future;
+use std::{future::Future, pin::Pin};
 
 pub trait AsyncFn {
     type In;
@@ -15,6 +15,31 @@ pub trait AsyncRFn {
 
     #[allow(async_fn_in_trait)]
     fn invoke(&self, input: Self::In) -> impl Future<Output = Result<Self::Out, Self::E>> + Send;
+
+    /// Reifies `self` as an `async Fn`
+    fn into_fn(
+        self,
+    ) -> impl Fn(
+        Self::In,
+    ) -> Pin<Box<(dyn Future<Output = Result<Self::Out, Self::E>> + Send + 'static)>>
+           + Send
+           + Sync // optional, results from Self: Sync
+           + 'static
+           + Clone
+    where
+        Self: Send
+            + Sync // optional if resulting Fn doesn't have to be Sync
+            + Clone
+            + 'static,
+    {
+        move |input| {
+            let f = self.clone();
+            Box::pin(async move {
+                let output = f.invoke(input).await?;
+                Ok(output)
+            })
+        }
+    }
 }
 
 pub trait Async2RFn {
@@ -29,18 +54,30 @@ pub trait Async2RFn {
         input1: Self::In1,
         input2: Self::In2,
     ) -> impl Future<Output = Result<Self::Out, Self::E>> + Send;
-}
 
-pub struct AsyncRFnAsAsyncFn<F: AsyncRFn>(F);
-
-impl<F> AsyncFn for AsyncRFnAsAsyncFn<F>
-where
-    F: AsyncRFn,
-{
-    type In = F::In;
-    type Out = Result<F::Out, F::E>;
-
-    async fn invoke(&self, input: Self::In) -> Self::Out {
-        self.0.invoke(input).await
+    /// Reifies `self` as an `async Fn`
+    fn into_fn(
+        self,
+    ) -> impl Fn(
+        Self::In1,
+        Self::In2,
+    ) -> Pin<Box<(dyn Future<Output = Result<Self::Out, Self::E>> + Send + 'static)>>
+           + Send
+           + Sync // optional, results from Self: Sync
+           + 'static
+           + Clone
+    where
+        Self: Send
+            + Sync // optional if resulting Fn doesn't have to be Sync
+            + Clone
+            + 'static,
+    {
+        move |in1, in2| {
+            let f = self.clone();
+            Box::pin(async move {
+                let output = f.invoke(in1, in2).await?;
+                Ok(output)
+            })
+        }
     }
 }
