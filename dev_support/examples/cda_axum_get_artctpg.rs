@@ -2,7 +2,11 @@ use std::time::Duration;
 
 use axum::Router;
 use dev_support::artctpg::{common::Ctx, FooSflI};
-use foa::web::axum::handler_tx_headers;
+use foa::{
+    fun::Async2RFn,
+    trait_utils::Make,
+    web::axum::{handler_tx_headers, handler_tx_headers_fn},
+};
 
 #[tokio::main]
 async fn main() {
@@ -17,10 +21,18 @@ async fn main() {
         }
     });
 
-    let app = Router::new().route(
-        "/",
-        axum::routing::post(handler_tx_headers::<Ctx, FooSflI<Ctx>, FooSflI<Ctx>, ()>),
-    );
+    let app = Router::new()
+        .route(
+            "/",
+            axum::routing::post(handler_tx_headers::<Ctx, FooSflI<Ctx>, FooSflI<Ctx>, ()>),
+        )
+        .route(
+            "/alt",
+            axum::routing::post({
+                let wf = handler_tx_headers_fn(FooSflI::<Ctx>::make());
+                |headers, json| async move { wf.invoke(headers, json).await }
+            }),
+        );
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:8080")
         .await
