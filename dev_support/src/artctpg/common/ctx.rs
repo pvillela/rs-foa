@@ -2,7 +2,7 @@ use crate::artctpg::InitDafI;
 use arc_swap::ArcSwap;
 use axum::http::HeaderMap;
 use foa::{
-    context::{Cfg, Itself, Locale, LocaleCtx},
+    context::{Cfg, Locale, LocaleCtx},
     db::sqlx::{invoke_in_tx, Db, DbCtx},
     error::FoaError,
     static_state::StaticStateMut,
@@ -10,6 +10,7 @@ use foa::{
         task_local::{TaskLocal, TaskLocalCtx},
         task_local_ext::locale_from_task_local,
     },
+    trait_utils::Make,
 };
 use sqlx::{Pool, Postgres};
 use std::{
@@ -44,7 +45,7 @@ pub async fn new_db_pool() -> Result<Pool<Postgres>, sqlx::Error> {
     Pool::connect("postgres://testuser:testpassword@localhost:9999/testdb").await
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Ctx;
 
 pub struct SubCtx;
@@ -87,7 +88,7 @@ impl Ctx {
             .await
             .expect("Ctx::init: read_app_cfg_info error");
         new_db_pool().await.expect("Ctx::init: db_pool error");
-        invoke_in_tx::<Ctx, _>(InitDafI::it(), ())
+        invoke_in_tx::<Ctx, _>(InitDafI::make(), ())
             .await
             .expect("Ctx::init: data initialization error");
     }

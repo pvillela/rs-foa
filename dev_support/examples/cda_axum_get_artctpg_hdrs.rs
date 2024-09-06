@@ -1,10 +1,10 @@
 use axum::Router;
 use dev_support::artctpg::{common::Ctx, FooIn, FooOut, FooSfl, FooSflI};
 use foa::{
-    context::Itself,
     db::sqlx::AsyncTxFn,
     error::FoaError,
     tokio::task_local::{TaskLocal, TaskLocalCtx},
+    trait_utils::Make,
     web::axum::handler_tx_headers,
 };
 use serde::Serialize;
@@ -19,8 +19,8 @@ struct FooOutExt {
 
 struct F;
 
-impl Itself for F {
-    fn it() -> Self {
+impl Make<F> for F {
+    fn make() -> Self {
         F
     }
 }
@@ -60,7 +60,10 @@ async fn main() {
         }
     });
 
-    let app = Router::new().route("/", axum::routing::post(handler_tx_headers::<Ctx, F, ()>));
+    let app = Router::new().route(
+        "/",
+        axum::routing::post(handler_tx_headers::<Ctx, F, F, ()>),
+    );
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:8080")
         .await

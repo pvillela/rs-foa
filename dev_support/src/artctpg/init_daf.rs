@@ -1,9 +1,10 @@
 use super::common::AppCfgInfoArc;
 use foa::{
-    context::{Cfg, Itself},
+    context::Cfg,
     db::sqlx::{AsyncTxFn, PgDbCtx},
     error::FoaError,
     refinto::RefInto,
+    trait_utils::Make,
 };
 use sqlx::{Postgres, Transaction};
 use std::marker::PhantomData;
@@ -68,8 +69,8 @@ where
 /// Stereotype instance
 pub struct InitDafI<CTX: InitDafCtx>(PhantomData<CTX>);
 
-impl<CTX: InitDafCtx> Itself for InitDafI<CTX> {
-    fn it() -> Self {
+impl<CTX: InitDafCtx> Make<Self> for InitDafI<CTX> {
+    fn make() -> Self {
         InitDafI(PhantomData)
     }
 }

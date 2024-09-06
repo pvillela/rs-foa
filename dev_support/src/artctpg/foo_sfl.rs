@@ -1,9 +1,10 @@
 use super::{common::AppCfgInfoArc, BarBf, BarCtx, ReadDaf, ReadDafCtx, UpdateDaf, UpdateDafCtx};
 use foa::{
-    context::{Cfg, Itself, Locale, LocaleCtx},
+    context::{Cfg, Locale, LocaleCtx},
     db::sqlx::{AsyncTxFn, PgDbCtx},
     error::FoaError,
     refinto::RefInto,
+    trait_utils::Make,
 };
 use serde::{Deserialize, Serialize};
 use sqlx::{Postgres, Transaction};
@@ -98,10 +99,11 @@ mod illustrative {
 }
 
 /// Stereotype instance
+#[derive(Clone)]
 pub struct FooSflI<CTX: FooCtx>(PhantomData<CTX>);
 
-impl<CTX: FooCtx> Itself for FooSflI<CTX> {
-    fn it() -> Self {
+impl<CTX: FooCtx> Make<Self> for FooSflI<CTX> {
+    fn make() -> Self {
         FooSflI(PhantomData)
     }
 }

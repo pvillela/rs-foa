@@ -3,10 +3,6 @@ use std::{fmt::Debug, ops::Deref};
 //=============
 // Context traits
 
-pub trait Itself {
-    fn it() -> Self;
-}
-
 pub trait Cfg {
     type CfgInfo;
 

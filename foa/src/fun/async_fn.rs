@@ -17,6 +17,20 @@ pub trait AsyncRFn {
     fn invoke(&self, input: Self::In) -> impl Future<Output = Result<Self::Out, Self::E>> + Send;
 }
 
+pub trait Async2RFn {
+    type In1: Send;
+    type In2: Send;
+    type Out: Send;
+    type E;
+
+    #[allow(async_fn_in_trait)]
+    fn invoke(
+        &self,
+        input1: Self::In1,
+        input2: Self::In2,
+    ) -> impl Future<Output = Result<Self::Out, Self::E>> + Send;
+}
+
 pub struct AsyncRFnAsAsyncFn<F: AsyncRFn>(F);
 
 impl<F> AsyncFn for AsyncRFnAsAsyncFn<F>

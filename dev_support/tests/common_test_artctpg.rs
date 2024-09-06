@@ -3,10 +3,11 @@ use dev_support::artctpg::{
     InitDafCtx, InitDafI, ReadDafCfgInfo, UpdateDafCfgInfo,
 };
 use foa::{
-    context::{Cfg, Itself, LocaleCtx},
+    context::{Cfg, LocaleCtx},
     db::sqlx::{invoke_in_tx, AsyncTxFn, PgDbCtx},
     error::FoaError,
     refinto::RefInto,
+    trait_utils::Make,
 };
 use sqlx::{Postgres, Transaction};
 use std::{fmt::Debug, marker::PhantomData};
@@ -71,8 +72,8 @@ impl<'a> RefInto<'a, InitDafCfgInfo<'a>> for CfgTestInput {
 
 struct TestFooSflI<CTX>(PhantomData<CTX>);
 
-impl<CTX> Itself for TestFooSflI<CTX> {
-    fn it() -> Self {
+impl<CTX> Make<Self> for TestFooSflI<CTX> {
+    fn make() -> Self {
         TestFooSflI(PhantomData)
     }
 }
@@ -100,8 +101,10 @@ pub async fn common_test<CTX>() -> Result<FooOut, FoaError<CTX>>
 where
     CTX: Cfg<CfgInfo = CfgTestInput> + LocaleCtx + PgDbCtx + 'static + Send + Sync + Debug,
 {
-    invoke_in_tx(InitDafI::it(), ()).await?;
+    invoke_in_tx(InitDafI::make(), ()).await?;
     let handle =
-        tokio::spawn(async move { invoke_in_tx(TestFooSflI::it(), FooIn { age_delta: 1 }).await });
+        tokio::spawn(
+            async move { invoke_in_tx(TestFooSflI::make(), FooIn { age_delta: 1 }).await },
+        );
     handle.await.expect("common_test_artctps tokio spawn error")
 }

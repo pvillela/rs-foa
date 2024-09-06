@@ -1,8 +1,9 @@
 use crate::{
-    context::{Itself, LocaleSelf},
+    context::LocaleSelf,
     db::sqlx::{in_tx, invoke_in_tx, AsyncTxFn, DbCtx},
     fun::AsyncRFn,
     tokio::task_local::{invoke_tl_scoped, TaskLocal, TaskLocalCtx},
+    trait_utils::Make,
 };
 use axum::{http::HeaderMap, response::IntoResponse, Json};
 use serde::{Deserialize, Serialize};
@@ -19,26 +20,28 @@ where
     move |Json(input)| f(input)
 }
 
-pub async fn handler<F>(Json(input): Json<F::In>) -> Result<Json<F::Out>, Json<F::E>>
+pub async fn handler<F, MF>(Json(input): Json<F::In>) -> Result<Json<F::Out>, Json<F::E>>
 where
-    F: AsyncRFn + Itself,
+    F: AsyncRFn,
     F::In: Deserialize<'static> + 'static,
     F::Out: Serialize,
     F::E: Serialize,
+    MF: Make<F>,
 {
-    let output = F::it().invoke(input).await?;
+    let output = MF::make().invoke(input).await?;
     Ok(Json(output))
 }
 
-pub async fn handler_tx<CTX, F>(Json(input): Json<F::In>) -> Result<Json<F::Out>, Json<F::E>>
+pub async fn handler_tx<CTX, F, MF>(Json(input): Json<F::In>) -> Result<Json<F::Out>, Json<F::E>>
 where
     CTX: DbCtx + Sync,
-    F: AsyncTxFn<CTX> + Itself + Sync,
+    F: AsyncTxFn<CTX> + Sync,
     F::In: Deserialize<'static> + 'static,
     F::Out: Serialize,
     F::E: Serialize,
+    MF: Make<F>,
 {
-    let output = invoke_in_tx(F::it(), input).await?;
+    let output = invoke_in_tx(MF::make(), input).await?;
     Ok(Json(output))
 }
 
@@ -52,37 +55,39 @@ impl LocaleSelf for HeaderMap {
     }
 }
 
-pub async fn handler_headers<CTX, F, D>(
+pub async fn handler_headers<CTX, F, MF, D>(
     headers: HeaderMap,
     Json(input): Json<F::In>,
 ) -> Result<Json<F::Out>, Json<F::E>>
 where
     CTX: TaskLocalCtx<D> + Sync,
     CTX::TaskLocal: TaskLocal<D, ValueType = HeaderMap>,
-    F: AsyncRFn + Itself + Sync,
+    F: AsyncRFn + Sync,
     F::In: Deserialize<'static> + 'static,
     F::Out: Serialize,
     F::E: Serialize,
     D: Sync,
+    MF: Make<F>,
 {
-    let output = invoke_tl_scoped::<CTX, F, D>(F::it(), (headers, input)).await?;
+    let output = invoke_tl_scoped::<CTX, F, D>(MF::make(), (headers, input)).await?;
     Ok(Json(output))
 }
 
-pub async fn handler_tx_headers<CTX, F, D>(
+pub async fn handler_tx_headers<CTX, F, MF, D>(
     headers: HeaderMap,
     Json(input): Json<F::In>,
 ) -> Result<Json<F::Out>, Json<F::E>>
 where
     CTX: DbCtx + TaskLocalCtx<D> + Sync,
     CTX::TaskLocal: TaskLocal<D, ValueType = HeaderMap>,
-    F: AsyncTxFn<CTX> + Itself + Sync,
+    F: AsyncTxFn<CTX> + Sync,
     F::In: Deserialize<'static> + 'static,
     F::Out: Serialize,
     F::E: Serialize,
     D: Sync,
+    MF: Make<F>,
 {
-    let f_in_tx = in_tx(F::it()).await;
+    let f_in_tx = in_tx(MF::make()).await;
     let output = invoke_tl_scoped::<CTX, _, _>(f_in_tx, (headers, input)).await?;
     Ok(Json(output))
 }
