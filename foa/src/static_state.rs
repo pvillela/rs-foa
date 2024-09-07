@@ -4,7 +4,11 @@ use std::{
     sync::{Arc, OnceLock},
 };
 
-pub trait StaticState<D = ()> {
+/// Represents immutable state stored in a static variable.
+///
+/// Without loss of generality, if a type `T` needs to implement [`StaticState`] for [`State`](StaticState::State)
+/// types `S1` and `S2`, then `T` can implement `StaticState` with `type State = (S1, S2)`.
+pub trait StaticState {
     type State: 'static;
 
     fn get_static() -> &'static OnceLock<Self::State>;
@@ -49,7 +53,11 @@ pub trait StaticState<D = ()> {
     }
 }
 
-pub trait StaticStateMut<D = ()> {
+/// Represents mutable state stored in a static variable.
+///
+/// Without loss of generality, if a type `T` needs to implement [`StaticStateMut`] for [`State`](StaticStateMut::State)
+/// types `S1` and `S2`, then `T` can implement `StaticState` with `type State = (S1, S2)`.
+pub trait StaticStateMut {
     type State: 'static;
 
     fn get_static() -> &'static OnceLock<ArcSwap<Self::State>>;

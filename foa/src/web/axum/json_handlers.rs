@@ -92,29 +92,28 @@ impl LocaleSelf for HeaderMap {
 //=================
 // Handler for AsyncTxFn in task-local context
 
-struct HandlerTxHeadersFn<CTX, F, D>(Arc<F>, PhantomData<(CTX, D)>);
+struct HandlerTxHeadersFn<CTX, F>(Arc<F>, PhantomData<CTX>);
 
-impl<CTX, F, D> Clone for HandlerTxHeadersFn<CTX, F, D> {
+impl<CTX, F> Clone for HandlerTxHeadersFn<CTX, F> {
     fn clone(&self) -> Self {
         HandlerTxHeadersFn(self.0.clone(), PhantomData)
     }
 }
 
-impl<CTX, F, D> HandlerTxHeadersFn<CTX, F, D> {
+impl<CTX, F> HandlerTxHeadersFn<CTX, F> {
     fn new(f: F) -> Self {
         Self(f.into(), PhantomData)
     }
 }
 
-impl<CTX, F, D> Async2RFn for HandlerTxHeadersFn<CTX, F, D>
+impl<CTX, F> Async2RFn for HandlerTxHeadersFn<CTX, F>
 where
-    CTX: DbCtx + TaskLocalCtx<D> + Sync + Send + 'static,
-    CTX::TaskLocal: TaskLocal<D, ValueType = HeaderMap>,
+    CTX: DbCtx + TaskLocalCtx + Sync + Send + 'static,
+    CTX::TaskLocal: TaskLocal<ValueType = HeaderMap>,
     F: AsyncTxFn<CTX> + Sync + Send + 'static,
     F::In: Deserialize<'static> + 'static,
     F::Out: Serialize,
     F::E: Serialize,
-    D: Sync + Send + 'static,
 {
     type In1 = HeaderMap;
     type In2 = F::In;
@@ -123,12 +122,12 @@ where
 
     async fn invoke(&self, headers: HeaderMap, input: F::In) -> Result<Self::Out, Self::E> {
         let f_in_tx = in_tx(self.0.deref()).await;
-        let output = invoke_tl_scoped::<CTX, _, D>(&f_in_tx, (headers, input)).await?;
+        let output = invoke_tl_scoped::<CTX, _>(&f_in_tx, (headers, input)).await?;
         Ok(output)
     }
 }
 
-pub fn handler_tx_headers<CTX, F, D, S>(
+pub fn handler_tx_headers<CTX, F, S>(
     f: F,
 ) -> impl Fn(
     HeaderMap,
@@ -139,13 +138,12 @@ pub fn handler_tx_headers<CTX, F, D, S>(
        + 'static
        + Clone
 where
-    CTX: DbCtx + TaskLocalCtx<D> + Sync + Send + 'static,
-    CTX::TaskLocal: TaskLocal<D, ValueType = HeaderMap>,
+    CTX: DbCtx + TaskLocalCtx + Sync + Send + 'static,
+    CTX::TaskLocal: TaskLocal<ValueType = HeaderMap>,
     F: AsyncTxFn<CTX> + Sync + Send + 'static,
     F::In: Deserialize<'static> + 'static,
     F::Out: Serialize,
     F::E: Serialize,
-    D: Sync + Send + 'static,
     S: Send + Sync + 'static,
 {
     let wf = HandlerTxHeadersFn::new(f);
@@ -153,22 +151,21 @@ where
 }
 
 #[deprecated]
-pub async fn handler_tx_headers_old<CTX, F, MF, D>(
+pub async fn handler_tx_headers_old<CTX, F, MF>(
     headers: HeaderMap,
     Json(input): Json<F::In>,
 ) -> Result<Json<F::Out>, Json<F::E>>
 where
-    CTX: DbCtx + TaskLocalCtx<D> + Sync + 'static,
-    CTX::TaskLocal: TaskLocal<D, ValueType = HeaderMap>,
+    CTX: DbCtx + TaskLocalCtx + Sync + 'static,
+    CTX::TaskLocal: TaskLocal<ValueType = HeaderMap>,
     F: AsyncTxFn<CTX> + Sync,
     F::In: Deserialize<'static> + 'static,
     F::Out: Serialize,
     F::E: Serialize,
-    D: Sync,
     MF: Make<F>,
 {
     let f = MF::make();
     let f_in_tx = in_tx(&f).await;
-    let output = invoke_tl_scoped::<CTX, _, D>(&f_in_tx, (headers, input)).await?;
+    let output = invoke_tl_scoped::<CTX, _>(&f_in_tx, (headers, input)).await?;
     Ok(Json(output))
 }

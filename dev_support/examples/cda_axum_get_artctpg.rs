@@ -24,11 +24,11 @@ async fn main() {
     let app = Router::new()
         .route(
             "/",
-            axum::routing::post(handler_tx_headers::<_, _, _, ()>(FooSflI::<Ctx>::make())),
+            axum::routing::post(handler_tx_headers::<_, _, ()>(FooSflI::<Ctx>::make())),
         )
         .route(
             "/depr",
-            axum::routing::post(handler_tx_headers_old::<Ctx, FooSflI<Ctx>, FooSflI<Ctx>, ()>),
+            axum::routing::post(handler_tx_headers_old::<Ctx, FooSflI<Ctx>, FooSflI<Ctx>>),
         );
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:8080")

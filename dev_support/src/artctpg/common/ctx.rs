@@ -145,7 +145,7 @@ impl TaskLocal for SubCtx {
 
 impl Locale for SubCtx {
     fn locale() -> impl std::ops::Deref<Target = str> {
-        locale_from_task_local::<Self, ()>()
+        locale_from_task_local::<Self>()
     }
 }
 
