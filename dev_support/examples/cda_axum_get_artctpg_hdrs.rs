@@ -7,7 +7,7 @@ use foa::{
     error::FoaError,
     tokio::task_local::{TaskLocal, TaskLocalCtx},
     trait_utils::Make,
-    web::axum::{handler_tx_headers, handler_tx_headers_old},
+    web::axum::{handler_tx_headers_old, handler_tx_requestpart},
 };
 use serde::Serialize;
 use sqlx::{Postgres, Transaction};
@@ -65,7 +65,7 @@ async fn main() {
     let app = Router::new()
         .route(
             "/",
-            axum::routing::post(handler_tx_headers::<_, _, ()>(F::make())),
+            axum::routing::post(handler_tx_requestpart::<_, _, _, ()>(F::make())),
         )
         .route(
             "/depr",
