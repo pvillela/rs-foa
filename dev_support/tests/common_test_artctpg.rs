@@ -1,12 +1,14 @@
+use axum::http::request::Parts;
 use dev_support::artctpg::{
     BarBfCfgInfo, FooCtx, FooIn, FooOut, FooSfl, FooSflCfgInfo, FooSflI, InitDaf, InitDafCfgInfo,
     InitDafCtx, InitDafI, ReadDafCfgInfo, UpdateDafCfgInfo,
 };
 use foa::{
     context::{Cfg, LocaleCtx},
-    db::sqlx::{invoke_in_tx, AsyncTxFn, PgDbCtx},
+    db::sqlx::{AsyncTxFn, PgDbCtx},
     error::FoaError,
     refinto::RefInto,
+    tokio::task_local::{invoke_tl_scoped, TaskLocal, TaskLocalCtx},
     trait_utils::Make,
 };
 use sqlx::{Postgres, Transaction};
@@ -97,14 +99,25 @@ where
     }
 }
 
-pub async fn common_test<CTX>() -> Result<FooOut, FoaError<CTX>>
+pub async fn common_test<CTX>(parts: Parts) -> Result<FooOut, FoaError<CTX>>
 where
-    CTX: Cfg<CfgInfo = CfgTestInput> + LocaleCtx + PgDbCtx + 'static + Send + Sync + Debug,
+    CTX: Cfg<CfgInfo = CfgTestInput>
+        + LocaleCtx
+        + TaskLocalCtx<TaskLocal: TaskLocal<ValueType = Parts>>
+        + PgDbCtx
+        + 'static
+        + Send
+        + Sync
+        + Debug,
 {
-    invoke_in_tx(&InitDafI::make(), ()).await?;
-    let handle =
-        tokio::spawn(
-            async move { invoke_in_tx(&TestFooSflI::make(), FooIn { age_delta: 1 }).await },
-        );
+    // invoke_in_tx(&InitDafI::make(), ()).await?;
+    let handle = tokio::spawn(async move {
+        invoke_tl_scoped::<CTX, _>(
+            &TestFooSflI::make().in_tx(),
+            (parts.clone(), FooIn { age_delta: 1 }),
+        )
+        .await
+    });
     handle.await.expect("common_test_artctps tokio spawn error")
 }
+// }

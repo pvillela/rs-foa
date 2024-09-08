@@ -18,7 +18,7 @@ pub trait Locale {
 }
 
 pub trait LocaleSelf {
-    fn locale(&self) -> &str;
+    fn locale(&self) -> Option<&str>;
 }
 
 pub trait LocaleCtx {

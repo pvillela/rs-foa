@@ -50,7 +50,7 @@ where
     type E = F::E;
 
     fn invoke(&self, input: Self::In) -> impl Future<Output = Result<Self::Out, Self::E>> + Send {
-        async { self.invoke(input).await }
+        async { self.as_ref().invoke(input).await }
     }
 }
 
@@ -108,7 +108,7 @@ where
         in1: Self::In1,
         in2: Self::In2,
     ) -> impl Future<Output = Result<Self::Out, Self::E>> + Send {
-        async { self.invoke(in1, in2).await }
+        async { self.as_ref().invoke(in1, in2).await }
     }
 }
 
@@ -171,7 +171,7 @@ where
         in2: Self::In2,
         in3: Self::In3,
     ) -> impl Future<Output = Result<Self::Out, Self::E>> + Send {
-        async { self.invoke(in1, in2, in3).await }
+        async { self.as_ref().invoke(in1, in2, in3).await }
     }
 }
 
@@ -239,6 +239,6 @@ where
         in3: Self::In3,
         in4: Self::In4,
     ) -> impl Future<Output = Result<Self::Out, Self::E>> + Send {
-        async { self.invoke(in1, in2, in3, in4).await }
+        async { self.as_ref().invoke(in1, in2, in3, in4).await }
     }
 }

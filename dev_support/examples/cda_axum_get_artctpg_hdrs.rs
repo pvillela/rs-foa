@@ -38,7 +38,7 @@ impl AsyncTxFn<Ctx> for F {
         tx: &mut Transaction<'_, Postgres>,
     ) -> Result<Self::Out, Self::E> {
         let foo = FooSflI::<Ctx>::foo_sfl(input, tx).await?;
-        let header_map = <Ctx as TaskLocalCtx>::TaskLocal::cloned_value();
+        let header_map = <Ctx as TaskLocalCtx>::TaskLocal::cloned_value().headers;
         let headers = header_map
             .iter()
             .map(|(k, v)| (k.to_string(), v.to_str()))

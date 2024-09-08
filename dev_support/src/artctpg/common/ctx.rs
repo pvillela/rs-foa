@@ -1,6 +1,6 @@
 use crate::artctpg::InitDafI;
 use arc_swap::ArcSwap;
-use axum::http::HeaderMap;
+use axum::http::request::Parts;
 use foa::{
     context::{Cfg, Locale, LocaleCtx},
     db::sqlx::{invoke_in_tx, Db, DbCtx},
@@ -132,11 +132,11 @@ impl Ctx {
 }
 
 tokio::task_local! {
-    static CTX_TL: HeaderMap;
+    static CTX_TL: Parts;
 }
 
 impl TaskLocal for SubCtx {
-    type ValueType = HeaderMap;
+    type ValueType = Parts;
 
     fn local_key() -> &'static LocalKey<Self::ValueType> {
         &CTX_TL
@@ -145,7 +145,7 @@ impl TaskLocal for SubCtx {
 
 impl Locale for SubCtx {
     fn locale() -> impl std::ops::Deref<Target = str> {
-        locale_from_task_local::<Self>()
+        locale_from_task_local::<Self>("en-CA")
     }
 }
 
