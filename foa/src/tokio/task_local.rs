@@ -1,5 +1,5 @@
 use crate::{
-    fun::{Async2RFn, AsyncRFn},
+    fun::{Async2RFn, Async3RFn, Async4RFn, AsyncRFn},
     wrapper::W,
 };
 use std::marker::PhantomData;
@@ -74,21 +74,74 @@ where
     TlScoped(f, PhantomData::<CTX>).invoke(input).await
 }
 
-/// Discriminant for conversion of AsyncRFn to Async2RFn in task-local context using [`W`].
+/// Discriminant for conversion of [`AsyncRFn`] to [`Async2RFn`] in task-local context using [`W`].
 pub struct Async2RFnTlD;
-impl<CTX, F> Async2RFn for W<F, Async2RFnTlD, CTX>
+impl<CTX, F, TLV> Async2RFn for W<F, Async2RFnTlD, CTX>
 where
-    CTX: TaskLocalCtx + Sync + Send + 'static,
-    <CTX::TaskLocal as TaskLocal>::ValueType: Send,
+    CTX: TaskLocalCtx<TaskLocal: TaskLocal<ValueType = TLV>> + Sync + Send + 'static,
+    TLV: Send,
     F: AsyncRFn + Sync + Send,
 {
-    type In1 = <CTX::TaskLocal as TaskLocal>::ValueType;
+    type In1 = TLV;
     type In2 = F::In;
     type Out = F::Out;
     type E = F::E;
 
     async fn invoke(&self, in1: Self::In1, in2: Self::In2) -> Result<Self::Out, Self::E> {
         invoke_tl_scoped::<CTX, _>(&self.0, (in1, in2)).await
+    }
+}
+
+/// Discriminant for conversion of [`AsyncRFn`] to [`Async3RFn`] in task-local context using [`W`].
+pub struct Async3RFnTlD;
+impl<CTX, F, TLV1, TLV2> Async3RFn for W<F, Async3RFnTlD, CTX>
+where
+    CTX: TaskLocalCtx<TaskLocal: TaskLocal<ValueType = (TLV1, TLV2)>> + Sync + Send + 'static,
+    TLV1: Send,
+    TLV2: Send,
+    F: AsyncRFn + Sync + Send,
+{
+    type In1 = TLV1;
+    type In2 = TLV2;
+    type In3 = F::In;
+    type Out = F::Out;
+    type E = F::E;
+
+    async fn invoke(
+        &self,
+        in1: Self::In1,
+        in2: Self::In2,
+        in3: Self::In3,
+    ) -> Result<Self::Out, Self::E> {
+        invoke_tl_scoped::<CTX, _>(&self.0, ((in1, in2), in3)).await
+    }
+}
+
+/// Discriminant for conversion of [`AsyncRFn`] to [`Async4RFn`] in task-local context using [`W`].
+pub struct Async4RFnTlD;
+impl<CTX, F, TLV1, TLV2, TLV3> Async4RFn for W<F, Async4RFnTlD, CTX>
+where
+    CTX: TaskLocalCtx<TaskLocal: TaskLocal<ValueType = (TLV1, TLV2, TLV3)>> + Sync + Send + 'static,
+    TLV1: Send,
+    TLV2: Send,
+    TLV3: Send,
+    F: AsyncRFn + Sync + Send,
+{
+    type In1 = TLV1;
+    type In2 = TLV2;
+    type In3 = TLV3;
+    type In4 = F::In;
+    type Out = F::Out;
+    type E = F::E;
+
+    async fn invoke(
+        &self,
+        in1: Self::In1,
+        in2: Self::In2,
+        in3: Self::In3,
+        in4: Self::In4,
+    ) -> Result<Self::Out, Self::E> {
+        invoke_tl_scoped::<CTX, _>(&self.0, ((in1, in2, in3), in4)).await
     }
 }
 

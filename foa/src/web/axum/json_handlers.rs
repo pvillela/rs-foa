@@ -1,8 +1,10 @@
 use crate::{
     context::LocaleSelf,
     db::sqlx::{in_tx_borrowed, AsyncTxFn, DbCtx},
-    fun::{Async2RFn, AsyncRFn},
-    tokio::task_local::{invoke_tl_scoped, Async2RFnTlD, TaskLocal, TaskLocalCtx},
+    fun::{Async2RFn, Async3RFn, Async4RFn, AsyncRFn},
+    tokio::task_local::{
+        invoke_tl_scoped, Async2RFnTlD, Async3RFnTlD, Async4RFnTlD, TaskLocal, TaskLocalCtx,
+    },
     trait_utils::Make,
     wrapper::W,
 };
@@ -94,13 +96,68 @@ where
     }
 }
 
-//=================
-// Handler for AsyncTxFn
+pub fn handler_async3rfn<F, S>(
+    w: F,
+) -> impl Fn(
+    F::In1,
+    F::In2,
+    Json<F::In3>,
+) -> Pin<Box<(dyn Future<Output = Result<Json<F::Out>, Json<F::E>>> + Send + 'static)>>
+       + Send
+       + Sync // not needed for Axum
+       + 'static
+       + Clone
+where
+    F: Async3RFn + Send + Sync + Clone + 'static,
+    F::In1: FromRequestParts<S>,
+    F::In2: FromRequestParts<S>,
+    F::In3: Deserialize<'static> + 'static,
+    F::Out: Serialize,
+    F::E: Serialize,
+    S: Send + Sync + 'static,
+{
+    move |req_part1, req_part2, Json(input)| {
+        let f = w.clone();
+        Box::pin(async move {
+            let output = f.invoke(req_part1, req_part2, input).await?;
+            Ok(Json(output))
+        })
+    }
+}
 
-// ... TBD ...
+pub fn handler_async4rfn<F, S>(
+    w: F,
+) -> impl Fn(
+    F::In1,
+    F::In2,
+    F::In3,
+    Json<F::In4>,
+) -> Pin<Box<(dyn Future<Output = Result<Json<F::Out>, Json<F::E>>> + Send + 'static)>>
+       + Send
+       + Sync // not needed for Axum
+       + 'static
+       + Clone
+where
+    F: Async4RFn + Send + Sync + Clone + 'static,
+    F::In1: FromRequestParts<S>,
+    F::In2: FromRequestParts<S>,
+    F::In3: FromRequestParts<S>,
+    F::In4: Deserialize<'static> + 'static,
+    F::Out: Serialize,
+    F::E: Serialize,
+    S: Send + Sync + 'static,
+{
+    move |req_part1, req_part2, req_part3, Json(input)| {
+        let f = w.clone();
+        Box::pin(async move {
+            let output = f.invoke(req_part1, req_part2, req_part3, input).await?;
+            Ok(Json(output))
+        })
+    }
+}
 
 //=================
-// Handler for AsyncRFn in task-local context
+// LocaleSelf for HeaderMap
 
 impl LocaleSelf for HeaderMap {
     fn locale(&self) -> &str {
@@ -111,8 +168,6 @@ impl LocaleSelf for HeaderMap {
         }
     }
 }
-
-// ... TBD ...
 
 //=================
 // Handler for AsyncTxFn
@@ -138,9 +193,9 @@ where
 }
 
 //=================
-// Handler for AsyncTxFn in task-local context
+// Handlers for AsyncTxFn in task-local context
 
-pub fn handler_tx_requestpart<CTX, F, RP, S>(
+pub fn handler_tx_1requestpart<CTX, F, RP, S>(
     f: F,
 ) -> impl Fn(
     RP,
@@ -163,6 +218,62 @@ where
     let wf1 = f.in_tx();
     let wf2 = W::<_, Async2RFnTlD, CTX>::new(Arc::new(wf1));
     handler_async2rfn(wf2)
+}
+
+pub fn handler_tx_2requestparts<CTX, F, RP1, RP2, S>(
+    f: F,
+) -> impl Fn(
+    RP1,
+    RP2,
+    Json<F::In>,
+) -> Pin<Box<(dyn Future<Output = Result<Json<F::Out>, Json<F::E>>> + Send + 'static)>>
+       + Send
+       + Sync // not needed for Axum
+       + 'static
+       + Clone
+where
+    CTX: DbCtx + TaskLocalCtx + Sync + Send + 'static,
+    CTX::TaskLocal: TaskLocal<ValueType = (RP1, RP2)>,
+    F: AsyncTxFn<CTX> + Sync + Send + 'static,
+    F::In: Deserialize<'static> + 'static,
+    F::Out: Serialize,
+    F::E: Serialize,
+    RP1: FromRequestParts<S> + Sync + Send + 'static,
+    RP2: FromRequestParts<S> + Sync + Send + 'static,
+    S: Send + Sync + 'static,
+{
+    let wf1 = f.in_tx();
+    let wf2 = W::<_, Async3RFnTlD, CTX>::new(Arc::new(wf1));
+    handler_async3rfn(wf2)
+}
+
+pub fn handler_tx_3requestparts<CTX, F, RP1, RP2, RP3, S>(
+    f: F,
+) -> impl Fn(
+    RP1,
+    RP2,
+    RP3,
+    Json<F::In>,
+) -> Pin<Box<(dyn Future<Output = Result<Json<F::Out>, Json<F::E>>> + Send + 'static)>>
+       + Send
+       + Sync // not needed for Axum
+       + 'static
+       + Clone
+where
+    CTX: DbCtx + TaskLocalCtx + Sync + Send + 'static,
+    CTX::TaskLocal: TaskLocal<ValueType = (RP1, RP2, RP3)>,
+    F: AsyncTxFn<CTX> + Sync + Send + 'static,
+    F::In: Deserialize<'static> + 'static,
+    F::Out: Serialize,
+    F::E: Serialize,
+    RP1: FromRequestParts<S> + Sync + Send + 'static,
+    RP2: FromRequestParts<S> + Sync + Send + 'static,
+    RP3: FromRequestParts<S> + Sync + Send + 'static,
+    S: Send + Sync + 'static,
+{
+    let wf1 = f.in_tx();
+    let wf2 = W::<_, Async4RFnTlD, CTX>::new(Arc::new(wf1));
+    handler_async4rfn(wf2)
 }
 
 #[deprecated]
