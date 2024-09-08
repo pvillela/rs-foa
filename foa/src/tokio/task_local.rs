@@ -1,6 +1,6 @@
 use crate::{
     fun::{Async2RFn, AsyncRFn},
-    wrapper_discr::W,
+    wrapper::W,
 };
 use std::marker::PhantomData;
 use tokio::task::LocalKey;

@@ -10,4 +10,3 @@ pub mod tokio;
 pub mod trait_utils;
 pub mod web;
 pub mod wrapper;
-pub mod wrapper_discr;
