@@ -1,4 +1,7 @@
-use crate::fun::AsyncRFn;
+use crate::{
+    fun::{Async2RFn, AsyncRFn},
+    wrapper_discr::W,
+};
 use std::marker::PhantomData;
 use tokio::task::LocalKey;
 
@@ -28,6 +31,7 @@ pub trait TaskLocal {
     }
 }
 
+#[derive(Clone)]
 struct TlScoped<'a, CTX, F>(&'a F, PhantomData<CTX>);
 
 impl<'a, CTX, F> AsyncRFn for TlScoped<'a, CTX, F>
@@ -68,6 +72,24 @@ where
     F: AsyncRFn + Sync,
 {
     TlScoped(f, PhantomData::<CTX>).invoke(input).await
+}
+
+/// Discriminant for conversion of AsyncRFn to Async2RFn in task-local context using [`W`].
+pub struct Async2RFnTlD;
+impl<CTX, F> Async2RFn for W<Async2RFnTlD, F, CTX>
+where
+    CTX: TaskLocalCtx + Sync + Send + 'static,
+    <CTX::TaskLocal as TaskLocal>::ValueType: Send,
+    F: AsyncRFn + Sync + Send,
+{
+    type In1 = <CTX::TaskLocal as TaskLocal>::ValueType;
+    type In2 = F::In;
+    type Out = F::Out;
+    type E = F::E;
+
+    async fn invoke(&self, in1: Self::In1, in2: Self::In2) -> Result<Self::Out, Self::E> {
+        invoke_tl_scoped::<CTX, _>(&self.0, (in1, in2)).await
+    }
 }
 
 #[cfg(test)]

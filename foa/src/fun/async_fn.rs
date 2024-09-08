@@ -1,4 +1,4 @@
-use std::{future::Future, pin::Pin};
+use std::{future::Future, pin::Pin, sync::Arc};
 
 pub trait AsyncFn {
     type In;
@@ -13,7 +13,6 @@ pub trait AsyncRFn {
     type Out: Send;
     type E;
 
-    #[allow(async_fn_in_trait)]
     fn invoke(&self, input: Self::In) -> impl Future<Output = Result<Self::Out, Self::E>> + Send;
 
     /// Reifies `self` as an `async Fn`
@@ -39,6 +38,19 @@ pub trait AsyncRFn {
                 Ok(output)
             })
         }
+    }
+}
+
+impl<F> AsyncRFn for Arc<F>
+where
+    F: AsyncRFn + Sync + Send,
+{
+    type In = F::In;
+    type Out = F::Out;
+    type E = F::E;
+
+    fn invoke(&self, input: Self::In) -> impl Future<Output = Result<Self::Out, Self::E>> + Send {
+        async { self.invoke(input).await }
     }
 }
 

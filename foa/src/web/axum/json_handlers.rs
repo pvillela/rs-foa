@@ -1,13 +1,14 @@
 use crate::{
     context::LocaleSelf,
-    db::sqlx::{in_tx, AsyncTxFn, DbCtx},
+    db::sqlx::{in_tx_borrowed, AsyncTxFn, DbCtx},
     fun::{Async2RFn, AsyncRFn},
-    tokio::task_local::{invoke_tl_scoped, TaskLocal, TaskLocalCtx},
+    tokio::task_local::{invoke_tl_scoped, Async2RFnTlD, TaskLocal, TaskLocalCtx},
     trait_utils::Make,
+    wrapper_discr::W,
 };
 use axum::{extract::FromRequestParts, http::HeaderMap, response::IntoResponse, Json};
 use serde::{Deserialize, Serialize};
-use std::{future::Future, marker::PhantomData, pin::Pin, sync::Arc};
+use std::{future::Future, pin::Pin, sync::Arc};
 
 //=================
 // Type checker
@@ -42,20 +43,20 @@ where
 //=================
 // Handlers for Async[x]RFn
 
-pub fn handler_asyncrfn<W>(
-    w: W,
+pub fn handler_asyncrfn<F>(
+    w: F,
 ) -> impl Fn(
-    Json<W::In>,
-) -> Pin<Box<(dyn Future<Output = Result<Json<W::Out>, Json<W::E>>> + Send + 'static)>>
+    Json<F::In>,
+) -> Pin<Box<(dyn Future<Output = Result<Json<F::Out>, Json<F::E>>> + Send + 'static)>>
        + Send
        + Sync // not needed for Axum
        + 'static
        + Clone
 where
-    W: AsyncRFn + Send + Sync + Clone + 'static,
-    W::In: Deserialize<'static> + 'static,
-    W::Out: Serialize,
-    W::E: Serialize,
+    F: AsyncRFn + Send + Sync + Clone + 'static,
+    F::In: Deserialize<'static> + 'static,
+    F::Out: Serialize,
+    F::E: Serialize,
 {
     move |Json(input)| {
         let f = w.clone();
@@ -66,22 +67,22 @@ where
     }
 }
 
-pub fn handler_async2rfn<W, S>(
-    w: W,
+pub fn handler_async2rfn<F, S>(
+    w: F,
 ) -> impl Fn(
-    W::In1,
-    Json<W::In2>,
-) -> Pin<Box<(dyn Future<Output = Result<Json<W::Out>, Json<W::E>>> + Send + 'static)>>
+    F::In1,
+    Json<F::In2>,
+) -> Pin<Box<(dyn Future<Output = Result<Json<F::Out>, Json<F::E>>> + Send + 'static)>>
        + Send
        + Sync // not needed for Axum
        + 'static
        + Clone
 where
-    W: Async2RFn + Send + Sync + Clone + 'static,
-    W::In1: FromRequestParts<S>,
-    W::In2: Deserialize<'static> + 'static,
-    W::Out: Serialize,
-    W::E: Serialize,
+    F: Async2RFn + Send + Sync + Clone + 'static,
+    F::In1: FromRequestParts<S>,
+    F::In2: Deserialize<'static> + 'static,
+    F::Out: Serialize,
+    F::E: Serialize,
     S: Send + Sync + 'static,
 {
     move |req_part, Json(input)| {
@@ -116,21 +117,6 @@ impl LocaleSelf for HeaderMap {
 //=================
 // Handler for AsyncTxFn
 
-impl<CTX, F> AsyncRFn for (Arc<F>, PhantomData<CTX>)
-where
-    CTX: DbCtx + Sync + Send,
-    F: AsyncTxFn<CTX> + Sync + Send,
-{
-    type In = F::In;
-    type Out = F::Out;
-    type E = F::E;
-
-    async fn invoke(&self, input: F::In) -> Result<Self::Out, Self::E> {
-        let output = self.0.as_ref().invoke_in_tx(input).await?;
-        Ok(output)
-    }
-}
-
 pub fn handler_tx<CTX, F>(
     f: F,
 ) -> impl Fn(
@@ -147,32 +133,12 @@ where
     F::Out: Serialize,
     F::E: Serialize,
 {
-    let wf = (Arc::new(f), PhantomData::<CTX>);
+    let wf = Arc::new(f.in_tx());
     handler_asyncrfn(wf)
 }
 
 //=================
 // Handler for AsyncTxFn in task-local context
-
-impl<CTX, F, RP, S> Async2RFn for (Arc<F>, PhantomData<(CTX, RP, S)>)
-where
-    CTX: DbCtx + TaskLocalCtx + Sync + Send + 'static,
-    CTX::TaskLocal: TaskLocal<ValueType = RP>,
-    F: AsyncTxFn<CTX> + Sync + Send,
-    RP: FromRequestParts<S> + Sync + Send,
-    S: Send + Sync,
-{
-    type In1 = RP;
-    type In2 = F::In;
-    type Out = F::Out;
-    type E = F::E;
-
-    async fn invoke(&self, rp: RP, input: F::In) -> Result<Self::Out, Self::E> {
-        let f_in_tx = self.0.as_ref().in_tx();
-        let output = invoke_tl_scoped::<CTX, _>(&f_in_tx, (rp, input)).await?;
-        Ok(output)
-    }
-}
 
 pub fn handler_tx_requestpart<CTX, F, RP, S>(
     f: F,
@@ -194,8 +160,9 @@ where
     RP: FromRequestParts<S> + Sync + Send + 'static,
     S: Send + Sync + 'static,
 {
-    let wf = (Arc::new(f), PhantomData::<(CTX, RP, S)>);
-    handler_async2rfn::<(Arc<F>, PhantomData<(CTX, RP, S)>), S>(wf)
+    let wf1 = f.in_tx();
+    let wf2 = W::<Async2RFnTlD, _, CTX>::new(Arc::new(wf1));
+    handler_async2rfn(wf2)
 }
 
 #[deprecated]
@@ -213,7 +180,7 @@ where
     MF: Make<F>,
 {
     let f = MF::make();
-    let f_in_tx = in_tx(&f).await;
+    let f_in_tx = in_tx_borrowed(&f).await;
     let output = invoke_tl_scoped::<CTX, _>(&f_in_tx, (headers, input)).await?;
     Ok(Json(output))
 }

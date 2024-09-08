@@ -42,14 +42,14 @@ where
         tx: &mut Transaction<<CTX::Db as Db>::Database>,
     ) -> impl Future<Output = Result<Self::Out, Self::E>> + Send;
 
-    fn in_tx<'a>(
-        &'a self,
-    ) -> impl AsyncRFn<In = Self::In, Out = Self::Out, E = Self::E> + Send + Sync + 'a
+    fn in_tx(
+        self,
+    ) -> impl AsyncRFn<In = Self::In, Out = Self::Out, E = Self::E> + Send + Sync + 'static
     where
         CTX: Sync + 'static + Send,
-        Self: Sync + Sized,
+        Self: Send + Sync + Sized + 'static,
     {
-        InTx(self, PhantomData)
+        InTxOwned(self, PhantomData)
     }
 
     fn invoke_in_tx(
@@ -84,12 +84,20 @@ where
     }
 }
 
-pub async fn in_tx<'a, CTX, F>(f: &'a F) -> impl AsyncRFn<In = F::In, Out = F::Out, E = F::E> + 'a
+struct InTxOwned<CTX, F>(F, PhantomData<CTX>);
+
+impl<CTX, F> AsyncRFn for InTxOwned<CTX, F>
 where
-    CTX: DbCtx + Sync + 'static,
+    CTX: DbCtx + Sync + Send,
     F: AsyncTxFn<CTX> + Sync,
 {
-    InTx(f, PhantomData)
+    type In = F::In;
+    type Out = F::Out;
+    type E = F::E;
+
+    async fn invoke(&self, input: Self::In) -> Result<Self::Out, Self::E> {
+        invoke_in_tx(&self.0, input).await
+    }
 }
 
 pub async fn invoke_in_tx<CTX, F>(f: &F, input: F::In) -> Result<F::Out, F::E>
@@ -98,4 +106,24 @@ where
     F: AsyncTxFn<CTX> + Sync,
 {
     InTx(f, PhantomData).invoke(input).await
+}
+
+pub async fn in_tx_borrowed<'a, CTX, F>(
+    f: &'a F,
+) -> impl AsyncRFn<In = F::In, Out = F::Out, E = F::E> + 'a
+where
+    CTX: DbCtx + Sync + 'a,
+    F: AsyncTxFn<CTX> + Sync,
+{
+    InTx(f, PhantomData)
+}
+
+pub async fn in_tx_owned<CTX, F>(
+    f: F,
+) -> impl AsyncRFn<In = F::In, Out = F::Out, E = F::E> + 'static
+where
+    CTX: DbCtx + Sync + Send + 'static,
+    F: AsyncTxFn<CTX> + Sync + Send + 'static,
+{
+    InTxOwned(f, PhantomData)
 }
