@@ -12,13 +12,18 @@ use std::{
 //=================
 // Wrapper
 
-/// Generic wrapper to enable the addition of new methods to the wrapped type,
-/// with a discriminant type parameter `P` to enable different wrappings of the same target.
+/// Generic wrapper to enable the addition of new methods to a wrapped type `T`,
+///
+/// Type parameters:
+/// - `T` is the wrapped target type.
+/// - `D` is a discriminant type that enables different wrappings of the same target type.
+/// - `Ph` supports the inclusion of a phantomed type to the signature of `W`.
+///   `Ph` can be a tuple of types if multiple phantom types are required.
 #[derive(PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct W<D, T, Ph = ()>(pub T, pub PhantomData<(D, Ph)>);
+pub struct W<T, D = (), Ph = ()>(pub T, pub PhantomData<(D, Ph)>);
 
-impl<D, T, Ph> W<D, T, Ph> {
-    pub fn new(value: T) -> W<D, T, Ph> {
+impl<T, D, Ph> W<T, D, Ph> {
+    pub fn new(value: T) -> W<T, D, Ph> {
         Self(value, PhantomData)
     }
 
@@ -27,7 +32,7 @@ impl<D, T, Ph> W<D, T, Ph> {
     }
 }
 
-impl<D, T, Ph> Clone for W<D, T, Ph>
+impl<T, D, Ph> Clone for W<T, D, Ph>
 where
     T: Clone,
 {
@@ -36,7 +41,7 @@ where
     }
 }
 
-impl<D, T, Ph> Debug for W<D, T, Ph>
+impl<T, D, Ph> Debug for W<T, D, Ph>
 where
     T: Debug,
 {
@@ -45,56 +50,56 @@ where
     }
 }
 
-impl<D, T, Ph> From<T> for W<D, T, Ph> {
+impl<T, D, Ph> From<T> for W<T, D, Ph> {
     fn from(value: T) -> Self {
         Self(value, PhantomData)
     }
 }
 
-impl<D, T, Ph> Deref for W<D, T, Ph> {
+impl<T, D, Ph> Deref for W<T, D, Ph> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<D, T, Ph> DerefMut for W<D, T, Ph> {
+impl<T, D, Ph> DerefMut for W<T, D, Ph> {
     fn deref_mut(&mut self) -> &mut T {
         &mut self.0
     }
 }
 
-impl<D, T, Ph> AsRef<T> for W<D, T, Ph> {
+impl<T, D, Ph> AsRef<T> for W<T, D, Ph> {
     fn as_ref(&self) -> &T {
         &self.0
     }
 }
 
-impl<D, T, Ph> Borrow<T> for W<D, T, Ph> {
+impl<T, D, Ph> Borrow<T> for W<T, D, Ph> {
     fn borrow(&self) -> &T {
         &self.0
     }
 }
 
-impl<D, T, Ph> Borrow<T> for W<D, Box<T>, Ph> {
+impl<T, D, Ph> Borrow<T> for W<Box<T>, D, Ph> {
     fn borrow(&self) -> &T {
         self.0.borrow()
     }
 }
 
-impl<D, T, Ph> Borrow<T> for W<D, Arc<T>, Ph> {
+impl<T, D, Ph> Borrow<T> for W<Arc<T>, D, Ph> {
     fn borrow(&self) -> &T {
         self.0.borrow()
     }
 }
 
-impl<D, T, Ph> Borrow<T> for W<D, Rc<T>, Ph> {
+impl<T, D, Ph> Borrow<T> for W<Rc<T>, D, Ph> {
     fn borrow(&self) -> &T {
         self.0.borrow()
     }
 }
 
-impl<D, T, Ph> IntoIterator for W<D, T, Ph>
+impl<T, D, Ph> IntoIterator for W<T, D, Ph>
 where
     T: IntoIterator,
 {
@@ -106,7 +111,7 @@ where
     }
 }
 
-impl<'a, D, T, Ph> IntoIterator for &'a W<D, T, Ph>
+impl<'a, T, D, Ph> IntoIterator for &'a W<T, D, Ph>
 where
     &'a T: IntoIterator,
 {
@@ -118,7 +123,7 @@ where
     }
 }
 
-impl<'a, D, T, Ph> IntoIterator for &'a mut W<D, T, Ph>
+impl<'a, T, D, Ph> IntoIterator for &'a mut W<T, D, Ph>
 where
     &'a mut T: IntoIterator,
 {
@@ -131,18 +136,19 @@ where
 }
 
 //=================
-// Mappable
+// Example of complex usage of `W`.
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct MappableDiscr<D>(D);
 
-/// Specializetion of [Wrapper] that adds a [`map`](Self::map) method.
-pub type Mappable<D, T, Ph = ()> = W<MappableDiscr<D>, T, Ph>;
+/// Specialization of [`W`].
+pub type Mappable<T, D, Ph = ()> = W<T, MappableDiscr<D>, Ph>;
 
-impl<D, T, Ph> Mappable<D, T, Ph> {
+/// Specialization of [`W`] that adds a [`map`](Self::map) method.
+impl<T, D, Ph> Mappable<T, D, Ph> {
     /// Transforms `self` into a target [`Mappable<U, P>`] whose wrapped value is the result of applying `f` to
     /// `self`'s wrapped value.
-    pub fn map<U>(&self, f: impl Fn(&T) -> U) -> Mappable<D, U, Ph> {
+    pub fn map<U>(&self, f: impl Fn(&T) -> U) -> Mappable<U, D, Ph> {
         Mappable::new(f(&self.0))
     }
 }

@@ -76,7 +76,7 @@ where
 
 /// Discriminant for conversion of AsyncRFn to Async2RFn in task-local context using [`W`].
 pub struct Async2RFnTlD;
-impl<CTX, F> Async2RFn for W<Async2RFnTlD, F, CTX>
+impl<CTX, F> Async2RFn for W<F, Async2RFnTlD, CTX>
 where
     CTX: TaskLocalCtx + Sync + Send + 'static,
     <CTX::TaskLocal as TaskLocal>::ValueType: Send,

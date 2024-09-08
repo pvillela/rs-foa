@@ -161,7 +161,7 @@ where
     S: Send + Sync + 'static,
 {
     let wf1 = f.in_tx();
-    let wf2 = W::<Async2RFnTlD, _, CTX>::new(Arc::new(wf1));
+    let wf2 = W::<_, Async2RFnTlD, CTX>::new(Arc::new(wf1));
     handler_async2rfn(wf2)
 }
 
