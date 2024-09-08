@@ -41,6 +41,27 @@ where
         input: Self::In,
         tx: &mut Transaction<<CTX::Db as Db>::Database>,
     ) -> impl Future<Output = Result<Self::Out, Self::E>> + Send;
+
+    fn in_tx<'a>(
+        &'a self,
+    ) -> impl AsyncRFn<In = Self::In, Out = Self::Out, E = Self::E> + Send + Sync + 'a
+    where
+        CTX: Sync + 'static + Send,
+        Self: Sync + Sized,
+    {
+        InTx(self, PhantomData)
+    }
+
+    fn invoke_in_tx(
+        &self,
+        input: Self::In,
+    ) -> impl std::future::Future<Output = Result<Self::Out, Self::E>> + Send
+    where
+        CTX: Sync + Send,
+        Self: Sync + Sized,
+    {
+        async { InTx(self, PhantomData).invoke(input).await }
+    }
 }
 
 struct InTx<'a, CTX, F>(&'a F, PhantomData<CTX>);

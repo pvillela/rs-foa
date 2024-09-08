@@ -47,7 +47,7 @@ where
     }
 }
 
-pub async fn tl_scoped<'a, CTX, F>(
+pub fn tl_scoped<'a, CTX, F>(
     f: &'a F,
 ) -> impl AsyncRFn<In = (<CTX::TaskLocal as TaskLocal>::ValueType, F::In), Out = F::Out, E = F::E> + 'a
 where

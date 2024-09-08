@@ -1,13 +1,13 @@
 use crate::{
     context::LocaleSelf,
-    db::sqlx::{in_tx, invoke_in_tx, AsyncTxFn, DbCtx},
+    db::sqlx::{in_tx, AsyncTxFn, DbCtx},
     fun::{Async2RFn, AsyncRFn},
     tokio::task_local::{invoke_tl_scoped, TaskLocal, TaskLocalCtx},
     trait_utils::Make,
 };
 use axum::{extract::FromRequestParts, http::HeaderMap, response::IntoResponse, Json};
 use serde::{Deserialize, Serialize};
-use std::{future::Future, marker::PhantomData, ops::Deref, pin::Pin, sync::Arc};
+use std::{future::Future, marker::PhantomData, pin::Pin, sync::Arc};
 
 //=================
 // Type checker
@@ -120,18 +120,13 @@ impl<CTX, F> AsyncRFn for (Arc<F>, PhantomData<CTX>)
 where
     CTX: DbCtx + Sync + Send,
     F: AsyncTxFn<CTX> + Sync + Send,
-    // CTX: DbCtx + TaskLocalCtx + Sync + Send + 'static,
-    // F: AsyncTxFn<CTX> + Sync + Send + 'static,
-    // F::In: Deserialize<'static> + 'static,
-    // F::Out: Serialize,
-    // F::E: Serialize,
 {
     type In = F::In;
     type Out = F::Out;
     type E = F::E;
 
     async fn invoke(&self, input: F::In) -> Result<Self::Out, Self::E> {
-        let output = invoke_in_tx::<CTX, _>(self.0.deref(), input).await?;
+        let output = self.0.as_ref().invoke_in_tx(input).await?;
         Ok(output)
     }
 }
@@ -173,7 +168,7 @@ where
     type E = F::E;
 
     async fn invoke(&self, rp: RP, input: F::In) -> Result<Self::Out, Self::E> {
-        let f_in_tx = in_tx(self.0.deref()).await;
+        let f_in_tx = self.0.as_ref().in_tx();
         let output = invoke_tl_scoped::<CTX, _>(&f_in_tx, (rp, input)).await?;
         Ok(output)
     }
