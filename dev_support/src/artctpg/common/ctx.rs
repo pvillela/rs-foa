@@ -10,7 +10,6 @@ use foa::{
         task_local::{TaskLocal, TaskLocalCtx},
         task_local_ext::locale_from_task_local,
     },
-    trait_utils::Make,
 };
 use sqlx::{Pool, Postgres};
 use std::{
@@ -88,7 +87,7 @@ impl Ctx {
             .await
             .expect("Ctx::init: read_app_cfg_info error");
         new_db_pool().await.expect("Ctx::init: db_pool error");
-        invoke_in_tx::<Ctx, _>(&InitDafI::make(), ())
+        invoke_in_tx::<Ctx, _>(&InitDafI(Ctx), ())
             .await
             .expect("Ctx::init: data initialization error");
     }

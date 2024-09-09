@@ -4,10 +4,8 @@ use foa::{
     db::sqlx::{AsyncTxFn, PgDbCtx},
     error::FoaError,
     refinto::RefInto,
-    trait_utils::Make,
 };
 use sqlx::{Postgres, Transaction};
-use std::marker::PhantomData;
 use tracing::instrument;
 
 //=================
@@ -67,13 +65,7 @@ where
 }
 
 /// Stereotype instance
-pub struct InitDafI<CTX: InitDafCtx>(PhantomData<CTX>);
-
-impl<CTX: InitDafCtx> Make<Self> for InitDafI<CTX> {
-    fn make() -> Self {
-        InitDafI(PhantomData)
-    }
-}
+pub struct InitDafI<CTX: InitDafCtx>(pub CTX);
 
 //=================
 // This section depends on dependencies implementations

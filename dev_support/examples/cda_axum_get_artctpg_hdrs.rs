@@ -1,13 +1,10 @@
-#![allow(deprecated)]
-
 use axum::Router;
 use dev_support::artctpg::{common::Ctx, FooIn, FooOut, FooSfl, FooSflI};
 use foa::{
     db::sqlx::AsyncTxFn,
     error::FoaError,
     tokio::task_local::{TaskLocal, TaskLocalCtx},
-    trait_utils::Make,
-    web::axum::{handler_tx_1requestpart, handler_tx_headers_old},
+    web::axum::handler_tx_requestparts,
 };
 use serde::Serialize;
 use sqlx::{Postgres, Transaction};
@@ -20,12 +17,6 @@ struct FooOutExt {
 }
 
 struct F;
-
-impl Make<F> for F {
-    fn make() -> Self {
-        F
-    }
-}
 
 impl AsyncTxFn<Ctx> for F {
     type In = FooIn;
@@ -62,15 +53,10 @@ async fn main() {
         }
     });
 
-    let app = Router::new()
-        .route(
-            "/",
-            axum::routing::post(handler_tx_1requestpart::<_, _, _, ()>(F::make())),
-        )
-        .route(
-            "/depr",
-            axum::routing::post(handler_tx_headers_old::<Ctx, F, F>),
-        );
+    let app = Router::new().route(
+        "/",
+        axum::routing::post(handler_tx_requestparts::<_, _, _, ()>(F)),
+    );
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:8080")
         .await

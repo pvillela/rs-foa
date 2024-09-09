@@ -127,9 +127,9 @@ where
 }
 
 //=================
-// Handlers for AsyncTxFn in task-local context
+// Handler for AsyncTxFn in task-local context
 
-pub fn handler_tx_1requestpart<CTX, F, RP, S>(
+pub fn handler_tx_requestparts<CTX, F, RP, S>(
     f: F,
 ) -> impl Fn(
     RP,

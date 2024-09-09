@@ -1,5 +1,5 @@
 use super::{common::Ctx, FooIn, FooSflI};
-use foa::{db::sqlx::invoke_in_tx, trait_utils::Make};
+use foa::db::sqlx::invoke_in_tx;
 use futures::future::join_all;
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
@@ -58,7 +58,7 @@ pub async fn run(input: RunIn) {
     let run_concurrent = {
         |i: usize| {
             tokio::spawn(async move {
-                let foo_sfl = FooSflI::make();
+                let foo_sfl = FooSflI(Ctx);
                 let mut res: usize = 0;
                 for j in 0..repeats {
                     let out = invoke_in_tx::<Ctx, _>(&foo_sfl, FooIn { age_delta: 11 }).await;

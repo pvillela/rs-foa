@@ -6,11 +6,9 @@ use foa::{
     error::FoaError,
     refinto::RefInto,
     tokio::task_local::{TaskLocal, TaskLocalCtx},
-    trait_utils::Make,
 };
 use serde::{Deserialize, Serialize};
 use sqlx::{Postgres, Transaction};
-use std::marker::PhantomData;
 use tracing::instrument;
 
 //=================
@@ -128,13 +126,7 @@ mod illustrative {
 
 /// Stereotype instance
 #[derive(Clone)]
-pub struct FooSflI<CTX: FooCtx>(PhantomData<CTX>);
-
-impl<CTX: FooCtx> Make<Self> for FooSflI<CTX> {
-    fn make() -> Self {
-        FooSflI(PhantomData)
-    }
-}
+pub struct FooSflI<CTX: FooCtx>(pub CTX);
 
 //=================
 // This section depends on application configuration implementation

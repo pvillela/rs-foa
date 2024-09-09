@@ -9,7 +9,6 @@ use foa::{
     error::FoaError,
     refinto::RefInto,
     tokio::task_local::{invoke_tl_scoped, TaskLocal, TaskLocalCtx},
-    trait_utils::Make,
 };
 use sqlx::{Postgres, Transaction};
 use std::{fmt::Debug, marker::PhantomData};
@@ -72,13 +71,7 @@ impl<'a> RefInto<'a, InitDafCfgInfo<'a>> for CfgTestInput {
     }
 }
 
-struct TestFooSflI<CTX>(PhantomData<CTX>);
-
-impl<CTX> Make<Self> for TestFooSflI<CTX> {
-    fn make() -> Self {
-        TestFooSflI(PhantomData)
-    }
-}
+struct TestFooSflI<CTX>(pub PhantomData<CTX>);
 
 impl<CTX> AsyncTxFn<CTX> for TestFooSflI<CTX>
 where
@@ -110,10 +103,9 @@ where
         + Sync
         + Debug,
 {
-    // invoke_in_tx(&InitDafI::make(), ()).await?;
     let handle = tokio::spawn(async move {
         invoke_tl_scoped::<CTX, _>(
-            &TestFooSflI::make().in_tx(),
+            &TestFooSflI(PhantomData).in_tx(),
             (parts.clone(), FooIn { age_delta: 1 }),
         )
         .await

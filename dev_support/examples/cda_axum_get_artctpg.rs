@@ -1,11 +1,6 @@
-#![allow(deprecated)]
-
 use axum::Router;
 use dev_support::artctpg::{common::Ctx, FooSflI};
-use foa::{
-    trait_utils::Make,
-    web::axum::{handler_tx_1requestpart, handler_tx_headers_old},
-};
+use foa::web::axum::handler_tx_requestparts;
 use std::time::Duration;
 
 #[tokio::main]
@@ -21,17 +16,10 @@ async fn main() {
         }
     });
 
-    let app = Router::new()
-        .route(
-            "/",
-            axum::routing::post(handler_tx_1requestpart::<_, _, _, ()>(
-                FooSflI::<Ctx>::make(),
-            )),
-        )
-        .route(
-            "/depr",
-            axum::routing::post(handler_tx_headers_old::<Ctx, FooSflI<Ctx>, FooSflI<Ctx>>),
-        );
+    let app = Router::new().route(
+        "/",
+        axum::routing::post(handler_tx_requestparts::<_, _, _, ()>(FooSflI(Ctx))),
+    );
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:8080")
         .await
