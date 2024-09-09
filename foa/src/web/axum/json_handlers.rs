@@ -117,7 +117,7 @@ pub fn handler_tx<CTX, F>(
        + Clone
 where
     CTX: DbCtx + Sync + Send + 'static,
-    F: AsyncTxFn<CTX> + Sync + Send + 'static,
+    F: AsyncTxFn<Db = CTX::Db> + Sync + Send + 'static,
     F::In: Deserialize<'static> + 'static,
     F::Out: Serialize,
     F::E: Serialize,
@@ -142,7 +142,7 @@ pub fn handler_tx_requestparts<CTX, F, RP, S>(
 where
     CTX: DbCtx + TaskLocalCtx + Sync + Send + 'static,
     CTX::TaskLocal: TaskLocal<ValueType = RP>,
-    F: AsyncTxFn<CTX> + Sync + Send + 'static,
+    F: AsyncTxFn<Db = CTX::Db> + Sync + Send + 'static,
     F::In: Deserialize<'static> + 'static,
     F::Out: Serialize,
     F::E: Serialize,
@@ -162,7 +162,7 @@ pub async fn handler_tx_headers_old<CTX, F, MF>(
 where
     CTX: DbCtx + TaskLocalCtx + Sync + 'static,
     CTX::TaskLocal: TaskLocal<ValueType = Parts>,
-    F: AsyncTxFn<CTX> + Sync,
+    F: AsyncTxFn<Db = CTX::Db> + Sync,
     F::In: Deserialize<'static> + 'static,
     F::Out: Serialize,
     F::E: Serialize,

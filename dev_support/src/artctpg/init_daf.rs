@@ -87,7 +87,7 @@ impl<'a> RefInto<'a, InitDafCfgInfo<'a>> for AppCfgInfoArc {
 //=================
 // This section has additional platform technology-specific code
 
-impl<CTX> AsyncTxFn<CTX> for InitDafI<CTX>
+impl<CTX> AsyncTxFn for InitDafI<CTX>
 where
     CTX: InitDafCtx + PgDbCtx + Sync,
     CTX::CfgInfo: Send,
@@ -95,6 +95,7 @@ where
     type In = ();
     type Out = ();
     type E = FoaError<CTX>;
+    type Db = CTX::Db;
 
     async fn invoke(&self, _: (), tx: &mut Transaction<'_, Postgres>) -> Result<(), FoaError<CTX>> {
         InitDafI::<CTX>::init_daf(tx).await

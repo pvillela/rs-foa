@@ -61,7 +61,7 @@ pub async fn run(input: RunIn) {
                 let foo_sfl = FooSflI(Ctx);
                 let mut res: usize = 0;
                 for j in 0..repeats {
-                    let out = invoke_in_tx::<Ctx, _>(&foo_sfl, FooIn { age_delta: 11 }).await;
+                    let out = invoke_in_tx(&foo_sfl, FooIn { age_delta: 11 }).await;
                     res = format!("{:?}", out).len();
                     if i == 0 && j % increment_to_print == 0 {
                         println!(

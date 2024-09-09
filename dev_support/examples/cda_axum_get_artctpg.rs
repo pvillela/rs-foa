@@ -18,7 +18,7 @@ async fn main() {
 
     let app = Router::new().route(
         "/",
-        axum::routing::post(handler_tx_requestparts::<_, _, _, ()>(FooSflI(Ctx))),
+        axum::routing::post(handler_tx_requestparts::<Ctx, _, _, ()>(FooSflI(Ctx))),
     );
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:8080")

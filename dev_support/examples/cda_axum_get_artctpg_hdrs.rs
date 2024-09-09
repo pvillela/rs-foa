@@ -1,7 +1,7 @@
 use axum::Router;
 use dev_support::artctpg::{common::Ctx, FooIn, FooOut, FooSfl, FooSflI};
 use foa::{
-    db::sqlx::AsyncTxFn,
+    db::sqlx::{AsyncTxFn, DbCtx},
     error::FoaError,
     tokio::task_local::{TaskLocal, TaskLocalCtx},
     web::axum::handler_tx_requestparts,
@@ -18,10 +18,11 @@ struct FooOutExt {
 
 struct F;
 
-impl AsyncTxFn<Ctx> for F {
+impl AsyncTxFn for F {
     type In = FooIn;
     type Out = FooOutExt;
     type E = FoaError<Ctx>;
+    type Db = <Ctx as DbCtx>::Db;
 
     async fn invoke(
         &self,
@@ -55,7 +56,7 @@ async fn main() {
 
     let app = Router::new().route(
         "/",
-        axum::routing::post(handler_tx_requestparts::<_, _, _, ()>(F)),
+        axum::routing::post(handler_tx_requestparts::<Ctx, _, _, ()>(F)),
     );
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:8080")

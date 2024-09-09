@@ -143,7 +143,7 @@ impl<'a> RefInto<'a, FooSflCfgInfo<'a>> for AppCfgInfoArc {
 //=================
 // This section has additional platform technology-specific code
 
-impl<CTX> AsyncTxFn<CTX> for FooSflI<CTX>
+impl<CTX> AsyncTxFn for FooSflI<CTX>
 where
     CTX: FooCtx + PgDbCtx + Sync,
     CTX::CfgInfo: Send,
@@ -151,6 +151,7 @@ where
     type In = FooIn;
     type Out = FooOut;
     type E = FoaError<CTX>;
+    type Db = CTX::Db;
 
     async fn invoke(
         &self,

@@ -73,7 +73,7 @@ impl<'a> RefInto<'a, InitDafCfgInfo<'a>> for CfgTestInput {
 
 struct TestFooSflI<CTX>(pub PhantomData<CTX>);
 
-impl<CTX> AsyncTxFn<CTX> for TestFooSflI<CTX>
+impl<CTX> AsyncTxFn for TestFooSflI<CTX>
 where
     CTX: FooCtx + LocaleCtx + InitDafCtx + PgDbCtx + Sync,
     CTX::CfgInfo: Send,
@@ -81,6 +81,7 @@ where
     type In = FooIn;
     type Out = FooOut;
     type E = FoaError<CTX>;
+    type Db = CTX::Db;
 
     async fn invoke(
         &self,
