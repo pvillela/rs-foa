@@ -26,20 +26,18 @@ pub trait AsyncRFn {
     }
 
     /// Reifies `self` as an `async Fn`
-    fn into_fn(
+    fn into_fn<'a>(
         self,
-    ) -> impl Fn(
-        Self::In,
-    ) -> Pin<Box<(dyn Future<Output = Result<Self::Out, Self::E>> + Send + 'static)>>
+    ) -> impl Fn(Self::In) -> Pin<Box<(dyn Future<Output = Result<Self::Out, Self::E>> + Send + 'a)>>
            + Send
            + Sync // optional, results from Self: Sync
-           + 'static
+           + 'a
            + Clone
     where
         Self: Send
             + Sync // optional if resulting Fn doesn't have to be Sync
             + Clone
-            + 'static,
+            + 'a,
     {
         move |input| {
             let f = self.clone();
@@ -89,28 +87,22 @@ where
 }
 
 #[cfg(test)]
-mod test {
-    use super::*;
+async fn _typecheck_compose<F, G>(f: F, g: G, input: G::In)
+where
+    F: AsyncRFn + Sync,
+    G: AsyncRFn<Out = F::In> + Sync,
+    F::E: From<G::E> + std::fmt::Debug,
+    G::In: Clone,
+    G::E: Send,
+    F::Out: std::fmt::Debug,
+{
+    let h = compose(&f, &g);
+    let res = h.invoke(input.clone()).await;
+    println!("{res:?}");
 
-    use std::fmt::Debug;
-
-    async fn _foo<F, G>(f: F, g: G, input: G::In)
-    where
-        F: AsyncRFn + Sync,
-        G: AsyncRFn<Out = F::In> + Sync,
-        F::E: From<G::E> + Debug,
-        G::In: Clone,
-        G::E: Send,
-        F::Out: Debug,
-    {
-        let h = compose(&f, &g);
-        let res = h.invoke(input.clone()).await;
-        println!("{res:?}");
-
-        let h = (&f).compose(&g);
-        let res = h.invoke(input).await;
-        println!("{res:?}");
-    }
+    let h = (&f).compose(&g);
+    let res = h.invoke(input).await;
+    println!("{res:?}");
 }
 
 impl<F> AsyncRFn for Arc<F>
@@ -140,21 +132,21 @@ pub trait AsyncRFn2 {
     ) -> impl Future<Output = Result<Self::Out, Self::E>> + Send;
 
     /// Reifies `self` as an `async Fn`
-    fn into_fn(
+    fn into_fn<'a>(
         self,
     ) -> impl Fn(
         Self::In1,
         Self::In2,
-    ) -> Pin<Box<(dyn Future<Output = Result<Self::Out, Self::E>> + Send + 'static)>>
+    ) -> Pin<Box<(dyn Future<Output = Result<Self::Out, Self::E>> + Send + 'a)>>
            + Send
            + Sync // optional, results from Self: Sync
-           + 'static
+           + 'a
            + Clone
     where
         Self: Send
             + Sync // optional if resulting Fn doesn't have to be Sync
             + Clone
-            + 'static,
+            + 'a,
     {
         move |in1, in2| {
             let f = self.clone();
@@ -200,22 +192,22 @@ pub trait AsyncRFn3 {
     ) -> impl Future<Output = Result<Self::Out, Self::E>> + Send;
 
     /// Reifies `self` as an `async Fn`
-    fn into_fn(
+    fn into_fn<'a>(
         self,
     ) -> impl Fn(
         Self::In1,
         Self::In2,
         Self::In3,
-    ) -> Pin<Box<(dyn Future<Output = Result<Self::Out, Self::E>> + Send + 'static)>>
+    ) -> Pin<Box<(dyn Future<Output = Result<Self::Out, Self::E>> + Send + 'a)>>
            + Send
            + Sync // optional, results from Self: Sync
-           + 'static
+           + 'a
            + Clone
     where
         Self: Send
             + Sync // optional if resulting Fn doesn't have to be Sync
             + Clone
-            + 'static,
+            + 'a,
     {
         move |in1, in2, in3| {
             let f = self.clone();
@@ -265,23 +257,23 @@ pub trait AsyncRFn4 {
     ) -> impl Future<Output = Result<Self::Out, Self::E>> + Send;
 
     /// Reifies `self` as an `async Fn`
-    fn into_fn(
+    fn into_fn<'a>(
         self,
     ) -> impl Fn(
         Self::In1,
         Self::In2,
         Self::In3,
         Self::In4,
-    ) -> Pin<Box<(dyn Future<Output = Result<Self::Out, Self::E>> + Send + 'static)>>
+    ) -> Pin<Box<(dyn Future<Output = Result<Self::Out, Self::E>> + Send + 'a)>>
            + Send
            + Sync // optional, results from Self: Sync
-           + 'static
+           + 'a
            + Clone
     where
         Self: Send
             + Sync // optional if resulting Fn doesn't have to be Sync
             + Clone
-            + 'static,
+            + 'a,
     {
         move |in1, in2, in3, in4| {
             let f = self.clone();

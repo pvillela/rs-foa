@@ -13,13 +13,14 @@ use std::{future::Future, pin::Pin, sync::Arc};
 //=================
 // Type checker
 
+#[cfg(test)]
 /// Checks a closure for compliance with Axum Handler impl requirements.
 fn _axum_handler_type_checker_2_args_generic<In1, In2, Out, E, Fut, S>(
     _f: &(impl FnOnce(In1, Json<In2>) -> Fut + Clone + Send + 'static),
 ) where
     Fut: Future<Output = Result<Json<Out>, Json<E>>> + Send,
-    In1: FromRequestParts<S>,
-    In2: Deserialize<'static> + 'static,
+    In1: FromRequestParts<S> + Send,
+    In2: Deserialize<'static> + Send,
     Out: Serialize,
     E: Serialize,
     S: Send + Sync + 'static,
@@ -27,15 +28,15 @@ fn _axum_handler_type_checker_2_args_generic<In1, In2, Out, E, Fut, S>(
 }
 
 //=================
-// To be updated
+// Simple handler of async fn
 
-pub fn handler_of<S, T, Fut>(
-    f: impl Fn(S) -> Fut + 'static + Send + Sync + Clone,
-) -> impl Fn(Json<S>) -> Fut + Send + Sync + 'static + Clone
+pub fn handler_of<In, Out, Fut>(
+    f: impl FnOnce(In) -> Fut + Clone + Send + 'static,
+) -> impl FnOnce(Json<In>) -> Fut + Clone + Send + 'static
 where
-    S: Deserialize<'static> + 'static,
-    T: IntoResponse + Send + Sync,
-    Fut: 'static + Future<Output = T> + Send + Sync,
+    In: Deserialize<'static>,
+    Out: IntoResponse,
+    Fut: Future<Output = Out> + Send,
 {
     move |Json(input)| f(input)
 }
@@ -54,7 +55,7 @@ pub fn handler_asyncrfn<F>(
        + Clone
 where
     F: AsyncRFn + Send + Sync + Clone + 'static,
-    F::In: Deserialize<'static> + 'static,
+    F::In: Deserialize<'static>,
     F::Out: Serialize,
     F::E: Serialize,
 {
@@ -80,7 +81,7 @@ pub fn handler_asyncrfn2<F, S>(
 where
     F: AsyncRFn2 + Send + Sync + Clone + 'static,
     F::In1: FromRequestParts<S>,
-    F::In2: Deserialize<'static> + 'static,
+    F::In2: Deserialize<'static>,
     F::Out: Serialize,
     F::E: Serialize,
     S: Send + Sync + 'static,
@@ -117,7 +118,7 @@ pub fn handler_tx<F>(
        + Clone
 where
     F: AsyncTxFn + Sync + Send + 'static,
-    F::In: Deserialize<'static> + 'static,
+    F::In: Deserialize<'static>,
     F::Out: Serialize,
     F::E: Serialize,
 {
@@ -141,10 +142,10 @@ pub fn handler_tx_requestparts<F, RP, S, TL>(
 where
     TL: TaskLocal<ValueType = RP> + Sync + Send + 'static,
     F: AsyncTxFn + Sync + Send + 'static,
-    F::In: Deserialize<'static> + 'static,
+    F::In: Deserialize<'static>,
     F::Out: Serialize,
     F::E: Serialize,
-    RP: FromRequestParts<S> + Sync + Send + 'static,
+    RP: FromRequestParts<S> + Send,
     S: Send + Sync + 'static,
 {
     let wf1 = f.in_tx();
@@ -160,13 +161,29 @@ pub async fn handler_tx_headers_old<F, MF, TL>(
 where
     TL: TaskLocal<ValueType = Parts> + Sync + Send + 'static,
     F: AsyncTxFn + Sync + Send + 'static,
-    F::In: Deserialize<'static> + 'static,
+    F::In: Deserialize<'static>,
     F::Out: Serialize,
     F::E: Serialize,
-    MF: Make<F>,
+    MF: Make<F> + 'static,
 {
     let f = MF::make();
     let f_in_tx = in_tx(&f);
     let output = invoke_tl_scoped::<_, TL>(&f_in_tx, (parts, input)).await?;
     Ok(Json(output))
+}
+
+#[cfg(test)]
+#[allow(deprecated)]
+fn _typecheck_handler_tx_headers_old<F, MF, TL>()
+where
+    TL: TaskLocal<ValueType = Parts> + Sync + Send + 'static,
+    F: AsyncTxFn + Sync + Send + 'static,
+    F::In: Deserialize<'static>,
+    F::Out: Serialize,
+    F::E: Serialize,
+    MF: Make<F> + 'static,
+{
+    _axum_handler_type_checker_2_args_generic::<_, _, _, _, _, ()>(
+        &handler_tx_headers_old::<F, MF, TL>,
+    );
 }
