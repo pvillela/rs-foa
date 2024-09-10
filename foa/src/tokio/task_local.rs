@@ -32,55 +32,52 @@ pub trait TaskLocal {
 }
 
 #[derive(Clone)]
-struct TlScoped<'a, CTX, F>(&'a F, PhantomData<CTX>);
+struct TlScoped<'a, F, TL>(&'a F, PhantomData<TL>);
 
-impl<'a, CTX, F> AsyncRFn for TlScoped<'a, CTX, F>
+impl<'a, F, TL> AsyncRFn for TlScoped<'a, F, TL>
 where
-    CTX: TaskLocalCtx + Sync,
-    <CTX::TaskLocal as TaskLocal>::ValueType: Send,
+    TL: TaskLocal + Sync,
+    TL::ValueType: Send,
     F: AsyncRFn + Sync,
 {
-    type In = (<CTX::TaskLocal as TaskLocal>::ValueType, F::In);
+    type In = (TL::ValueType, F::In);
     type Out = F::Out;
     type E = F::E;
 
     async fn invoke(&self, (value, input): Self::In) -> Result<Self::Out, Self::E> {
-        let lk = CTX::TaskLocal::local_key();
+        let lk = TL::local_key();
         let output = lk.scope(value, self.0.invoke(input)).await?;
         Ok(output)
     }
 }
 
-pub fn tl_scoped<'a, CTX, F>(
+pub fn tl_scoped<'a, F, TL>(
     f: &'a F,
-) -> impl AsyncRFn<In = (<CTX::TaskLocal as TaskLocal>::ValueType, F::In), Out = F::Out, E = F::E> + 'a
+) -> impl AsyncRFn<In = (TL::ValueType, F::In), Out = F::Out, E = F::E> + 'a
 where
-    CTX: TaskLocalCtx + Sync + 'static,
-    <CTX::TaskLocal as TaskLocal>::ValueType: Send,
+    TL: TaskLocal + Sync + 'static,
+    TL::ValueType: Send,
     F: AsyncRFn + Sync,
 {
-    TlScoped(f, PhantomData::<CTX>)
+    TlScoped(f, PhantomData::<TL>)
 }
 
-pub async fn invoke_tl_scoped<CTX, F>(
-    f: &F,
-    input: (<CTX::TaskLocal as TaskLocal>::ValueType, F::In),
-) -> Result<F::Out, F::E>
+pub async fn invoke_tl_scoped<F, TL>(f: &F, input: (TL::ValueType, F::In)) -> Result<F::Out, F::E>
 where
-    CTX: TaskLocalCtx + Sync,
-    <CTX::TaskLocal as TaskLocal>::ValueType: Send,
+    TL: TaskLocal + Sync,
+    TL::ValueType: Send,
     F: AsyncRFn + Sync,
 {
-    TlScoped(f, PhantomData::<CTX>).invoke(input).await
+    TlScoped(f, PhantomData::<TL>).invoke(input).await
 }
 
 /// Discriminant for conversion of [`AsyncRFn`] to [`Async2RFn`] in task-local context using [`W`].
 pub struct Async2RFnTlD;
-impl<CTX, F, TLV> Async2RFn for W<F, Async2RFnTlD, CTX>
+impl<F, TL, TLV> Async2RFn for W<F, Async2RFnTlD, TL>
 where
-    CTX: TaskLocalCtx<TaskLocal: TaskLocal<ValueType = TLV>> + Sync + Send + 'static,
+    TL: TaskLocal<ValueType = TLV> + Sync + Send,
     TLV: Send,
-    F: AsyncRFn + Sync + Send,
+    F: AsyncRFn + Sync,
 {
     type In1 = TLV;
     type In2 = F::In;
@@ -88,15 +85,15 @@ where
     type E = F::E;
 
     async fn invoke(&self, in1: Self::In1, in2: Self::In2) -> Result<Self::Out, Self::E> {
-        invoke_tl_scoped::<CTX, _>(&self.0, (in1, in2)).await
+        invoke_tl_scoped::<F, TL>(&self.0, (in1, in2)).await
     }
 }
 
 /// Discriminant for conversion of [`AsyncRFn`] to [`Async3RFn`] in task-local context using [`W`].
 pub struct Async3RFnTlD;
-impl<CTX, F, TLV1, TLV2> Async3RFn for W<F, Async3RFnTlD, CTX>
+impl<F, TL, TLV1, TLV2> Async3RFn for W<F, Async3RFnTlD, TL>
 where
-    CTX: TaskLocalCtx<TaskLocal: TaskLocal<ValueType = (TLV1, TLV2)>> + Sync + Send + 'static,
+    TL: TaskLocal<ValueType = (TLV1, TLV2)> + Sync + Send,
     TLV1: Send,
     TLV2: Send,
     F: AsyncRFn + Sync + Send,
@@ -113,15 +110,15 @@ where
         in2: Self::In2,
         in3: Self::In3,
     ) -> Result<Self::Out, Self::E> {
-        invoke_tl_scoped::<CTX, _>(&self.0, ((in1, in2), in3)).await
+        invoke_tl_scoped::<F, TL>(&self.0, ((in1, in2), in3)).await
     }
 }
 
 /// Discriminant for conversion of [`AsyncRFn`] to [`Async4RFn`] in task-local context using [`W`].
 pub struct Async4RFnTlD;
-impl<CTX, F, TLV1, TLV2, TLV3> Async4RFn for W<F, Async4RFnTlD, CTX>
+impl<F, TL, TLV1, TLV2, TLV3> Async4RFn for W<F, Async4RFnTlD, TL>
 where
-    CTX: TaskLocalCtx<TaskLocal: TaskLocal<ValueType = (TLV1, TLV2, TLV3)>> + Sync + Send + 'static,
+    TL: TaskLocal<ValueType = (TLV1, TLV2, TLV3)> + Sync + Send,
     TLV1: Send,
     TLV2: Send,
     TLV3: Send,
@@ -141,7 +138,7 @@ where
         in3: Self::In3,
         in4: Self::In4,
     ) -> Result<Self::Out, Self::E> {
-        invoke_tl_scoped::<CTX, _>(&self.0, ((in1, in2, in3), in4)).await
+        invoke_tl_scoped::<F, TL>(&self.0, ((in1, in2, in3), in4)).await
     }
 }
 
@@ -203,7 +200,7 @@ mod test {
             let tlc = TlWithLocale {
                 locale: "en-CA".into(),
             };
-            invoke_tl_scoped::<Ctx, _>(&FooI(Ctx), (tlc, ())).await
+            invoke_tl_scoped::<_, <Ctx as TaskLocalCtx>::TaskLocal>(&FooI(Ctx), (tlc, ())).await
         });
         let foo_out = h.await.unwrap();
         assert_eq!(

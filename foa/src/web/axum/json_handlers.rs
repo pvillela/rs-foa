@@ -2,7 +2,7 @@ use crate::{
     context::LocaleSelf,
     db::sqlx::{in_tx_borrowed, AsyncTxFn, DbCtx},
     fun::{Async2RFn, AsyncRFn},
-    tokio::task_local::{invoke_tl_scoped, Async2RFnTlD, TaskLocal, TaskLocalCtx},
+    tokio::task_local::{invoke_tl_scoped, Async2RFnTlD, TaskLocal},
     trait_utils::Make,
     wrapper::W,
 };
@@ -129,7 +129,7 @@ where
 //=================
 // Handler for AsyncTxFn in task-local context
 
-pub fn handler_tx_requestparts<CTX, F, RP, S>(
+pub fn handler_tx_requestparts<F, RP, S, TL>(
     f: F,
 ) -> impl Fn(
     RP,
@@ -140,9 +140,8 @@ pub fn handler_tx_requestparts<CTX, F, RP, S>(
        + 'static
        + Clone
 where
-    CTX: DbCtx + TaskLocalCtx + Sync + Send + 'static,
-    CTX::TaskLocal: TaskLocal<ValueType = RP>,
-    F: AsyncTxFn<Db = CTX::Db> + Sync + Send + 'static,
+    TL: TaskLocal<ValueType = RP> + Sync + Send + 'static,
+    F: AsyncTxFn + Sync + Send + 'static,
     F::In: Deserialize<'static> + 'static,
     F::Out: Serialize,
     F::E: Serialize,
@@ -150,19 +149,18 @@ where
     S: Send + Sync + 'static,
 {
     let wf1 = f.in_tx();
-    let wf2 = W::<_, Async2RFnTlD, CTX>::new(Arc::new(wf1));
+    let wf2 = W::<_, Async2RFnTlD, TL>::new(Arc::new(wf1));
     handler_async2rfn(wf2)
 }
 
 #[deprecated]
-pub async fn handler_tx_headers_old<CTX, F, MF>(
+pub async fn handler_tx_headers_old<F, MF, TL>(
     parts: Parts,
     Json(input): Json<F::In>,
 ) -> Result<Json<F::Out>, Json<F::E>>
 where
-    CTX: DbCtx + TaskLocalCtx + Sync + 'static,
-    CTX::TaskLocal: TaskLocal<ValueType = Parts>,
-    F: AsyncTxFn<Db = CTX::Db> + Sync,
+    TL: TaskLocal<ValueType = Parts> + Sync + Send + 'static,
+    F: AsyncTxFn + Sync,
     F::In: Deserialize<'static> + 'static,
     F::Out: Serialize,
     F::E: Serialize,
@@ -170,6 +168,6 @@ where
 {
     let f = MF::make();
     let f_in_tx = in_tx_borrowed(&f).await;
-    let output = invoke_tl_scoped::<CTX, _>(&f_in_tx, (parts, input)).await?;
+    let output = invoke_tl_scoped::<_, TL>(&f_in_tx, (parts, input)).await?;
     Ok(Json(output))
 }

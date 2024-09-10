@@ -97,7 +97,7 @@ pub async fn common_test<CTX>(parts: Parts) -> Result<FooOut, FoaError<CTX>>
 where
     CTX: Cfg<CfgInfo = CfgTestInput>
         + LocaleCtx
-        + TaskLocalCtx<TaskLocal: TaskLocal<ValueType = Parts>>
+        + TaskLocalCtx<TaskLocal: TaskLocal<ValueType = Parts> + Sync + Send>
         + PgDbCtx
         + 'static
         + Send
@@ -105,7 +105,7 @@ where
         + Debug,
 {
     let handle = tokio::spawn(async move {
-        invoke_tl_scoped::<CTX, _>(
+        invoke_tl_scoped::<_, <CTX as TaskLocalCtx>::TaskLocal>(
             &TestFooSflI(PhantomData).in_tx(),
             (parts.clone(), FooIn { age_delta: 1 }),
         )
