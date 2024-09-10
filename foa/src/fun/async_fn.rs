@@ -15,6 +15,16 @@ pub trait AsyncRFn {
 
     fn invoke(&self, input: Self::In) -> impl Future<Output = Result<Self::Out, Self::E>> + Send;
 
+    fn compose<'a, G>(self, g: G) -> impl AsyncRFn<In = G::In, Out = Self::Out, E = Self::E> + 'a
+    where
+        Self: AsyncRFn + Sync + Sized + 'a,
+        G: AsyncRFn<Out = Self::In> + Sync + 'a,
+        Self::E: From<G::E>,
+        G::E: Send,
+    {
+        compose(self, g)
+    }
+
     /// Reifies `self` as an `async Fn`
     fn into_fn(
         self,
@@ -38,6 +48,68 @@ pub trait AsyncRFn {
                 Ok(output)
             })
         }
+    }
+}
+
+impl<F: AsyncRFn> AsyncRFn for &F {
+    type In = F::In;
+    type Out = F::Out;
+    type E = F::E;
+
+    fn invoke(&self, input: Self::In) -> impl Future<Output = Result<Self::Out, Self::E>> + Send {
+        F::invoke(self, input)
+    }
+}
+
+struct ARFnCompose<F, G>(F, G);
+impl<F, G> AsyncRFn for ARFnCompose<F, G>
+where
+    F: AsyncRFn + Sync,
+    G: AsyncRFn<Out = F::In> + Sync,
+    F::E: From<G::E>,
+    G::E: Send,
+{
+    type In = G::In;
+    type Out = F::Out;
+    type E = F::E;
+
+    async fn invoke(&self, input: Self::In) -> Result<Self::Out, Self::E> {
+        self.0.invoke(self.1.invoke(input).await?).await
+    }
+}
+
+pub fn compose<'a, F, G>(f: F, g: G) -> impl AsyncRFn<In = G::In, Out = F::Out, E = F::E> + 'a
+where
+    F: AsyncRFn + Sync + 'a,
+    G: AsyncRFn<Out = F::In> + Sync + 'a,
+    F::E: From<G::E>,
+    G::E: Send,
+{
+    ARFnCompose::<F, G>(f, g)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    use std::fmt::Debug;
+
+    async fn _foo<F, G>(f: F, g: G, input: G::In)
+    where
+        F: AsyncRFn + Sync,
+        G: AsyncRFn<Out = F::In> + Sync,
+        F::E: From<G::E> + Debug,
+        G::In: Clone,
+        G::E: Send,
+        F::Out: Debug,
+    {
+        let h = compose(&f, &g);
+        let res = h.invoke(input.clone()).await;
+        println!("{res:?}");
+
+        let h = (&f).compose(&g);
+        let res = h.invoke(input).await;
+        println!("{res:?}");
     }
 }
 

@@ -33,36 +33,48 @@ pub trait AsyncTxFn {
     type E: From<sqlx::Error>;
     type Db: Db;
 
-    #[allow(async_fn_in_trait)]
     fn invoke(
         &self,
         input: Self::In,
         tx: &mut Transaction<<Self::Db as Db>::Database>,
     ) -> impl Future<Output = Result<Self::Out, Self::E>> + Send;
 
-    fn in_tx(
+    fn in_tx<'a>(
         self,
-    ) -> impl AsyncRFn<In = Self::In, Out = Self::Out, E = Self::E> + Send + Sync + 'static
+    ) -> impl AsyncRFn<In = Self::In, Out = Self::Out, E = Self::E> + Send + Sync + 'a
     where
-        Self: Send + Sync + Sized + 'static,
+        Self: Send + Sync + Sized + 'a,
     {
-        InTxOwned(self)
+        in_tx(self)
     }
 
-    fn invoke_in_tx(
-        &self,
-        input: Self::In,
-    ) -> impl std::future::Future<Output = Result<Self::Out, Self::E>> + Send
+    #[allow(async_fn_in_trait)]
+    async fn invoke_in_tx(&self, input: Self::In) -> Result<Self::Out, Self::E>
     where
         Self: Sync + Sized,
     {
-        async { InTx(self).invoke(input).await }
+        invoke_in_tx(self, input).await
     }
 }
 
-struct InTx<'a, F>(&'a F);
+impl<F: AsyncTxFn> AsyncTxFn for &F {
+    type In = F::In;
+    type Out = F::Out;
+    type E = F::E;
+    type Db = F::Db;
 
-impl<'a, F> AsyncRFn for InTx<'a, F>
+    fn invoke(
+        &self,
+        input: Self::In,
+        tx: &mut Transaction<<Self::Db as Db>::Database>,
+    ) -> impl Future<Output = Result<Self::Out, Self::E>> + Send {
+        F::invoke(self, input, tx)
+    }
+}
+
+struct InTx<F>(F);
+
+impl<F> AsyncRFn for InTx<F>
 where
     F: AsyncTxFn + Sync,
 {
@@ -79,19 +91,11 @@ where
     }
 }
 
-struct InTxOwned<F>(F);
-
-impl<F> AsyncRFn for InTxOwned<F>
+pub fn in_tx<'a, F>(f: F) -> impl AsyncRFn<In = F::In, Out = F::Out, E = F::E> + 'a
 where
-    F: AsyncTxFn + Sync,
+    F: AsyncTxFn + Sync + Send + 'a,
 {
-    type In = F::In;
-    type Out = F::Out;
-    type E = F::E;
-
-    async fn invoke(&self, input: Self::In) -> Result<Self::Out, Self::E> {
-        invoke_in_tx(&self.0, input).await
-    }
+    InTx(f)
 }
 
 pub async fn invoke_in_tx<F>(f: &F, input: F::In) -> Result<F::Out, F::E>
@@ -99,20 +103,4 @@ where
     F: AsyncTxFn + Sync,
 {
     InTx(f).invoke(input).await
-}
-
-pub async fn in_tx_borrowed<'a, F>(
-    f: &'a F,
-) -> impl AsyncRFn<In = F::In, Out = F::Out, E = F::E> + 'a
-where
-    F: AsyncTxFn + Sync,
-{
-    InTx(f)
-}
-
-pub async fn in_tx_owned<F>(f: F) -> impl AsyncRFn<In = F::In, Out = F::Out, E = F::E> + 'static
-where
-    F: AsyncTxFn + Sync + Send + 'static,
-{
-    InTxOwned(f)
 }

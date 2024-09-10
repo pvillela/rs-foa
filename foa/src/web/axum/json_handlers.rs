@@ -1,6 +1,6 @@
 use crate::{
     context::LocaleSelf,
-    db::sqlx::{in_tx_borrowed, AsyncTxFn},
+    db::sqlx::{in_tx, AsyncTxFn},
     fun::{Async2RFn, AsyncRFn},
     tokio::task_local::{invoke_tl_scoped, Async2RFnTlD, TaskLocal},
     trait_utils::Make,
@@ -159,14 +159,14 @@ pub async fn handler_tx_headers_old<F, MF, TL>(
 ) -> Result<Json<F::Out>, Json<F::E>>
 where
     TL: TaskLocal<ValueType = Parts> + Sync + Send + 'static,
-    F: AsyncTxFn + Sync,
+    F: AsyncTxFn + Sync + Send + 'static,
     F::In: Deserialize<'static> + 'static,
     F::Out: Serialize,
     F::E: Serialize,
     MF: Make<F>,
 {
     let f = MF::make();
-    let f_in_tx = in_tx_borrowed(&f).await;
+    let f_in_tx = in_tx(&f);
     let output = invoke_tl_scoped::<_, TL>(&f_in_tx, (parts, input)).await?;
     Ok(Json(output))
 }
