@@ -1,6 +1,6 @@
 use crate::{
     context::LocaleSelf,
-    db::sqlx::{in_tx_borrowed, AsyncTxFn, DbCtx},
+    db::sqlx::{in_tx_borrowed, AsyncTxFn},
     fun::{Async2RFn, AsyncRFn},
     tokio::task_local::{invoke_tl_scoped, Async2RFnTlD, TaskLocal},
     trait_utils::Make,
@@ -106,7 +106,7 @@ impl LocaleSelf for Parts {
 //=================
 // Handler for AsyncTxFn
 
-pub fn handler_tx<CTX, F>(
+pub fn handler_tx<F>(
     f: F,
 ) -> impl Fn(
     Json<F::In>,
@@ -116,8 +116,7 @@ pub fn handler_tx<CTX, F>(
        + 'static
        + Clone
 where
-    CTX: DbCtx + Sync + Send + 'static,
-    F: AsyncTxFn<Db = CTX::Db> + Sync + Send + 'static,
+    F: AsyncTxFn + Sync + Send + 'static,
     F::In: Deserialize<'static> + 'static,
     F::Out: Serialize,
     F::E: Serialize,
