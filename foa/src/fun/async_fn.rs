@@ -126,7 +126,7 @@ where
     }
 }
 
-pub trait Async2RFn {
+pub trait AsyncRFn2 {
     type In1: Send;
     type In2: Send;
     type Out: Send;
@@ -166,9 +166,9 @@ pub trait Async2RFn {
     }
 }
 
-impl<F> Async2RFn for Arc<F>
+impl<F> AsyncRFn2 for Arc<F>
 where
-    F: Async2RFn + Sync + Send,
+    F: AsyncRFn2 + Sync + Send,
 {
     type In1 = F::In1;
     type In2 = F::In2;
@@ -184,7 +184,7 @@ where
     }
 }
 
-pub trait Async3RFn {
+pub trait AsyncRFn3 {
     type In1: Send;
     type In2: Send;
     type In3: Send;
@@ -227,9 +227,9 @@ pub trait Async3RFn {
     }
 }
 
-impl<F> Async3RFn for Arc<F>
+impl<F> AsyncRFn3 for Arc<F>
 where
-    F: Async3RFn + Sync + Send,
+    F: AsyncRFn3 + Sync + Send,
 {
     type In1 = F::In1;
     type In2 = F::In2;
@@ -247,7 +247,7 @@ where
     }
 }
 
-pub trait Async4RFn {
+pub trait AsyncRFn4 {
     type In1: Send;
     type In2: Send;
     type In3: Send;
@@ -293,9 +293,9 @@ pub trait Async4RFn {
     }
 }
 
-impl<F> Async4RFn for Arc<F>
+impl<F> AsyncRFn4 for Arc<F>
 where
-    F: Async4RFn + Sync + Send,
+    F: AsyncRFn4 + Sync + Send,
 {
     type In1 = F::In1;
     type In2 = F::In2;

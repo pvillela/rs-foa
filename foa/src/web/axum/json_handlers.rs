@@ -1,7 +1,7 @@
 use crate::{
     context::LocaleSelf,
     db::sqlx::{in_tx, AsyncTxFn},
-    fun::{Async2RFn, AsyncRFn},
+    fun::{AsyncRFn, AsyncRFn2},
     tokio::task_local::{invoke_tl_scoped, Async2RFnTlD, TaskLocal},
     trait_utils::Make,
     wrapper::W,
@@ -67,7 +67,7 @@ where
     }
 }
 
-pub fn handler_async2rfn<F, S>(
+pub fn handler_asyncrfn2<F, S>(
     w: F,
 ) -> impl Fn(
     F::In1,
@@ -78,7 +78,7 @@ pub fn handler_async2rfn<F, S>(
        + 'static
        + Clone
 where
-    F: Async2RFn + Send + Sync + Clone + 'static,
+    F: AsyncRFn2 + Send + Sync + Clone + 'static,
     F::In1: FromRequestParts<S>,
     F::In2: Deserialize<'static> + 'static,
     F::Out: Serialize,
@@ -149,7 +149,7 @@ where
 {
     let wf1 = f.in_tx();
     let wf2 = W::<_, Async2RFnTlD, TL>::new(Arc::new(wf1));
-    handler_async2rfn(wf2)
+    handler_asyncrfn2(wf2)
 }
 
 #[deprecated]

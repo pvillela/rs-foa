@@ -1,5 +1,5 @@
 use crate::{
-    fun::{Async2RFn, Async3RFn, Async4RFn, AsyncRFn},
+    fun::{AsyncRFn, AsyncRFn2, AsyncRFn3, AsyncRFn4},
     wrapper::W,
 };
 use std::marker::PhantomData;
@@ -73,7 +73,7 @@ where
 
 /// Discriminant for conversion of [`AsyncRFn`] to [`Async2RFn`] in task-local context using [`W`].
 pub struct Async2RFnTlD;
-impl<F, TL, TLV> Async2RFn for W<F, Async2RFnTlD, TL>
+impl<F, TL, TLV> AsyncRFn2 for W<F, Async2RFnTlD, TL>
 where
     TL: TaskLocal<ValueType = TLV> + Sync + Send,
     TLV: Send,
@@ -91,7 +91,7 @@ where
 
 /// Discriminant for conversion of [`AsyncRFn`] to [`Async3RFn`] in task-local context using [`W`].
 pub struct Async3RFnTlD;
-impl<F, TL, TLV1, TLV2> Async3RFn for W<F, Async3RFnTlD, TL>
+impl<F, TL, TLV1, TLV2> AsyncRFn3 for W<F, Async3RFnTlD, TL>
 where
     TL: TaskLocal<ValueType = (TLV1, TLV2)> + Sync + Send,
     TLV1: Send,
@@ -116,7 +116,7 @@ where
 
 /// Discriminant for conversion of [`AsyncRFn`] to [`Async4RFn`] in task-local context using [`W`].
 pub struct Async4RFnTlD;
-impl<F, TL, TLV1, TLV2, TLV3> Async4RFn for W<F, Async4RFnTlD, TL>
+impl<F, TL, TLV1, TLV2, TLV3> AsyncRFn4 for W<F, Async4RFnTlD, TL>
 where
     TL: TaskLocal<ValueType = (TLV1, TLV2, TLV3)> + Sync + Send,
     TLV1: Send,
