@@ -1,7 +1,7 @@
 use crate::{
     error::{ErrorKind, FoaError},
     fun::{AsyncRFn, AsyncRFn2},
-    tokio::task_local::{tl_scoped, TaskLocal},
+    tokio::task_local::{invoke_tl_scoped, tl_scoped, TaskLocal},
 };
 use sqlx::{Database, Pool, Postgres, Transaction};
 use std::future::Future;
@@ -67,6 +67,20 @@ pub trait AsyncTxFn {
     {
         in_tx_tl_scoped::<_, TL>(self)
     }
+
+    #[allow(async_fn_in_trait)]
+    async fn invoke_in_tx_tl_scoped<TL>(
+        &self,
+        in1: TL::Value,
+        in2: Self::In,
+    ) -> Result<Self::Out, Self::E>
+    where
+        Self: Sync + Sized,
+        TL: TaskLocal + Sync + 'static,
+        TL::Value: Send,
+    {
+        invoke_in_tx_tl_scoped::<_, TL>(self, in1, in2).await
+    }
 }
 
 impl<F: AsyncTxFn> AsyncTxFn for &F {
@@ -127,4 +141,18 @@ where
 {
     let wf1 = f.in_tx();
     tl_scoped::<_, TL>(wf1)
+}
+
+pub async fn invoke_in_tx_tl_scoped<F, TL>(
+    f: &F,
+    in1: TL::Value,
+    in2: F::In,
+) -> Result<F::Out, F::E>
+where
+    TL: TaskLocal + Sync + 'static,
+    TL::Value: Send,
+    F: AsyncTxFn + Sync,
+{
+    let wf1 = f.in_tx();
+    invoke_tl_scoped::<_, TL>(&wf1, in1, in2).await
 }

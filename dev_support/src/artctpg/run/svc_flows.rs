@@ -21,8 +21,7 @@ impl AsyncRFn2 for FooSflIC {
 
     async fn invoke(&self, input1: Self::In1, input2: Self::In2) -> Result<Self::Out, Self::E> {
         FooSflI(Ctx)
-            .in_tx_tl_scoped::<CtxTl>()
-            .invoke(input1, input2)
+            .invoke_in_tx_tl_scoped::<CtxTl>(input1, input2)
             .await
     }
 }
