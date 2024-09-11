@@ -1,6 +1,6 @@
 use axum::Router;
 use dev_support::artctpg::{common::Ctx, FooSflI};
-use foa::{tokio::task_local::TaskLocalCtx, web::axum::handler_tx_requestparts};
+use foa::{db::sqlx::AsyncTxFn, tokio::task_local::TaskLocalCtx, web::axum::handler_asyncrfn2_arc};
 use std::time::Duration;
 
 #[tokio::main]
@@ -16,14 +16,11 @@ async fn main() {
         }
     });
 
+    let foo_sfl = FooSflI(Ctx).in_tx_tl_scoped::<<Ctx as TaskLocalCtx>::TaskLocal>();
+
     let app = Router::new().route(
         "/",
-        axum::routing::post(handler_tx_requestparts::<
-            _,
-            _,
-            (),
-            <Ctx as TaskLocalCtx>::TaskLocal,
-        >(FooSflI(Ctx))),
+        axum::routing::post(handler_asyncrfn2_arc::<_, ()>(foo_sfl)),
     );
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:8080")

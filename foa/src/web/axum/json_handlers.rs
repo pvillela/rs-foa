@@ -41,6 +41,15 @@ where
 }
 
 //=================
+// LocaleSelf for Parts
+
+impl LocaleSelf for Parts {
+    fn locale(&self) -> Option<&str> {
+        self.headers.get("Accept-Language")?.to_str().ok()
+    }
+}
+
+//=================
 // Handlers for Async[x]RFn
 
 pub fn handler_asyncrfn<F>(
@@ -131,61 +140,6 @@ where
     S: Send + Sync + 'static,
 {
     handler_asyncrfn2(Arc::new(f))
-}
-
-//=================
-// LocaleSelf for Parts
-
-impl LocaleSelf for Parts {
-    fn locale(&self) -> Option<&str> {
-        self.headers.get("Accept-Language")?.to_str().ok()
-    }
-}
-
-//=================
-// Handler for AsyncTxFn
-
-pub fn handler_tx<F>(
-    f: F,
-) -> impl Fn(
-    Json<F::In>,
-) -> Pin<Box<(dyn Future<Output = Result<Json<F::Out>, Json<F::E>>> + Send + 'static)>>
-       + Send
-       + Sync // not needed for Axum
-       + 'static
-       + Clone
-where
-    F: AsyncTxFn + Sync + Send + 'static,
-    F::In: Deserialize<'static>,
-    F::Out: Serialize,
-    F::E: Serialize,
-{
-    handler_asyncrfn_arc(f.in_tx())
-}
-
-//=================
-// Handler for AsyncTxFn in task-local context
-
-pub fn handler_tx_requestparts<F, RP, S, TL>(
-    f: F,
-) -> impl Fn(
-    RP,
-    Json<F::In>,
-) -> Pin<Box<(dyn Future<Output = Result<Json<F::Out>, Json<F::E>>> + Send + 'static)>>
-       + Send
-       + Sync // not needed for Axum
-       + 'static
-       + Clone
-where
-    TL: TaskLocal<ValueType = RP> + Sync + Send + 'static,
-    F: AsyncTxFn + Sync + Send + 'static,
-    F::In: Deserialize<'static>,
-    F::Out: Serialize,
-    F::E: Serialize,
-    RP: FromRequestParts<S> + Send,
-    S: Send + Sync + 'static,
-{
-    handler_asyncrfn2_arc(f.in_tx_tl_scoped::<TL>())
 }
 
 #[deprecated]
