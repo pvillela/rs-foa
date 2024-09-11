@@ -1,3 +1,4 @@
+use crate::artctpg::svc::common::{AppCfgInfo, AppCfgInfoArc};
 use crate::artctpg::svc::InitDafI;
 use arc_swap::ArcSwap;
 use axum::http::request::Parts;
@@ -12,27 +13,14 @@ use foa::{
     },
 };
 use sqlx::{Pool, Postgres};
-use std::{
-    i32,
-    sync::{
-        atomic::{AtomicU32, Ordering},
-        Arc, OnceLock,
-    },
+use std::sync::{
+    atomic::{AtomicU32, Ordering},
+    Arc, OnceLock,
 };
 use tokio::task::LocalKey;
 
 static CTX_INFO: OnceLock<ArcSwap<CtxInfo>> = OnceLock::new();
 static REFRESH_COUNT: AtomicU32 = AtomicU32::new(0);
-
-#[derive(Debug, Clone)]
-pub struct AppCfgInfo {
-    pub x: String,
-    pub y: i32,
-    pub z: i32,
-    pub refresh_count: u32,
-}
-
-pub type AppCfgInfoArc = Arc<AppCfgInfo>;
 
 #[derive(Debug, Clone)]
 pub struct CtxInfo {

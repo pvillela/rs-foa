@@ -1,4 +1,4 @@
-use super::common::AppCfgInfoArc;
+use crate::artctpg::svc::common::AppCfgInfoArc;
 use foa::{context::Cfg, error::FoaError, refinto::RefInto};
 use sqlx::{Postgres, Transaction};
 use tracing::instrument;

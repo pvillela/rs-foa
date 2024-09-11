@@ -10,7 +10,6 @@ use foa::{
 use serde::{Deserialize, Serialize};
 use sqlx::{Postgres, Transaction};
 use tracing::instrument;
-
 //=================
 // This section defines the stereotype signature
 
