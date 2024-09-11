@@ -107,10 +107,10 @@ where
     let handle = tokio::spawn(async move {
         invoke_tl_scoped::<_, <CTX as TaskLocalCtx>::TaskLocal>(
             &TestFooSflI(PhantomData).in_tx(),
-            (parts.clone(), FooIn { age_delta: 1 }),
+            parts.clone(),
+            FooIn { age_delta: 1 },
         )
         .await
     });
     handle.await.expect("common_test_artctps tokio spawn error")
 }
-// }

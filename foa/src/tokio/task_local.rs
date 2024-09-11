@@ -1,7 +1,4 @@
-use crate::{
-    fun::{AsyncRFn, AsyncRFn2, AsyncRFn3, AsyncRFn4},
-    wrapper::W,
-};
+use crate::fun::{AsyncRFn, AsyncRFn2};
 use std::marker::PhantomData;
 use tokio::task::LocalKey;
 
@@ -32,19 +29,20 @@ pub trait TaskLocal {
 }
 
 #[derive(Clone)]
-struct TlScoped<'a, F, TL>(&'a F, PhantomData<TL>);
+struct TlScoped<F, TL>(F, PhantomData<TL>);
 
-impl<'a, F, TL> AsyncRFn for TlScoped<'a, F, TL>
+impl<F, TL> AsyncRFn2 for TlScoped<F, TL>
 where
     TL: TaskLocal + Sync,
     TL::ValueType: Send,
     F: AsyncRFn + Sync,
 {
-    type In = (TL::ValueType, F::In);
+    type In1 = TL::ValueType;
+    type In2 = F::In;
     type Out = F::Out;
     type E = F::E;
 
-    async fn invoke(&self, (value, input): Self::In) -> Result<Self::Out, Self::E> {
+    async fn invoke(&self, value: Self::In1, input: Self::In2) -> Result<Self::Out, Self::E> {
         let lk = TL::local_key();
         let output = lk.scope(value, self.0.invoke(input)).await?;
         Ok(output)
@@ -52,94 +50,23 @@ where
 }
 
 pub fn tl_scoped<'a, F, TL>(
-    f: &'a F,
-) -> impl AsyncRFn<In = (TL::ValueType, F::In), Out = F::Out, E = F::E> + 'a
+    f: F,
+) -> impl AsyncRFn2<In1 = TL::ValueType, In2 = F::In, Out = F::Out, E = F::E> + 'a
 where
     TL: TaskLocal + Sync + 'static,
     TL::ValueType: Send,
-    F: AsyncRFn + Sync,
+    F: AsyncRFn + Sync + 'a,
 {
     TlScoped(f, PhantomData::<TL>)
 }
 
-pub async fn invoke_tl_scoped<F, TL>(f: &F, input: (TL::ValueType, F::In)) -> Result<F::Out, F::E>
+pub async fn invoke_tl_scoped<F, TL>(f: &F, in1: TL::ValueType, in2: F::In) -> Result<F::Out, F::E>
 where
     TL: TaskLocal + Sync,
     TL::ValueType: Send,
     F: AsyncRFn + Sync,
 {
-    TlScoped(f, PhantomData::<TL>).invoke(input).await
-}
-
-/// Discriminant for conversion of [`AsyncRFn`] to [`Async2RFn`] in task-local context using [`W`].
-pub struct Async2RFnTlD;
-impl<F, TL, TLV> AsyncRFn2 for W<F, Async2RFnTlD, TL>
-where
-    TL: TaskLocal<ValueType = TLV> + Sync + Send,
-    TLV: Send,
-    F: AsyncRFn + Sync,
-{
-    type In1 = TLV;
-    type In2 = F::In;
-    type Out = F::Out;
-    type E = F::E;
-
-    async fn invoke(&self, in1: Self::In1, in2: Self::In2) -> Result<Self::Out, Self::E> {
-        invoke_tl_scoped::<F, TL>(&self.0, (in1, in2)).await
-    }
-}
-
-/// Discriminant for conversion of [`AsyncRFn`] to [`Async3RFn`] in task-local context using [`W`].
-pub struct Async3RFnTlD;
-impl<F, TL, TLV1, TLV2> AsyncRFn3 for W<F, Async3RFnTlD, TL>
-where
-    TL: TaskLocal<ValueType = (TLV1, TLV2)> + Sync + Send,
-    TLV1: Send,
-    TLV2: Send,
-    F: AsyncRFn + Sync + Send,
-{
-    type In1 = TLV1;
-    type In2 = TLV2;
-    type In3 = F::In;
-    type Out = F::Out;
-    type E = F::E;
-
-    async fn invoke(
-        &self,
-        in1: Self::In1,
-        in2: Self::In2,
-        in3: Self::In3,
-    ) -> Result<Self::Out, Self::E> {
-        invoke_tl_scoped::<F, TL>(&self.0, ((in1, in2), in3)).await
-    }
-}
-
-/// Discriminant for conversion of [`AsyncRFn`] to [`Async4RFn`] in task-local context using [`W`].
-pub struct Async4RFnTlD;
-impl<F, TL, TLV1, TLV2, TLV3> AsyncRFn4 for W<F, Async4RFnTlD, TL>
-where
-    TL: TaskLocal<ValueType = (TLV1, TLV2, TLV3)> + Sync + Send,
-    TLV1: Send,
-    TLV2: Send,
-    TLV3: Send,
-    F: AsyncRFn + Sync + Send,
-{
-    type In1 = TLV1;
-    type In2 = TLV2;
-    type In3 = TLV3;
-    type In4 = F::In;
-    type Out = F::Out;
-    type E = F::E;
-
-    async fn invoke(
-        &self,
-        in1: Self::In1,
-        in2: Self::In2,
-        in3: Self::In3,
-        in4: Self::In4,
-    ) -> Result<Self::Out, Self::E> {
-        invoke_tl_scoped::<F, TL>(&self.0, ((in1, in2, in3), in4)).await
-    }
+    TlScoped(f, PhantomData::<TL>).invoke(in1, in2).await
 }
 
 #[cfg(test)]
@@ -200,7 +127,7 @@ mod test {
             let tlc = TlWithLocale {
                 locale: "en-CA".into(),
             };
-            invoke_tl_scoped::<_, <Ctx as TaskLocalCtx>::TaskLocal>(&FooI(Ctx), (tlc, ())).await
+            invoke_tl_scoped::<_, <Ctx as TaskLocalCtx>::TaskLocal>(&FooI(Ctx), tlc, ()).await
         });
         let foo_out = h.await.unwrap();
         assert_eq!(

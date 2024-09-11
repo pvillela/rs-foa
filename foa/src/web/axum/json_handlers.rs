@@ -2,9 +2,8 @@ use crate::{
     context::LocaleSelf,
     db::sqlx::{in_tx, AsyncTxFn},
     fun::{AsyncRFn, AsyncRFn2},
-    tokio::task_local::{invoke_tl_scoped, Async2RFnTlD, TaskLocal},
+    tokio::task_local::{invoke_tl_scoped, tl_scoped, TaskLocal},
     trait_utils::Make,
-    wrapper::W,
 };
 use axum::{extract::FromRequestParts, http::request::Parts, response::IntoResponse, Json};
 use serde::{Deserialize, Serialize};
@@ -149,7 +148,7 @@ where
     S: Send + Sync + 'static,
 {
     let wf1 = f.in_tx();
-    let wf2 = W::<_, Async2RFnTlD, TL>::new(Arc::new(wf1));
+    let wf2 = Arc::new(tl_scoped::<'_, _, TL>(wf1));
     handler_asyncrfn2(wf2)
 }
 
@@ -168,7 +167,7 @@ where
 {
     let f = MF::make();
     let f_in_tx = in_tx(&f);
-    let output = invoke_tl_scoped::<_, TL>(&f_in_tx, (parts, input)).await?;
+    let output = invoke_tl_scoped::<_, TL>(&f_in_tx, parts, input).await?;
     Ok(Json(output))
 }
 
