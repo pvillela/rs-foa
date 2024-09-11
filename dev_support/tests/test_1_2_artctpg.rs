@@ -4,7 +4,7 @@ use axum::http::{request, request::Parts, Method, Uri, Version};
 use common_test_artctpg::{
     common_test, BarBfCfgTestInput, CfgTestInput, FooSflCfgTestInput, InitDafCfgTestinput,
 };
-use dev_support::artctpg::{common::new_db_pool, FooOut};
+use dev_support::artctpg::{run::ctx::new_db_pool, svc::FooOut};
 use foa::{
     context::{Cfg, Locale, LocaleCtx},
     db::sqlx::{Db, DbCtx},

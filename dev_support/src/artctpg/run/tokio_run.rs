@@ -1,4 +1,4 @@
-use super::{common::Ctx, FooIn, FooSflI};
+use crate::artctpg::svc::{common::Ctx, FooIn, FooSflI};
 use foa::db::sqlx::invoke_in_tx;
 use futures::future::join_all;
 use std::time::{Duration, Instant};

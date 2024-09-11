@@ -1,5 +1,8 @@
 use axum::Router;
-use dev_support::artctpg::{common::Ctx, FooIn, FooOut, FooSfl, FooSflI};
+use dev_support::artctpg::{
+    run::ctx::Ctx,
+    svc::{FooIn, FooOut, FooSfl, FooSflI},
+};
 use foa::{
     db::sqlx::{AsyncTxFn, DbCtx},
     error::FoaError,
