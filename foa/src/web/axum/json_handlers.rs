@@ -2,7 +2,7 @@ use crate::{
     context::LocaleSelf,
     db::sqlx::{in_tx, AsyncTxFn},
     fun::{AsyncRFn, AsyncRFn2},
-    tokio::task_local::{invoke_tl_scoped, tl_scoped, TaskLocal},
+    tokio::task_local::{invoke_tl_scoped, TaskLocal},
     trait_utils::Make,
 };
 use axum::{extract::FromRequestParts, http::request::Parts, response::IntoResponse, Json};
@@ -44,7 +44,7 @@ where
 // Handlers for Async[x]RFn
 
 pub fn handler_asyncrfn<F>(
-    w: F,
+    f: F,
 ) -> impl Fn(
     Json<F::In>,
 ) -> Pin<Box<(dyn Future<Output = Result<Json<F::Out>, Json<F::E>>> + Send + 'static)>>
@@ -59,7 +59,7 @@ where
     F::E: Serialize,
 {
     move |Json(input)| {
-        let f = w.clone();
+        let f = f.clone();
         Box::pin(async move {
             let output = f.invoke(input).await?;
             Ok(Json(output))
@@ -67,8 +67,26 @@ where
     }
 }
 
+pub fn handler_asyncrfn_arc<F>(
+    f: F,
+) -> impl Fn(
+    Json<F::In>,
+) -> Pin<Box<(dyn Future<Output = Result<Json<F::Out>, Json<F::E>>> + Send + 'static)>>
+       + Send
+       + Sync // not needed for Axum
+       + 'static
+       + Clone
+where
+    F: AsyncRFn + Send + Sync + 'static,
+    F::In: Deserialize<'static>,
+    F::Out: Serialize,
+    F::E: Serialize,
+{
+    handler_asyncrfn(Arc::new(f))
+}
+
 pub fn handler_asyncrfn2<F, S>(
-    w: F,
+    f: F,
 ) -> impl Fn(
     F::In1,
     Json<F::In2>,
@@ -86,12 +104,33 @@ where
     S: Send + Sync + 'static,
 {
     move |req_part, Json(input)| {
-        let f = w.clone();
+        let f = f.clone();
         Box::pin(async move {
             let output = f.invoke(req_part, input).await?;
             Ok(Json(output))
         })
     }
+}
+
+pub fn handler_asyncrfn2_arc<F, S>(
+    f: F,
+) -> impl Fn(
+    F::In1,
+    Json<F::In2>,
+) -> Pin<Box<(dyn Future<Output = Result<Json<F::Out>, Json<F::E>>> + Send + 'static)>>
+       + Send
+       + Sync // not needed for Axum
+       + 'static
+       + Clone
+where
+    F: AsyncRFn2 + Send + Sync + 'static,
+    F::In1: FromRequestParts<S>,
+    F::In2: Deserialize<'static>,
+    F::Out: Serialize,
+    F::E: Serialize,
+    S: Send + Sync + 'static,
+{
+    handler_asyncrfn2(Arc::new(f))
 }
 
 //=================
@@ -121,8 +160,7 @@ where
     F::Out: Serialize,
     F::E: Serialize,
 {
-    let wf = Arc::new(f.in_tx());
-    handler_asyncrfn(wf)
+    handler_asyncrfn_arc(f.in_tx())
 }
 
 //=================
@@ -147,9 +185,7 @@ where
     RP: FromRequestParts<S> + Send,
     S: Send + Sync + 'static,
 {
-    let wf1 = f.in_tx();
-    let wf2 = Arc::new(tl_scoped::<'_, _, TL>(wf1));
-    handler_asyncrfn2(wf2)
+    handler_asyncrfn2_arc(f.in_tx_tl_scoped::<TL>())
 }
 
 #[deprecated]
