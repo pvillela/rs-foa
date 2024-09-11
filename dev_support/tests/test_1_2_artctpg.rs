@@ -41,9 +41,9 @@ tokio::task_local! {
 }
 
 impl<const K: u8> TaskLocal for SubCtx<K> {
-    type ValueType = Parts;
+    type Value = Parts;
 
-    fn local_key() -> &'static LocalKey<Self::ValueType> {
+    fn local_key() -> &'static LocalKey<Self::Value> {
         &CTX_TL
     }
 }

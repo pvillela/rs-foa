@@ -58,7 +58,7 @@ where
 
 impl<CTX, T> FooSfl<CTX> for T
 where
-    CTX: FooOnlyCtx + LocaleCtx + TaskLocalCtx<TaskLocal: TaskLocal<ValueType = Parts>>,
+    CTX: FooOnlyCtx + LocaleCtx + TaskLocalCtx<TaskLocal: TaskLocal<Value = Parts>>,
     T: BarBf<CTX> + ReadDaf<CTX> + UpdateDaf<CTX>,
 {
     #[instrument(level = "trace", skip_all)]
@@ -95,7 +95,7 @@ where
 pub trait FooCtx:
     FooOnlyCtx
     + LocaleCtx
-    + TaskLocalCtx<TaskLocal: TaskLocal<ValueType = Parts>>
+    + TaskLocalCtx<TaskLocal: TaskLocal<Value = Parts>>
     + BarCtx
     + ReadDafCtx
     + UpdateDafCtx
@@ -105,7 +105,7 @@ impl<CTX> FooCtx for CTX where
     CTX: FooOnlyCtx
         + FooOnlyCtx
         + LocaleCtx
-        + TaskLocalCtx<TaskLocal: TaskLocal<ValueType = Parts>>
+        + TaskLocalCtx<TaskLocal: TaskLocal<Value = Parts>>
         + BarCtx
         + ReadDafCtx
         + UpdateDafCtx

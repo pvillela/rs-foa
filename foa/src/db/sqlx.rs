@@ -59,14 +59,11 @@ pub trait AsyncTxFn {
 
     fn in_tx_tl_scoped<'a, TL>(
         self,
-    ) -> impl AsyncRFn2<In1 = TL::ValueType, In2 = Self::In, Out = Self::Out, E = Self::E>
-           + Send
-           + Sync
-           + 'a
+    ) -> impl AsyncRFn2<In1 = TL::Value, In2 = Self::In, Out = Self::Out, E = Self::E> + Send + Sync + 'a
     where
         Self: Send + Sync + Sized + 'a,
         TL: TaskLocal + Sync + Send + 'static,
-        TL::ValueType: Send,
+        TL::Value: Send,
     {
         in_tx_tl_scoped::<_, TL>(self)
     }
@@ -122,10 +119,10 @@ where
 
 pub fn in_tx_tl_scoped<'a, F, TL>(
     f: F,
-) -> impl AsyncRFn2<In1 = TL::ValueType, In2 = F::In, Out = F::Out, E = F::E> + 'a
+) -> impl AsyncRFn2<In1 = TL::Value, In2 = F::In, Out = F::Out, E = F::E> + 'a
 where
     TL: TaskLocal + Sync + 'static,
-    TL::ValueType: Send,
+    TL::Value: Send,
     F: AsyncTxFn + Sync + Send + 'a,
 {
     let wf1 = f.in_tx();

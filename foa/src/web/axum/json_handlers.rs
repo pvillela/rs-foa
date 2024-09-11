@@ -6,22 +6,24 @@ use crate::{
     trait_utils::Make,
 };
 use axum::{extract::FromRequestParts, http::request::Parts, response::IntoResponse, Json};
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Serialize};
 use std::{future::Future, pin::Pin, sync::Arc};
+
+#[cfg(test)]
+use axum::extract::FromRequest;
 
 //=================
 // Type checker
 
 #[cfg(test)]
 /// Checks a closure for compliance with Axum Handler impl requirements.
-fn _axum_handler_type_checker_2_args_generic<In1, In2, Out, E, Fut, S>(
-    _f: &(impl FnOnce(In1, Json<In2>) -> Fut + Clone + Send + 'static),
+fn _axum_handler_type_checker_2_args_generic<In1, In2, Out, Fut, S>(
+    _f: &(impl FnOnce(In1, In2) -> Fut + Clone + Send + 'static),
 ) where
-    Fut: Future<Output = Result<Json<Out>, Json<E>>> + Send,
+    Fut: Future<Output = Out> + Send,
     In1: FromRequestParts<S> + Send,
-    In2: Deserialize<'static> + Send,
-    Out: Serialize,
-    E: Serialize,
+    In2: FromRequest<S> + Send,
+    Out: IntoResponse,
     S: Send + Sync + 'static,
 {
 }
@@ -29,15 +31,43 @@ fn _axum_handler_type_checker_2_args_generic<In1, In2, Out, E, Fut, S>(
 //=================
 // Simple handler of async fn
 
-pub fn handler_of<In, Out, Fut>(
+pub fn handler_fn<In, Out, Fut>(
     f: impl FnOnce(In) -> Fut + Clone + Send + 'static,
 ) -> impl FnOnce(Json<In>) -> Fut + Clone + Send + 'static
 where
-    In: Deserialize<'static>,
+    In: DeserializeOwned,
     Out: IntoResponse,
     Fut: Future<Output = Out> + Send,
 {
     move |Json(input)| f(input)
+}
+
+pub fn handler_fn2<In1, In2, Out, E, Fut, S>(
+    f: impl FnOnce(In1, In2) -> Fut + Clone + Send + 'static,
+) -> impl FnOnce(In1, Json<In2>) -> Fut + Clone + Send + 'static
+where
+    In1: FromRequestParts<S>,
+    In2: DeserializeOwned,
+    Out: IntoResponse,
+    E: IntoResponse,
+    S: Send + Sync + 'static,
+    Fut: Future<Output = Result<Out, E>> + Send,
+{
+    move |in1, Json(in2)| f(in1, in2)
+}
+
+#[cfg(test)]
+fn _typecheck_handler_fn2<In1, In2, Out, E, Fut, S>(
+    f: impl FnOnce(In1, In2) -> Fut + Clone + Send + 'static,
+) where
+    In1: FromRequestParts<S> + Send,
+    In2: DeserializeOwned + Send,
+    Out: IntoResponse,
+    E: IntoResponse,
+    S: Send + Sync + 'static,
+    Fut: Future<Output = Result<Out, E>> + Send,
+{
+    _axum_handler_type_checker_2_args_generic::<_, Json<In2>, _, _, S>(&handler_fn2(f));
 }
 
 //=================
@@ -47,6 +77,49 @@ impl LocaleSelf for Parts {
     fn locale(&self) -> Option<&str> {
         self.headers.get("Accept-Language")?.to_str().ok()
     }
+}
+
+//=================
+// Handler for Fn(In1, In2) -> Future<Output = Result<Json<Out>, Json<E>>
+
+pub fn handler_fn2r<In1, In2, Out, E, Fut, S>(
+    f: impl FnOnce(In1, In2) -> Fut + Clone + Send + 'static,
+) -> impl FnOnce(
+    In1,
+    Json<In2>,
+) -> Pin<Box<(dyn Future<Output = Result<Json<Out>, Json<E>>> + Send + 'static)>>
+       + Send
+       + 'static
+       + Clone
+where
+    In1: FromRequestParts<S> + Send + 'static,
+    In2: DeserializeOwned + Send + 'static,
+    Out: Serialize,
+    E: Serialize,
+    S: Send + Sync + 'static,
+    Fut: Future<Output = Result<Out, E>> + Send,
+{
+    move |req_part, Json(input)| {
+        let f = f.clone();
+        Box::pin(async move {
+            let output = f(req_part, input).await?;
+            Ok(Json(output))
+        })
+    }
+}
+
+#[cfg(test)]
+fn _typecheck_handler_fn2r<In1, In2, Out, E, Fut, S>(
+    f: impl FnOnce(In1, In2) -> Fut + Clone + Send + 'static,
+) where
+    In1: FromRequestParts<S> + Send + 'static,
+    In2: DeserializeOwned + Send + 'static,
+    Out: Serialize,
+    E: Serialize,
+    S: Send + Sync + 'static,
+    Fut: Future<Output = Result<Out, E>> + Send,
+{
+    _axum_handler_type_checker_2_args_generic::<_, Json<In2>, _, _, S>(&handler_fn2r(f));
 }
 
 //=================
@@ -63,7 +136,7 @@ pub fn handler_asyncrfn<F>(
        + Clone
 where
     F: AsyncRFn + Send + Sync + Clone + 'static,
-    F::In: Deserialize<'static>,
+    F::In: DeserializeOwned,
     F::Out: Serialize,
     F::E: Serialize,
 {
@@ -87,7 +160,7 @@ pub fn handler_asyncrfn_arc<F>(
        + Clone
 where
     F: AsyncRFn + Send + Sync + 'static,
-    F::In: Deserialize<'static>,
+    F::In: DeserializeOwned,
     F::Out: Serialize,
     F::E: Serialize,
 {
@@ -107,7 +180,7 @@ pub fn handler_asyncrfn2<F, S>(
 where
     F: AsyncRFn2 + Send + Sync + Clone + 'static,
     F::In1: FromRequestParts<S>,
-    F::In2: Deserialize<'static>,
+    F::In2: DeserializeOwned,
     F::Out: Serialize,
     F::E: Serialize,
     S: Send + Sync + 'static,
@@ -134,7 +207,7 @@ pub fn handler_asyncrfn2_arc<F, S>(
 where
     F: AsyncRFn2 + Send + Sync + 'static,
     F::In1: FromRequestParts<S>,
-    F::In2: Deserialize<'static>,
+    F::In2: DeserializeOwned,
     F::Out: Serialize,
     F::E: Serialize,
     S: Send + Sync + 'static,
@@ -148,9 +221,9 @@ pub async fn handler_tx_headers_old<F, MF, TL>(
     Json(input): Json<F::In>,
 ) -> Result<Json<F::Out>, Json<F::E>>
 where
-    TL: TaskLocal<ValueType = Parts> + Sync + Send + 'static,
+    TL: TaskLocal<Value = Parts> + Sync + Send + 'static,
     F: AsyncTxFn + Sync + Send + 'static,
-    F::In: Deserialize<'static>,
+    F::In: DeserializeOwned,
     F::Out: Serialize,
     F::E: Serialize,
     MF: Make<F> + 'static,
@@ -165,14 +238,14 @@ where
 #[allow(deprecated)]
 fn _typecheck_handler_tx_headers_old<F, MF, TL>()
 where
-    TL: TaskLocal<ValueType = Parts> + Sync + Send + 'static,
+    TL: TaskLocal<Value = Parts> + Sync + Send + 'static,
     F: AsyncTxFn + Sync + Send + 'static,
-    F::In: Deserialize<'static>,
+    F::In: DeserializeOwned,
     F::Out: Serialize,
     F::E: Serialize,
     MF: Make<F> + 'static,
 {
-    _axum_handler_type_checker_2_args_generic::<_, _, _, _, _, ()>(
+    _axum_handler_type_checker_2_args_generic::<_, Json<F::In>, _, _, ()>(
         &handler_tx_headers_old::<F, MF, TL>,
     );
 }

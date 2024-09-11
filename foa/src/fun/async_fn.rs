@@ -124,7 +124,7 @@ pub trait AsyncRFn2 {
     type Out: Send;
     type E;
 
-    #[allow(async_fn_in_trait)]
+    // #[allow(async_fn_in_trait)]
     fn invoke(
         &self,
         input1: Self::In1,

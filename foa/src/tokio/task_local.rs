@@ -11,18 +11,18 @@ pub trait TaskLocalCtx {
 /// Without loss of generality, if a type `T` needs to implement [`TaskLocal`] for [`ValueType`](TaskLocal::ValueType)s
 /// `S1` and `S2`, then `T` can implement `TaskLocal` with `type ValueType = (S1, S2)`.
 pub trait TaskLocal {
-    type ValueType: 'static;
+    type Value: 'static;
 
-    fn local_key() -> &'static LocalKey<Self::ValueType>;
+    fn local_key() -> &'static LocalKey<Self::Value>;
 
-    fn with<U>(f: impl FnOnce(&Self::ValueType) -> U) -> U {
+    fn with<U>(f: impl FnOnce(&Self::Value) -> U) -> U {
         let lk = Self::local_key();
         lk.with(|v| f(v))
     }
 
-    fn cloned_value() -> Self::ValueType
+    fn cloned_value() -> Self::Value
     where
-        Self::ValueType: Clone,
+        Self::Value: Clone,
     {
         Self::with(|v| v.clone())
     }
@@ -34,10 +34,10 @@ struct TlScoped<F, TL>(F, PhantomData<TL>);
 impl<F, TL> AsyncRFn2 for TlScoped<F, TL>
 where
     TL: TaskLocal + Sync,
-    TL::ValueType: Send,
+    TL::Value: Send,
     F: AsyncRFn + Sync,
 {
-    type In1 = TL::ValueType;
+    type In1 = TL::Value;
     type In2 = F::In;
     type Out = F::Out;
     type E = F::E;
@@ -51,19 +51,19 @@ where
 
 pub fn tl_scoped<'a, F, TL>(
     f: F,
-) -> impl AsyncRFn2<In1 = TL::ValueType, In2 = F::In, Out = F::Out, E = F::E> + 'a
+) -> impl AsyncRFn2<In1 = TL::Value, In2 = F::In, Out = F::Out, E = F::E> + 'a
 where
     TL: TaskLocal + Sync + 'static,
-    TL::ValueType: Send,
+    TL::Value: Send,
     F: AsyncRFn + Sync + 'a,
 {
     TlScoped(f, PhantomData::<TL>)
 }
 
-pub async fn invoke_tl_scoped<F, TL>(f: &F, in1: TL::ValueType, in2: F::In) -> Result<F::Out, F::E>
+pub async fn invoke_tl_scoped<F, TL>(f: &F, in1: TL::Value, in2: F::In) -> Result<F::Out, F::E>
 where
     TL: TaskLocal + Sync,
-    TL::ValueType: Send,
+    TL::Value: Send,
     F: AsyncRFn + Sync,
 {
     TlScoped(f, PhantomData::<TL>).invoke(in1, in2).await
@@ -84,11 +84,11 @@ mod test {
     }
 
     async fn foo_sfl<CTX: TaskLocalCtx>() -> (
-        <CTX::TaskLocal as TaskLocal>::ValueType,
-        <CTX::TaskLocal as TaskLocal>::ValueType,
+        <CTX::TaskLocal as TaskLocal>::Value,
+        <CTX::TaskLocal as TaskLocal>::Value,
     )
     where
-        <CTX::TaskLocal as TaskLocal>::ValueType: Clone,
+        <CTX::TaskLocal as TaskLocal>::Value: Clone,
     {
         let v1 = CTX::TaskLocal::cloned_value();
         let v2 = CTX::TaskLocal::with(|v| v.clone());
@@ -98,9 +98,9 @@ mod test {
     struct Ctx<const K: u8 = 0>;
 
     impl TaskLocal for Ctx<1> {
-        type ValueType = TlWithLocale;
+        type Value = TlWithLocale;
 
-        fn local_key() -> &'static LocalKey<Self::ValueType> {
+        fn local_key() -> &'static LocalKey<Self::Value> {
             &CTX_TL
         }
     }

@@ -32,7 +32,7 @@ pub async fn new_db_pool() -> Result<Pool<Postgres>, sqlx::Error> {
     Pool::connect("postgres://testuser:testpassword@localhost:9999/testdb").await
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Ctx;
 
 pub struct SubCtx;
@@ -123,9 +123,9 @@ tokio::task_local! {
 }
 
 impl TaskLocal for SubCtx {
-    type ValueType = Parts;
+    type Value = Parts;
 
-    fn local_key() -> &'static LocalKey<Self::ValueType> {
+    fn local_key() -> &'static LocalKey<Self::Value> {
         &CTX_TL
     }
 }

@@ -97,7 +97,7 @@ pub async fn common_test<CTX>(parts: Parts) -> Result<FooOut, FoaError<CTX>>
 where
     CTX: Cfg<CfgInfo = CfgTestInput>
         + LocaleCtx
-        + TaskLocalCtx<TaskLocal: TaskLocal<ValueType = Parts> + Sync + Send>
+        + TaskLocalCtx<TaskLocal: TaskLocal<Value = Parts> + Sync + Send>
         + PgDbCtx
         + 'static
         + Send
