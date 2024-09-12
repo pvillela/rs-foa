@@ -3,7 +3,7 @@ use crate::artctpg::svc::{FooIn, FooOut, FooSflI};
 use foa::{
     db::sqlx::AsyncTxFn,
     error::FoaError,
-    fun::AsyncRFn2,
+    fun::AsyncFn2,
     tokio::task_local::{TaskLocal, TaskLocalCtx},
 };
 use std::{future::Future, pin::Pin, sync::Arc};
@@ -13,13 +13,12 @@ type CtxTlValue = <CtxTl as TaskLocal>::Value;
 
 pub struct FooSflIC;
 
-impl AsyncRFn2 for FooSflIC {
+impl AsyncFn2 for FooSflIC {
     type In1 = CtxTlValue;
     type In2 = FooIn;
-    type Out = FooOut;
-    type E = FoaError<Ctx>;
+    type Out = Result<FooOut, FoaError<Ctx>>;
 
-    async fn invoke(&self, input1: Self::In1, input2: Self::In2) -> Result<Self::Out, Self::E> {
+    async fn invoke(&self, input1: Self::In1, input2: Self::In2) -> Self::Out {
         FooSflI(Ctx)
             .invoke_in_tx_tl_scoped::<CtxTl>(input1, input2)
             .await

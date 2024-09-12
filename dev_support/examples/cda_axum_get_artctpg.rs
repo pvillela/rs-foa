@@ -3,7 +3,7 @@ use dev_support::artctpg::run::{
     ctx::Ctx,
     svc_flows::{make_foo_sfl, FooSflIC},
 };
-use foa::web::axum::{handler_asyncrfn2_arc, handler_fn2r};
+use foa::web::axum::{handler_asyncfn2_arc, handler_fn2r};
 use std::time::Duration;
 
 #[tokio::main]
@@ -22,7 +22,7 @@ async fn main() {
     let app = Router::new()
         .route(
             "/",
-            axum::routing::post(handler_asyncrfn2_arc::<_, ()>(FooSflIC)),
+            axum::routing::post(handler_asyncfn2_arc::<_, ()>(FooSflIC)),
         )
         .route(
             "/alt",

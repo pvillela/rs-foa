@@ -144,7 +144,7 @@ impl<'a> RefInto<'a, FooSflCfgInfo<'a>> for AppCfgInfoArc {
 
 impl<CTX> AsyncTxFn for FooSflI<CTX>
 where
-    CTX: FooCtx + PgDbCtx + Sync,
+    CTX: FooCtx + PgDbCtx + Sync + Send,
     CTX::CfgInfo: Send,
 {
     type In = FooIn;

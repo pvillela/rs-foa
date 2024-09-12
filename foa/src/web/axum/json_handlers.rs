@@ -1,7 +1,7 @@
 use crate::{
     context::LocaleSelf,
     db::sqlx::{in_tx, AsyncTxFn},
-    fun::{AsyncRFn, AsyncRFn2},
+    fun::{AsyncFn2, AsyncRFn, AsyncRFn2},
     tokio::task_local::{invoke_tl_scoped, TaskLocal},
     trait_utils::Make,
 };
@@ -123,7 +123,47 @@ fn _typecheck_handler_fn2r<In1, In2, Out, E, Fut, S>(
 }
 
 //=================
-// Handlers for Async[x]RFn
+// Handlers for AsyncFn[x]
+
+pub fn handler_asyncfn2<F, S>(
+    f: F,
+) -> impl Fn(F::In1, Json<F::In2>) -> Pin<Box<(dyn Future<Output = Json<F::Out>> + Send + 'static)>>
+       + Send
+       + Sync // not needed for Axum
+       + 'static
+       + Clone
+where
+    F: AsyncFn2 + Send + Sync + Clone + 'static,
+    F::In1: FromRequestParts<S> + Send,
+    F::In2: DeserializeOwned + Send,
+    F::Out: Serialize,
+    S: Send + Sync + 'static,
+{
+    move |req_part, Json(input)| {
+        let f = f.clone();
+        Box::pin(async move { Json(f.invoke(req_part, input).await) })
+    }
+}
+
+pub fn handler_asyncfn2_arc<F, S>(
+    f: F,
+) -> impl Fn(F::In1, Json<F::In2>) -> Pin<Box<(dyn Future<Output = Json<F::Out>> + Send + 'static)>>
+       + Send
+       + Sync // not needed for Axum
+       + 'static
+       + Clone
+where
+    F: AsyncFn2 + Send + Sync + 'static,
+    F::In1: FromRequestParts<S>,
+    F::In2: DeserializeOwned,
+    F::Out: Serialize,
+    S: Send + Sync + 'static,
+{
+    handler_asyncfn2(Arc::new(f))
+}
+
+//=================
+// Handlers for AsyncRFn[x]
 
 pub fn handler_asyncrfn<F>(
     f: F,

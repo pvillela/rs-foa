@@ -1,4 +1,4 @@
-use crate::fun::{AsyncRFn, AsyncRFn2};
+use crate::fun::{AsyncFn, AsyncFn2, AsyncRFn, AsyncRFn2};
 use std::marker::PhantomData;
 use tokio::task::LocalKey;
 
@@ -49,7 +49,23 @@ where
     }
 }
 
-pub fn tl_scoped<'a, F, TL>(
+impl<F, TL> AsyncFn2 for TlScoped<F, TL>
+where
+    TL: TaskLocal + Sync,
+    TL::Value: Send,
+    F: AsyncFn + Sync,
+{
+    type In1 = TL::Value;
+    type In2 = F::In;
+    type Out = F::Out;
+
+    async fn invoke(&self, value: Self::In1, input: Self::In2) -> Self::Out {
+        let lk = TL::local_key();
+        lk.scope(value, self.0.invoke(input)).await
+    }
+}
+
+pub fn tl_scoped_old<'a, F, TL>(
     f: F,
 ) -> impl AsyncRFn2<In1 = TL::Value, In2 = F::In, Out = F::Out, E = F::E> + 'a
 where
@@ -60,11 +76,29 @@ where
     TlScoped(f, PhantomData::<TL>)
 }
 
-pub async fn invoke_tl_scoped<F, TL>(f: &F, in1: TL::Value, in2: F::In) -> Result<F::Out, F::E>
+pub fn tl_scoped<'a, F, TL>(f: F) -> impl AsyncFn2<In1 = TL::Value, In2 = F::In, Out = F::Out> + 'a
+where
+    TL: TaskLocal + Sync + 'static,
+    TL::Value: Send,
+    F: AsyncFn + Sync + 'a,
+{
+    TlScoped(f, PhantomData::<TL>)
+}
+
+pub async fn invoke_tl_scoped_old<F, TL>(f: &F, in1: TL::Value, in2: F::In) -> Result<F::Out, F::E>
 where
     TL: TaskLocal + Sync,
     TL::Value: Send,
     F: AsyncRFn + Sync,
+{
+    TlScoped(f, PhantomData::<TL>).invoke(in1, in2).await
+}
+
+pub async fn invoke_tl_scoped<F, TL>(f: &F, in1: TL::Value, in2: F::In) -> F::Out
+where
+    TL: TaskLocal + Sync,
+    TL::Value: Send,
+    F: AsyncFn + Sync,
 {
     TlScoped(f, PhantomData::<TL>).invoke(in1, in2).await
 }
@@ -127,7 +161,7 @@ mod test {
             let tlc = TlWithLocale {
                 locale: "en-CA".into(),
             };
-            invoke_tl_scoped::<_, <Ctx as TaskLocalCtx>::TaskLocal>(&FooI(Ctx), tlc, ()).await
+            invoke_tl_scoped_old::<_, <Ctx as TaskLocalCtx>::TaskLocal>(&FooI(Ctx), tlc, ()).await
         });
         let foo_out = h.await.unwrap();
         assert_eq!(

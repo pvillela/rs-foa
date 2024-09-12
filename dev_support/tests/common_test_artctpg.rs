@@ -75,7 +75,7 @@ struct TestFooSflI<CTX>(pub PhantomData<CTX>);
 
 impl<CTX> AsyncTxFn for TestFooSflI<CTX>
 where
-    CTX: FooCtx + LocaleCtx + InitDafCtx + PgDbCtx + Sync,
+    CTX: FooCtx + LocaleCtx + InitDafCtx + PgDbCtx + Sync + Send,
     CTX::CfgInfo: Send,
 {
     type In = FooIn;

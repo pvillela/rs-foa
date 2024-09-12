@@ -89,7 +89,7 @@ impl<'a> RefInto<'a, InitDafCfgInfo<'a>> for AppCfgInfoArc {
 
 impl<CTX> AsyncTxFn for InitDafI<CTX>
 where
-    CTX: InitDafCtx + PgDbCtx + Sync,
+    CTX: InitDafCtx + PgDbCtx + Sync + Send,
     CTX::CfgInfo: Send,
 {
     type In = ();
