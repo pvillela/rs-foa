@@ -5,7 +5,12 @@ use crate::{
     tokio::task_local::{invoke_tl_scoped, TaskLocal},
     trait_utils::Make,
 };
-use axum::{extract::FromRequestParts, http::request::Parts, response::IntoResponse, Json};
+use axum::{
+    extract::FromRequestParts,
+    http::{request::Parts, StatusCode},
+    response::IntoResponse,
+    Json,
+};
 use serde::{de::DeserializeOwned, Serialize};
 use std::{future::Future, pin::Pin, sync::Arc};
 
@@ -160,6 +165,56 @@ where
     S: Send + Sync + 'static,
 {
     handler_asyncfn2(Arc::new(f))
+}
+
+pub fn handler_asyncfn2r<O, E, F, S>(
+    f: F,
+) -> impl Fn(
+    F::In1,
+    Json<F::In2>,
+) -> Pin<Box<(dyn Future<Output = (StatusCode, Json<F::Out>)> + Send + 'static)>>
+       + Send
+       + Sync // not needed for Axum
+       + 'static
+       + Clone
+where
+    F: AsyncFn2<Out = Result<O, E>> + Send + Sync + Clone + 'static,
+    F::In1: FromRequestParts<S> + Send,
+    F::In2: DeserializeOwned + Send,
+    F::Out: Serialize,
+    S: Send + Sync + 'static,
+{
+    move |req_part, Json(input)| {
+        let f = f.clone();
+        Box::pin(async move {
+            let out = f.invoke(req_part, input).await;
+            let status = match out {
+                Ok(_) => StatusCode::OK,
+                Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            };
+            (status, Json(out))
+        })
+    }
+}
+
+pub fn handler_asyncfn2r_arc<O, E, F, S>(
+    f: F,
+) -> impl Fn(
+    F::In1,
+    Json<F::In2>,
+) -> Pin<Box<(dyn Future<Output = (StatusCode, Json<F::Out>)> + Send + 'static)>>
+       + Send
+       + Sync // not needed for Axum
+       + 'static
+       + Clone
+where
+    F: AsyncFn2<Out = Result<O, E>> + Send + Sync + 'static,
+    F::In1: FromRequestParts<S> + Send,
+    F::In2: DeserializeOwned + Send,
+    F::Out: Serialize,
+    S: Send + Sync + 'static,
+{
+    handler_asyncfn2r(Arc::new(f))
 }
 
 //=================
