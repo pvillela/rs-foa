@@ -3,7 +3,7 @@ use axum::http::request::Parts;
 use foa::{
     context::{Cfg, Locale, LocaleCtx},
     db::sqlx::{AsyncTxFn, PgDbCtx},
-    error::FoaError,
+    error::{ErrorKind, FoaError},
     refinto::RefInto,
     tokio::task_local::{TaskLocal, TaskLocalCtx},
 };
@@ -56,6 +56,8 @@ where
 {
 }
 
+const FOO_ERROR: ErrorKind<0, false> = ErrorKind("FOO_ERROR", "foo_sfl input invalid");
+
 impl<CTX, T> FooSfl<CTX> for T
 where
     CTX: FooOnlyCtx + LocaleCtx + TaskLocalCtx<TaskLocal: TaskLocal<Value = Parts>>,
@@ -67,6 +69,9 @@ where
         input: FooIn,
         tx: &mut Transaction<'_, Postgres>,
     ) -> Result<FooOut, FoaError<CTX>> {
+        if input.age_delta < 0 {
+            return Err(FoaError::new(&FOO_ERROR));
+        }
         let app_cfg_info = CTX::cfg();
         let cfg = app_cfg_info.ref_into();
         let FooIn { age_delta } = input;
