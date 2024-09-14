@@ -6,7 +6,7 @@ use foa::{
     fun::AsyncFn2,
     tokio::task_local::{TaskLocal, TaskLocalCtx},
 };
-use std::{future::Future, pin::Pin, sync::Arc};
+use std::{future::Future, pin::Pin};
 
 type CtxTl = <Ctx as TaskLocalCtx>::TaskLocal;
 type CtxTlValue = <CtxTl as TaskLocal>::Value;
@@ -34,5 +34,7 @@ pub fn make_foo_sfl() -> impl FnOnce(
        + Sync // optional, results from Self: Sync
        + Clone
        + 'static {
-    Arc::new(FooSflI(Ctx).in_tx_tl_scoped::<CtxTl>()).into_fn_when_clone()
+    FooSflI(Ctx)
+        .in_tx_tl_scoped::<CtxTl>()
+        .into_fnonce_with_arc()
 }

@@ -51,7 +51,24 @@ pub trait AsyncFn2 {
         move |in1, in2| Box::pin(async move { self.invoke(in1, in2).await })
     }
 
-    /// Reifies `self` as an `async Fn`
+    /// Reifies `self` as a clonable `async FnOnce`
+    fn into_fnonce_when_clone<'a>(
+        self,
+    ) -> impl FnOnce(Self::In1, Self::In2) -> Pin<Box<(dyn Future<Output = Self::Out> + Send + 'a)>>
+           + Send
+           + Sync // optional, results from Self: Sync
+           + 'a
+           + Clone
+    where
+        Self: Send
+            + Sync // optional if resulting Fn doesn't have to be Sync
+            + Clone
+            + 'a,
+    {
+        move |in1, in2| Box::pin(async move { self.invoke(in1, in2).await })
+    }
+
+    /// Reifies `self` as a clonable `async Fn`
     fn into_fn_when_clone<'a>(
         self,
     ) -> impl Fn(Self::In1, Self::In2) -> Pin<Box<(dyn Future<Output = Self::Out> + Send + 'a)>>
@@ -69,6 +86,40 @@ pub trait AsyncFn2 {
             let f = self.clone();
             Box::pin(async move { f.invoke(in1, in2).await })
         }
+    }
+
+    /// Reifies `self` as an clonable `async FnOnce`
+    fn into_fnonce_with_arc<'a>(
+        self,
+    ) -> impl FnOnce(Self::In1, Self::In2) -> Pin<Box<(dyn Future<Output = Self::Out> + Send + 'a)>>
+           + Send
+           + Sync // optional, results from Self: Sync
+           + 'a
+           + Clone
+    where
+        Self: Sized
+            + Send
+            + Sync // optional if resulting Fn doesn't have to be Sync
+            + 'a,
+    {
+        Arc::new(self).into_fnonce_when_clone()
+    }
+
+    /// Reifies `self` as an clonable `async Fn`
+    fn into_fn_with_arc<'a>(
+        self,
+    ) -> impl Fn(Self::In1, Self::In2) -> Pin<Box<(dyn Future<Output = Self::Out> + Send + 'a)>>
+           + Send
+           + Sync // optional, results from Self: Sync
+           + 'a
+           + Clone
+    where
+        Self: Sized
+            + Send
+            + Sync // optional if resulting Fn doesn't have to be Sync
+            + 'a,
+    {
+        Arc::new(self).into_fn_when_clone()
     }
 }
 

@@ -182,7 +182,7 @@ where
     F::Out: Serialize,
     S: Send + Sync + 'static,
 {
-    handler_fn2r(f.into_fn_when_clone())
+    handler_fn2r(f.into_fnonce_when_clone())
 }
 
 pub fn handler_asyncfn2r_arc<O, E, F, S>(
