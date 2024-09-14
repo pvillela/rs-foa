@@ -1,8 +1,11 @@
+#[allow(deprecated)]
+use crate::tokio::task_local::tl_scoped_old;
 use crate::{
     error::{ErrorKind, FoaError},
     fun::{AsyncFn, AsyncFn2, AsyncRFn, AsyncRFn2},
-    tokio::task_local::{invoke_tl_scoped, tl_scoped, tl_scoped_old, TaskLocal},
+    tokio::task_local::{invoke_tl_scoped, tl_scoped, TaskLocal},
 };
+
 use sqlx::{Database, Pool, Postgres, Transaction};
 use std::future::Future;
 
@@ -40,6 +43,8 @@ pub trait AsyncTxFn {
         tx: &mut Transaction<<Self::Db as Db>::Database>,
     ) -> impl Future<Output = Result<Self::Out, Self::E>> + Send;
 
+    #[deprecated]
+    #[allow(deprecated)]
     fn in_tx_old<'a>(
         self,
     ) -> impl AsyncRFn<In = Self::In, Out = Self::Out, E = Self::E> + Send + Sync + 'a
@@ -66,6 +71,8 @@ pub trait AsyncTxFn {
         invoke_in_tx(self, input).await
     }
 
+    #[deprecated]
+    #[allow(deprecated)]
     fn in_tx_tl_scoped_old<'a, TL>(
         self,
     ) -> impl AsyncRFn2<In1 = TL::Value, In2 = Self::In, Out = Self::Out, E = Self::E> + Send + Sync + 'a
@@ -121,9 +128,11 @@ impl<F: AsyncTxFn> AsyncTxFn for &F {
     }
 }
 
-struct InTx<F>(F);
+#[deprecated]
+struct InTxOld<F>(F);
 
-impl<F> AsyncRFn for InTx<F>
+#[allow(deprecated)]
+impl<F> AsyncRFn for InTxOld<F>
 where
     F: AsyncTxFn + Sync,
 {
@@ -139,6 +148,8 @@ where
         Ok(output)
     }
 }
+
+struct InTx<F>(F);
 
 impl<F> AsyncFn for InTx<F>
 where
@@ -156,11 +167,13 @@ where
     }
 }
 
+#[deprecated]
+#[allow(deprecated)]
 pub fn in_tx_old<'a, F>(f: F) -> impl AsyncRFn<In = F::In, Out = F::Out, E = F::E> + 'a
 where
     F: AsyncTxFn + Sync + Send + 'a,
 {
-    InTx(f)
+    InTxOld(f)
 }
 
 pub fn in_tx<'a, F>(f: F) -> impl AsyncFn<In = F::In, Out = Result<F::Out, F::E>> + 'a
@@ -170,20 +183,24 @@ where
     InTx(f)
 }
 
+#[deprecated]
+#[allow(deprecated)]
 pub async fn invoke_in_tx_old<F>(f: &F, input: F::In) -> Result<F::Out, F::E>
 where
     F: AsyncTxFn + Sync,
 {
-    AsyncRFn::invoke(&InTx(f), input).await
+    AsyncRFn::invoke(&InTxOld(f), input).await
 }
 
 pub async fn invoke_in_tx<F>(f: &F, input: F::In) -> Result<F::Out, F::E>
 where
     F: AsyncTxFn + Sync,
 {
-    AsyncFn::invoke(&InTx(f), input).await
+    f.in_tx().invoke(input).await
 }
 
+#[deprecated]
+#[allow(deprecated)]
 pub fn in_tx_tl_scoped_old<'a, F, TL>(
     f: F,
 ) -> impl AsyncRFn2<In1 = TL::Value, In2 = F::In, Out = F::Out, E = F::E> + 'a
@@ -208,6 +225,7 @@ where
     tl_scoped::<_, TL>(wf1)
 }
 
+#[deprecated]
 pub async fn invoke_in_tx_tl_scoped_old<F, TL>(
     f: &F,
     in1: TL::Value,

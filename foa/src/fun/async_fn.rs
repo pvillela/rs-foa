@@ -5,6 +5,50 @@ pub trait AsyncFn {
     type Out: Send;
 
     fn invoke(&self, input: Self::In) -> impl Future<Output = Self::Out> + Send;
+
+    fn into_asyncrfn<O, E>(self) -> impl AsyncRFn<In = Self::In, Out = O, E = E>
+    where
+        Self: AsyncFn<Out = Result<O, E>> + Sized,
+        O: Send,
+        E: Send,
+    {
+        WAsyncFn(self)
+    }
+}
+struct WAsyncFn<F>(F);
+
+impl<O, E, F> AsyncRFn for WAsyncFn<F>
+where
+    F: AsyncFn<Out = Result<O, E>>,
+    O: Send,
+    E: Send,
+{
+    type In = F::In;
+    type Out = O;
+    type E = E;
+
+    fn invoke(&self, input: Self::In) -> impl Future<Output = Result<O, E>> + Send {
+        self.0.invoke(input)
+    }
+}
+
+#[derive(Clone)]
+struct WAsyncFn2<F>(F);
+
+impl<O, E, F> AsyncRFn2 for WAsyncFn2<F>
+where
+    F: AsyncFn2<Out = Result<O, E>>,
+    O: Send,
+    E: Send,
+{
+    type In1 = F::In1;
+    type In2 = F::In2;
+    type Out = O;
+    type E = E;
+
+    fn invoke(&self, in1: Self::In1, in2: Self::In2) -> impl Future<Output = Result<O, E>> + Send {
+        self.0.invoke(in1, in2)
+    }
 }
 
 impl<F: AsyncFn> AsyncFn for &F {
@@ -34,6 +78,28 @@ pub trait AsyncFn2 {
     type Out: Send;
 
     fn invoke(&self, in1: Self::In1, in2: Self::In2) -> impl Future<Output = Self::Out> + Send;
+
+    fn into_asyncrfn2<O, E>(
+        self,
+    ) -> impl AsyncRFn2<In1 = Self::In1, In2 = Self::In2, Out = O, E = E> + Send + Sync + 'static
+    where
+        Self: AsyncFn2<Out = Result<O, E>> + Sized + Send + Sync + 'static,
+        O: Send,
+        E: Send,
+    {
+        WAsyncFn2(self)
+    }
+
+    fn into_asyncrfn2_when_clone<O, E>(
+        self,
+    ) -> impl AsyncRFn2<In1 = Self::In1, In2 = Self::In2, Out = O, E = E> + Send + Sync + 'static + Clone
+    where
+        Self: AsyncFn2<Out = Result<O, E>> + Sized + Send + Sync + 'static + Clone,
+        O: Send,
+        E: Send,
+    {
+        WAsyncFn2(self)
+    }
 
     /// Reifies `self` as an `async Fn`
     fn into_fn<'a>(
@@ -93,6 +159,7 @@ where
     }
 }
 
+#[derive(Clone)]
 struct WAsyncRFn2<F>(F);
 
 impl<F> AsyncFn2 for WAsyncRFn2<F>
@@ -129,7 +196,7 @@ pub trait AsyncRFn {
         compose(self, g)
     }
 
-    fn into_asyncfn(self) -> impl AsyncFn
+    fn into_asyncfn(self) -> impl AsyncFn<In = Self::In, Out = Result<Self::Out, Self::E>>
     where
         Self: Sized,
     {
@@ -242,9 +309,23 @@ pub trait AsyncRFn2 {
         input2: Self::In2,
     ) -> impl Future<Output = Result<Self::Out, Self::E>> + Send;
 
-    fn into_asyncfn2(self) -> impl AsyncFn2
+    fn into_asyncfn2(
+        self,
+    ) -> impl AsyncFn2<In1 = Self::In1, In2 = Self::In2, Out = Result<Self::Out, Self::E>> + Send + Sync
     where
-        Self: Sized,
+        Self: Sized + Send + Sync,
+    {
+        WAsyncRFn2(self)
+    }
+
+    fn into_asyncfn2_when_clone(
+        self,
+    ) -> impl AsyncFn2<In1 = Self::In1, In2 = Self::In2, Out = Result<Self::Out, Self::E>>
+           + Send
+           + Sync
+           + Clone
+    where
+        Self: Sized + Send + Sync + Clone,
     {
         WAsyncRFn2(self)
     }

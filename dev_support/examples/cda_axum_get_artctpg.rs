@@ -3,8 +3,11 @@ use dev_support::artctpg::run::{
     ctx::Ctx,
     svc_flows::{make_foo_sfl, FooSflIC},
 };
-use foa::web::axum::{handler_asyncfn2r_arc, handler_fn2r};
-use std::time::Duration;
+use foa::web::axum::{
+    direct, from_scratch, handler_asyncfn2r_arc, handler_fn2r, HandlerAsyncFn2r,
+    HandlerAsyncFn2rArc,
+};
+use std::{sync::Arc, time::Duration};
 
 #[tokio::main]
 async fn main() {
@@ -22,6 +25,26 @@ async fn main() {
     let app = Router::new()
         .route(
             "/",
+            axum::routing::post(HandlerAsyncFn2r(Arc::new(FooSflIC))),
+        )
+        .route(
+            "/arc",
+            axum::routing::post(HandlerAsyncFn2rArc::new(FooSflIC)),
+        )
+        .route(
+            "/scratch",
+            axum::routing::post(from_scratch::HandlerAsyncFn2r(Arc::new(FooSflIC))),
+        )
+        .route(
+            "/scratch-arc",
+            axum::routing::post(from_scratch::HandlerAsyncFn2rArc::new(FooSflIC)),
+        )
+        .route(
+            "/direct",
+            axum::routing::post(direct::HandlerAsyncFn2r::<_>::new(Arc::new(FooSflIC)).handler()),
+        )
+        .route(
+            "/fn",
             axum::routing::post(handler_asyncfn2r_arc::<_, _, _, ()>(FooSflIC)),
         )
         .route(

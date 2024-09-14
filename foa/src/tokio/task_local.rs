@@ -65,6 +65,7 @@ where
     }
 }
 
+#[deprecated]
 pub fn tl_scoped_old<'a, F, TL>(
     f: F,
 ) -> impl AsyncRFn2<In1 = TL::Value, In2 = F::In, Out = F::Out, E = F::E> + 'a
@@ -85,6 +86,7 @@ where
     TlScoped(f, PhantomData::<TL>)
 }
 
+#[deprecated]
 pub async fn invoke_tl_scoped_old<F, TL>(f: &F, in1: TL::Value, in2: F::In) -> Result<F::Out, F::E>
 where
     TL: TaskLocal + Sync,
@@ -145,12 +147,11 @@ mod test {
 
     struct FooI<CTX>(CTX);
 
-    impl AsyncRFn for FooI<Ctx> {
+    impl AsyncFn for FooI<Ctx> {
         type In = ();
-        type Out = (TlWithLocale, TlWithLocale);
-        type E = ();
+        type Out = Result<(TlWithLocale, TlWithLocale), ()>;
 
-        async fn invoke(&self, _input: Self::In) -> Result<Self::Out, ()> {
+        async fn invoke(&self, _input: Self::In) -> Self::Out {
             Ok(foo_sfl::<Ctx>().await)
         }
     }
@@ -161,7 +162,7 @@ mod test {
             let tlc = TlWithLocale {
                 locale: "en-CA".into(),
             };
-            invoke_tl_scoped_old::<_, <Ctx as TaskLocalCtx>::TaskLocal>(&FooI(Ctx), tlc, ()).await
+            invoke_tl_scoped::<_, <Ctx as TaskLocalCtx>::TaskLocal>(&FooI(Ctx), tlc, ()).await
         });
         let foo_out = h.await.unwrap();
         assert_eq!(

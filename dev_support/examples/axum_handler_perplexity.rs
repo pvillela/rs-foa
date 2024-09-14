@@ -22,7 +22,6 @@ where
     Res: IntoResponse,
     T1: FromRequestParts<S> + Send,
     T2: FromRequest<S, M> + Send,
-    M: Send + 'static,
 {
     type Future = Pin<Box<dyn Future<Output = Response> + Send>>;
 
