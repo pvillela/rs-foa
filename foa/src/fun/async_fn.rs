@@ -35,8 +35,24 @@ pub trait AsyncFn2 {
 
     fn invoke(&self, in1: Self::In1, in2: Self::In2) -> impl Future<Output = Self::Out> + Send;
 
+    /// Reifies `self` as an `async FnOnce`
+    fn into_fnonce<'a>(
+        self,
+    ) -> impl FnOnce(Self::In1, Self::In2) -> Pin<Box<(dyn Future<Output = Self::Out> + Send + 'a)>>
+           + Send
+           + Sync // optional, results from Self: Sync
+           + 'a
+    where
+        Self: Sized
+            + Send
+            + Sync // optional if resulting Fn doesn't have to be Sync
+            + 'a,
+    {
+        move |in1, in2| Box::pin(async move { self.invoke(in1, in2).await })
+    }
+
     /// Reifies `self` as an `async Fn`
-    fn into_fn<'a>(
+    fn into_fn_when_clone<'a>(
         self,
     ) -> impl Fn(Self::In1, Self::In2) -> Pin<Box<(dyn Future<Output = Self::Out> + Send + 'a)>>
            + Send

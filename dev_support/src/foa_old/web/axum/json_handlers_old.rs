@@ -79,7 +79,7 @@ where
 
 pub fn handler_asyncrfn2<F, S>(
     f: F,
-) -> impl Fn(
+) -> impl FnOnce(
     F::In1,
     Json<F::In2>,
 ) -> Pin<
@@ -113,7 +113,7 @@ where
 
 pub fn handler_asyncrfn2_arc<F, S>(
     f: F,
-) -> impl Fn(
+) -> impl FnOnce(
     F::In1,
     Json<F::In2>,
 ) -> Pin<

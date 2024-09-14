@@ -90,11 +90,12 @@ pub mod direct {
 
         pub fn handler(
             self,
-        ) -> impl Fn(
+        ) -> impl FnOnce(
             F::In1,
             Json<F::In2>,
-        )
-            -> Pin<Box<(dyn Future<Output = (StatusCode, Json<F::Out>)> + Send + 'static)>>
+        ) -> Pin<
+            Box<(dyn Future<Output = (StatusCode, Json<F::Out>)> + Send + 'static)>,
+        >
                + Send
                + Sync // not needed for Axum
                + 'static

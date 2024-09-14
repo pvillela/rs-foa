@@ -84,26 +84,29 @@ impl LocaleSelf for Parts {
 
 pub fn handler_fn2r<In1, In2, Out, E, Fut, S>(
     f: impl FnOnce(In1, In2) -> Fut + Clone + Send + 'static,
-) -> impl FnOnce(
+) -> impl Fn(
     In1,
     Json<In2>,
-) -> Pin<Box<(dyn Future<Output = Result<Json<Out>, Json<E>>> + Send + 'static)>>
+) -> Pin<Box<(dyn Future<Output = (StatusCode, Json<Result<Out, E>>)> + Send + 'static)>>
        + Send
        + 'static
        + Clone
 where
     In1: FromRequestParts<S> + Send + 'static,
     In2: DeserializeOwned + Send + 'static,
-    Out: Serialize,
-    E: Serialize,
+    Result<Out, E>: Serialize,
     S: Send + Sync + 'static,
     Fut: Future<Output = Result<Out, E>> + Send,
 {
     move |req_part, Json(input)| {
         let f = f.clone();
         Box::pin(async move {
-            let output = f(req_part, input).await?;
-            Ok(Json(output))
+            let out = f(req_part, input).await;
+            let status = match out {
+                Ok(_) => StatusCode::OK,
+                Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            };
+            (status, Json(out))
         })
     }
 }
@@ -179,18 +182,7 @@ where
     F::Out: Serialize,
     S: Send + Sync + 'static,
 {
-    // handler_asyncrfn2(f.into_asyncrfn2_when_clone())
-    move |req_part, Json(input)| {
-        let f = f.clone();
-        Box::pin(async move {
-            let out = f.invoke(req_part, input).await;
-            let status = match out {
-                Ok(_) => StatusCode::OK,
-                Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            };
-            (status, Json(out))
-        })
-    }
+    handler_fn2r(f.into_fn_when_clone())
 }
 
 pub fn handler_asyncfn2r_arc<O, E, F, S>(

@@ -34,5 +34,5 @@ pub fn make_foo_sfl() -> impl FnOnce(
        + Sync // optional, results from Self: Sync
        + Clone
        + 'static {
-    Arc::new(FooSflI(Ctx).in_tx_tl_scoped::<CtxTl>()).into_fn()
+    Arc::new(FooSflI(Ctx).in_tx_tl_scoped::<CtxTl>()).into_fn_when_clone()
 }
