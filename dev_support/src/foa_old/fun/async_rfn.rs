@@ -1,4 +1,4 @@
-use crate::fun::{AsyncFn, AsyncFn2};
+use foa::fun::{AsyncFn, AsyncFn2};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;

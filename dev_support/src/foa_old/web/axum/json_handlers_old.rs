@@ -1,17 +1,36 @@
-use super::handler_asyncfn2r;
-use crate::db::sqlx::{in_tx, AsyncTxFn};
-use crate::fun::async_rfn::{AsyncRFn, AsyncRFn2};
-use crate::tokio::task_local::{invoke_tl_scoped, TaskLocal};
-use crate::trait_utils::Make;
+use crate::foa_old::fun::async_rfn::{AsyncRFn, AsyncRFn2};
 use axum::extract::FromRequestParts;
 use axum::http::request::Parts;
 use axum::http::StatusCode;
 use axum::Json;
+use foa::db::sqlx::{in_tx, AsyncTxFn};
+use foa::tokio::task_local::{invoke_tl_scoped, TaskLocal};
+use foa::trait_utils::Make;
+use foa::web::axum::handler_asyncfn2r;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
+
+//=================
+// Type checker
+
+#[cfg(test)]
+use axum::{extract::FromRequest, response::IntoResponse};
+
+#[cfg(test)]
+/// Checks a closure for compliance with Axum Handler impl requirements.
+pub fn _axum_handler_type_checker_2_args_generic<In1, In2, Out, Fut, S>(
+    _f: &(impl FnOnce(In1, In2) -> Fut + Clone + Send + 'static),
+) where
+    Fut: Future<Output = Out> + Send,
+    In1: FromRequestParts<S> + Send,
+    In2: FromRequest<S> + Send,
+    Out: IntoResponse,
+    S: Send + Sync + 'static,
+{
+}
 
 //=================
 // Handlers for AsyncRFn[x]
@@ -145,8 +164,6 @@ where
     F::E: Serialize,
     MF: Make<F> + 'static,
 {
-    use super::_axum_handler_type_checker_2_args_generic;
-
     _axum_handler_type_checker_2_args_generic::<_, Json<F::In>, _, _, ()>(
         &handler_tx_headers_old::<F, MF, TL>,
     );

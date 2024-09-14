@@ -1,4 +1,3 @@
-use crate::fun::AsyncFn2;
 use axum::{
     extract::{FromRequest, FromRequestParts, Request},
     handler::Handler,
@@ -6,8 +5,10 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
+use foa::fun::AsyncFn2;
+use foa::web::axum::handler_asyncfn2r;
 use serde::{de::DeserializeOwned, Serialize};
-use std::{future::Future, pin::Pin, sync::Arc};
+use std::{future::Future, marker::PhantomData, pin::Pin, sync::Arc};
 
 pub mod from_scratch {
     use super::*;
@@ -70,8 +71,6 @@ pub mod from_scratch {
 
 pub mod direct {
     use super::*;
-    use crate::web::axum::json_handlers::*;
-    use std::marker::PhantomData;
 
     #[derive(Clone)]
     pub struct HandlerAsyncFn2r<F, S = ()>(pub F, PhantomData<S>);

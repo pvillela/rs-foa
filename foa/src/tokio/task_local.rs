@@ -1,4 +1,3 @@
-use crate::fun::async_rfn::{AsyncRFn, AsyncRFn2};
 use crate::fun::{AsyncFn, AsyncFn2};
 use std::marker::PhantomData;
 use tokio::task::LocalKey;
@@ -35,24 +34,6 @@ pub struct TlScoped<F, TL>(F, PhantomData<TL>);
 impl<F, TL> TlScoped<F, TL> {
     pub fn new(f: F) -> Self {
         TlScoped(f, PhantomData)
-    }
-}
-
-impl<F, TL> AsyncRFn2 for TlScoped<F, TL>
-where
-    TL: TaskLocal + Sync,
-    TL::Value: Send,
-    F: AsyncRFn + Sync,
-{
-    type In1 = TL::Value;
-    type In2 = F::In;
-    type Out = F::Out;
-    type E = F::E;
-
-    async fn invoke(&self, value: Self::In1, input: Self::In2) -> Result<Self::Out, Self::E> {
-        let lk = TL::local_key();
-        let output = lk.scope(value, self.0.invoke(input)).await?;
-        Ok(output)
     }
 }
 

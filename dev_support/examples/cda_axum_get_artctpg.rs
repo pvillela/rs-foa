@@ -3,7 +3,7 @@ use dev_support::artctpg::run::{
     ctx::Ctx,
     svc_flows::{make_foo_sfl, FooSflIC},
 };
-use foa::web::axum::json_handlers_experiment::{direct, from_scratch};
+use dev_support::foa_old::web::axum::json_handlers_experiment::{direct, from_scratch};
 use foa::web::axum::{handler_asyncfn2r_arc, handler_fn2r, HandlerAsyncFn2r, HandlerAsyncFn2rArc};
 use std::{sync::Arc, time::Duration};
 
