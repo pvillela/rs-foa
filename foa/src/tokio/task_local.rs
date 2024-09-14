@@ -1,4 +1,5 @@
-use crate::fun::{AsyncFn, AsyncFn2, AsyncRFn, AsyncRFn2};
+use crate::fun::async_rfn::{AsyncRFn, AsyncRFn2};
+use crate::fun::{AsyncFn, AsyncFn2};
 use std::marker::PhantomData;
 use tokio::task::LocalKey;
 
@@ -29,7 +30,13 @@ pub trait TaskLocal {
 }
 
 #[derive(Clone)]
-struct TlScoped<F, TL>(F, PhantomData<TL>);
+pub struct TlScoped<F, TL>(F, PhantomData<TL>);
+
+impl<F, TL> TlScoped<F, TL> {
+    pub fn new(f: F) -> Self {
+        TlScoped(f, PhantomData)
+    }
+}
 
 impl<F, TL> AsyncRFn2 for TlScoped<F, TL>
 where
@@ -65,35 +72,13 @@ where
     }
 }
 
-#[deprecated]
-pub fn tl_scoped_old<'a, F, TL>(
-    f: F,
-) -> impl AsyncRFn2<In1 = TL::Value, In2 = F::In, Out = F::Out, E = F::E> + 'a
-where
-    TL: TaskLocal + Sync + 'static,
-    TL::Value: Send,
-    F: AsyncRFn + Sync + 'a,
-{
-    TlScoped(f, PhantomData::<TL>)
-}
-
 pub fn tl_scoped<'a, F, TL>(f: F) -> impl AsyncFn2<In1 = TL::Value, In2 = F::In, Out = F::Out> + 'a
 where
-    TL: TaskLocal + Sync + 'static,
+    TL: TaskLocal + Sync + 'a,
     TL::Value: Send,
     F: AsyncFn + Sync + 'a,
 {
     TlScoped(f, PhantomData::<TL>)
-}
-
-#[deprecated]
-pub async fn invoke_tl_scoped_old<F, TL>(f: &F, in1: TL::Value, in2: F::In) -> Result<F::Out, F::E>
-where
-    TL: TaskLocal + Sync,
-    TL::Value: Send,
-    F: AsyncRFn + Sync,
-{
-    TlScoped(f, PhantomData::<TL>).invoke(in1, in2).await
 }
 
 pub async fn invoke_tl_scoped<F, TL>(f: &F, in1: TL::Value, in2: F::In) -> F::Out
@@ -102,7 +87,7 @@ where
     TL::Value: Send,
     F: AsyncFn + Sync,
 {
-    TlScoped(f, PhantomData::<TL>).invoke(in1, in2).await
+    tl_scoped::<_, TL>(f).invoke(in1, in2).await
 }
 
 #[cfg(test)]

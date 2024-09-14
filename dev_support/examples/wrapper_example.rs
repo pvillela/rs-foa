@@ -1,9 +1,6 @@
-use foa::{
-    fun::AsyncRFn,
-    wrapper::{Mappable, W},
-};
+use foa::fun::async_rfn::AsyncRFn;
+use foa::wrapper::{Mappable, W};
 use std::sync::Arc;
-
 //=================
 // Example extending a library wrapper with a trait,
 // limited usefulness.
