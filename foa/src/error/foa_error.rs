@@ -34,13 +34,23 @@ impl<const ARITY: usize, const HASCAUSE: bool> ErrorKind<ARITY, HASCAUSE> {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Serialize)]
 pub struct FoaError<CTX> {
     kind: Kind,
     args: Vec<String>,
     source: Option<BoxError>,
     #[serde(skip_serializing)]
     _ctx: NoDebug<PhantomData<CTX>>,
+}
+
+pub type BasicError = FoaError<()>;
+
+#[derive(Debug)]
+#[allow(unused)]
+struct FoaErrorDevProxy<'a> {
+    kind: &'a Kind,
+    args: &'a Vec<String>,
+    source: &'a Option<BoxError>,
 }
 
 impl<CTX> FoaError<CTX> {
@@ -102,6 +112,41 @@ impl<CTX> FoaError<CTX> {
     ) -> Self {
         Self::new_priv(kind, args, Some(BoxError::new_ser(cause)))
     }
+
+    pub fn has_kind<const A: usize, const H: bool>(&self, kind: ErrorKind<A, H>) -> bool {
+        self.kind.name == kind.0
+    }
+
+    fn dev_proxy(&self) -> FoaErrorDevProxy {
+        FoaErrorDevProxy {
+            kind: &self.kind,
+            args: &self.args,
+            source: &self.source,
+        }
+    }
+}
+
+impl<CTX> Debug for FoaError<CTX>
+where
+    CTX: ErrCtx,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if cfg!(debug_assertions) {
+            f.write_str("FoaError[")?;
+            self.dev_proxy().fmt(f)?;
+            // f.write_str("], display=[")?;
+            // let msg = interpolated_string(self.kind.dev_msg, &self.args);
+            // f.write_str(&msg)?;
+            f.write_char(']')
+        } else {
+            f.write_str("FoaError[")?;
+            self.kind.fmt(f)?;
+            f.write_str(", display=[")?;
+            let msg = interpolated_localized_msg::<CTX>(self.kind.name, &self.args);
+            f.write_str(&msg)?;
+            f.write_str("]]")
+        }
+    }
 }
 
 impl<CTX> Display for FoaError<CTX>
@@ -110,12 +155,12 @@ where
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if cfg!(debug_assertions) {
-            f.write_str("display=[")?;
+            // f.write_str("display=[")?;
             let msg = interpolated_string(self.kind.dev_msg, &self.args);
-            f.write_str(&msg)?;
-            f.write_str("], debug=[")?;
-            <Self as Debug>::fmt(self, f)?;
-            f.write_char(']')
+            f.write_str(&msg)
+            // f.write_str("], debug=[")?;
+            // <Self as Debug>::fmt(self, f)
+            // f.write_char(']')
         } else {
             let msg = interpolated_localized_msg::<CTX>(self.kind.name, &self.args);
             f.write_str(&msg)
@@ -135,5 +180,18 @@ where
             }
             None => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::{ErrorKind, FoaError};
+
+    const FOO_ERROR: ErrorKind<0, false> = ErrorKind("FOO_ERROR", "foo message");
+
+    #[test]
+    fn test() {
+        let err = FoaError::<()>::new(&FOO_ERROR);
+        assert!(err.has_kind(FOO_ERROR));
     }
 }

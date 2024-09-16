@@ -6,7 +6,7 @@ use common_test_artctpg::{
 };
 use dev_support::artctpg::{run::ctx::new_db_pool, svc::FooOut};
 use foa::{
-    context::{Cfg, Locale, LocaleCtx},
+    context::{Cfg, ErrCtx, Locale, LocaleCtx, NullSubCtx},
     db::sqlx::{Db, DbCtx},
     tokio::{
         task_local::{TaskLocal, TaskLocalCtx},
@@ -19,6 +19,10 @@ use tokio::task::LocalKey;
 #[derive(Debug)]
 struct Ctx<const K: u8>;
 struct SubCtx<const K: u8>;
+
+impl<const K: u8> ErrCtx for Ctx<K> {
+    type LocalizedMsg = NullSubCtx;
+}
 
 impl<const K: u8> Db for SubCtx<K> {
     type Database = Postgres;

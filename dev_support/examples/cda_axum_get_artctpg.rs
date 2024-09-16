@@ -4,8 +4,28 @@ use dev_support::artctpg::run::{
     svc_flows::{make_foo_sfl, FooSflIC},
 };
 use dev_support::foa_exp::web::axum::json_handlers_experiment::{direct, from_scratch};
-use foa::web::axum::{handler_asyncfn2r_arc, handler_fn2r, HandlerAsyncFn2r, HandlerAsyncFn2rArc};
+use foa::{
+    fun::{AsyncFn, AsyncFn2},
+    web::axum::{
+        handler_asyncfn2r_arc, handler_fn2r, HandlerAsyncFn2r, HandlerAsyncFn2rArc,
+        HandlerAsyncFn2rWithErrorMapper,
+    },
+};
 use std::{sync::Arc, time::Duration};
+
+type FooOut = <FooSflIC as AsyncFn2>::Out;
+
+#[derive(Clone)]
+struct IdentityErrorMapper;
+
+impl AsyncFn for IdentityErrorMapper {
+    type In = FooOut;
+    type Out = FooOut;
+
+    async fn invoke(&self, input: Self::In) -> Self::Out {
+        input
+    }
+}
 
 #[tokio::main]
 async fn main() {
@@ -28,6 +48,13 @@ async fn main() {
         .route(
             "/arc",
             axum::routing::post(HandlerAsyncFn2rArc::new(FooSflIC)),
+        )
+        .route(
+            "/mapped",
+            axum::routing::post(HandlerAsyncFn2rWithErrorMapper(
+                Arc::new(FooSflIC),
+                IdentityErrorMapper,
+            )),
         )
         .route(
             "/scratch",

@@ -2,6 +2,7 @@ use crate::artctpg::svc::common::{AppCfgInfo, AppCfgInfoArc};
 use crate::artctpg::svc::InitDafI;
 use arc_swap::ArcSwap;
 use axum::http::request::Parts;
+use foa::context::ErrCtx;
 use foa::{
     context::{Cfg, Locale, LocaleCtx},
     db::sqlx::{invoke_in_tx, Db, DbCtx},
@@ -36,6 +37,10 @@ pub async fn new_db_pool() -> Result<Pool<Postgres>, sqlx::Error> {
 pub struct Ctx;
 
 pub struct SubCtx;
+
+impl ErrCtx for Ctx {
+    type LocalizedMsg = ();
+}
 
 impl StaticStateMut for Ctx {
     type State = CtxInfo;

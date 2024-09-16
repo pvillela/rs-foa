@@ -38,24 +38,24 @@ pub trait SecCtx {
 
 pub type NullCtx = ();
 
-pub struct NullCtxTypeI;
+pub type NullSubCtx = ();
 
-impl LocalizedMsg for NullCtxTypeI {
+impl LocalizedMsg for NullSubCtx {
     fn localized_msg<'a>(_kind: &'a str, _locale: impl Deref<Target = str>) -> Option<&'a str> {
         None
     }
 }
 
-impl Locale for NullCtxTypeI {
+impl Locale for NullSubCtx {
     fn locale() -> impl Deref<Target = str> {
         ""
     }
 }
 
 impl LocaleCtx for NullCtx {
-    type Locale = NullCtxTypeI;
+    type Locale = NullSubCtx;
 }
 
 impl ErrCtx for NullCtx {
-    type LocalizedMsg = NullCtxTypeI;
+    type LocalizedMsg = NullSubCtx;
 }

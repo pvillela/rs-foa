@@ -1,4 +1,7 @@
-use crate::{context::LocaleSelf, fun::AsyncFn2};
+use crate::{
+    context::LocaleSelf,
+    fun::{AsyncFn, AsyncFn2},
+};
 use axum::{
     extract::{FromRequestParts, Request},
     handler::Handler,
@@ -230,5 +233,59 @@ where
 
     fn call(self, req: Request, state: S) -> Self::Future {
         handler_asyncfn2r::<O, E, F, S>(self.0).call(req, state)
+    }
+}
+
+#[derive(Clone)]
+pub struct HandlerAsyncFn2rWithErrorMapper<F, M>(pub F, pub M);
+
+impl<O, E, EMI, EMO, F, Mpr, S> Handler<(), S> for HandlerAsyncFn2rWithErrorMapper<F, Mpr>
+where
+    F: AsyncFn2<Out = Result<O, E>> + Send + Sync + 'static + Clone,
+    F::In1: FromRequestParts<S>,
+    F::In2: DeserializeOwned,
+    O: Serialize + Send,
+    E: Serialize + Into<EMI> + Send,
+    S: Send + Sync + 'static,
+    Mpr: AsyncFn<In = Result<O, EMI>, Out = Result<O, EMO>> + Send + Sync + 'static + Clone,
+    EMO: Serialize + Send,
+{
+    type Future = Pin<Box<dyn Future<Output = Response> + Send>>;
+
+    fn call(self, req: Request, state: S) -> Self::Future {
+        let mf = WithMappedErrors(self.0, self.1);
+        let h = HandlerAsyncFn2r(mf);
+        Handler::<(), S>::call(h, req, state)
+    }
+}
+
+struct WithMappedErrors<F, M>(F, M);
+
+impl<F: Clone, M: Clone> Clone for WithMappedErrors<F, M> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone(), self.1.clone())
+    }
+}
+
+impl<O, E, EMI, EMO, F, Mpr> AsyncFn2 for WithMappedErrors<F, Mpr>
+where
+    F: AsyncFn2<Out = Result<O, E>> + Send + Sync + 'static,
+    F::In2: DeserializeOwned,
+    O: Serialize + Send,
+    E: Serialize + Into<EMI> + Send,
+    Mpr: AsyncFn<In = Result<O, EMI>, Out = Result<O, EMO>> + Send + Sync + 'static,
+    EMO: Send,
+{
+    type In1 = F::In1;
+    type In2 = F::In2;
+    type Out = Mpr::Out;
+
+    async fn invoke(&self, in1: Self::In1, in2: Self::In2) -> Self::Out {
+        let out_f = self.0.invoke(in1, in2).await;
+        let in_m: Mpr::In = match out_f {
+            Ok(out) => Ok(out),
+            Err(err) => Err(err.into()),
+        };
+        self.1.invoke(in_m).await
     }
 }
