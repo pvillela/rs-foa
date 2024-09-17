@@ -79,11 +79,11 @@ where
 
 pub fn handler_asyncrfn2<F, S>(
     f: F,
-) -> impl FnOnce(
+) -> impl Fn(
     F::In1,
     Json<F::In2>,
 ) -> Pin<
-    Box<(dyn Future<Output = (StatusCode, Json<Result<F::Out, F::E>>)> + Send + 'static)>,
+    Box<(dyn Future<Output = Result<Json<F::Out>, (StatusCode, Json<F::E>)>> + Send + 'static)>,
 >
        + Send
        + Sync // not needed for Axum
@@ -97,27 +97,16 @@ where
     F::E: Serialize,
     S: Send + Sync + 'static,
 {
-    // move |req_part, Json(input)| {
-    //     let f = f.clone();
-    //     Box::pin(async move {
-    //         let out = f.invoke(req_part, input).await;
-    //         let status = match out {
-    //             Ok(_) => StatusCode::OK,
-    //             Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
-    //         };
-    //         (status, Json(out))
-    //     })
-    // }
     handler_asyncfn2r(f.into_asyncfn2_when_clone())
 }
 
 pub fn handler_asyncrfn2_arc<F, S>(
     f: F,
-) -> impl FnOnce(
+) -> impl Fn(
     F::In1,
     Json<F::In2>,
 ) -> Pin<
-    Box<(dyn Future<Output = (StatusCode, Json<Result<F::Out, F::E>>)> + Send + 'static)>,
+    Box<(dyn Future<Output = Result<Json<F::Out>, (StatusCode, Json<F::E>)>> + Send + 'static)>,
 >
        + Send
        + Sync // not needed for Axum

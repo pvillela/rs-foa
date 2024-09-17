@@ -1,5 +1,5 @@
 mod context;
-#[allow(unused)]
+#[allow(unused)] // to avoid bogus lint
 pub use context::*;
 
 mod handlers;

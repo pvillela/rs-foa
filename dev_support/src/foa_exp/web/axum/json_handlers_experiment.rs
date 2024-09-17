@@ -57,13 +57,11 @@ pub mod from_scratch {
 
                 // Call the wrapped function with extracted values
                 let out = self.0.invoke(t1, t2).await;
-
-                // Convert the result to a response
-                let status = match out {
-                    Ok(_) => StatusCode::OK,
-                    Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
+                let res = match out {
+                    Ok(out) => Ok(Json(out)),
+                    Err(err) => Err((StatusCode::INTERNAL_SERVER_ERROR, Json(err))),
                 };
-                (status, Json(out)).into_response()
+                res.into_response()
             })
         }
     }
@@ -90,11 +88,11 @@ pub mod direct {
 
         pub fn handler(
             self,
-        ) -> impl FnOnce(
+        ) -> impl Fn(
             F::In1,
             Json<F::In2>,
         ) -> Pin<
-            Box<(dyn Future<Output = (StatusCode, Json<F::Out>)> + Send + 'static)>,
+            Box<(dyn Future<Output = Result<Json<O>, (StatusCode, Json<E>)>> + Send + 'static)>,
         >
                + Send
                + Sync // not needed for Axum

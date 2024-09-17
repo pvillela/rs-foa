@@ -1,3 +1,4 @@
+use super::WithMappedErrors;
 use crate::fun::AsyncFn2;
 use axum::{
     extract::{FromRequestParts, Request},
@@ -8,8 +9,6 @@ use axum::{
 };
 use serde::{de::DeserializeOwned, Serialize};
 use std::{future::Future, marker::PhantomData, pin::Pin, sync::Arc};
-
-use super::WithMappedErrors;
 
 /// Transforms an [`FnOnce`] to take [`Json`] input, making it into a [`Handler`].
 pub fn into_json_input_fn<In, Out, Fut>(
@@ -55,14 +54,16 @@ fn _typecheck_into_json_input_fn2<In1, In2, Out, E, Fut, S>(
 }
 
 /// Returns a handler for `Fn(In1, In2) -> Future<Output = Result<O, E>` that takes
-/// [`Json<In2>`] as the second argument and assigns [`StatusCode::INTERNAL_SERVER_ERROR`]
-/// to any error result.
+/// [`Json<In2>`] as the second argument, returns `(StatusCode, Json<Result<O, E>>)`,
+/// and assigns [`StatusCode::INTERNAL_SERVER_ERROR`] to any error result.
 pub fn handler_fn2r<In1, In2, O, E, Fut, S>(
     f: impl FnOnce(In1, In2) -> Fut + Clone + Send + 'static,
 ) -> impl Fn(
     In1,
     Json<In2>,
-) -> Pin<Box<(dyn Future<Output = (StatusCode, Json<Result<O, E>>)> + Send + 'static)>>
+) -> Pin<
+    Box<(dyn Future<Output = Result<Json<O>, (StatusCode, Json<E>)>> + Send + 'static)>,
+>
        + Send
        + 'static
        + Clone
@@ -77,17 +78,32 @@ where
         let f = f.clone();
         Box::pin(async move {
             let out = f(req_part, input).await;
-            let status = match out {
-                Ok(_) => StatusCode::OK,
-                Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            };
-            (status, Json(out))
+            match out {
+                Ok(out) => Ok(Json(out)),
+                Err(err) => Err((StatusCode::INTERNAL_SERVER_ERROR, Json(err))),
+            }
         })
     }
 }
 
+#[cfg(test)]
+fn _typecheck_handler_fn2r<In1, In2, O, E, Fut, S>(
+    f: impl FnOnce(In1, In2) -> Fut + Clone + Send + 'static,
+) where
+    In1: FromRequestParts<S> + Send + 'static,
+    In2: DeserializeOwned + Send + 'static,
+    O: Serialize,
+    E: Serialize,
+    S: Send + Sync + 'static,
+    Fut: Future<Output = Result<O, E>> + Send,
+{
+    use super::_axum_handler_type_checker_2_args_generic;
+
+    _axum_handler_type_checker_2_args_generic::<_, Json<In2>, _, _, S>(&handler_fn2r(f));
+}
+
 /// Returns a handler for `Fn(In1, In2) -> Future<Output = Result<O, (StatusCode, E)>` that takes
-/// [`Json<In2>`] as the second argument.
+/// [`Json<In2>`] as the second argument and returns [`Result<Json<O>, (StatusCode, Json<E>)>`].
 pub fn handler_fn2rs<In1, In2, O, E, Fut, S>(
     f: impl FnOnce(In1, In2) -> Fut + Clone + Send + 'static,
 ) -> impl Fn(
@@ -120,7 +136,7 @@ where
 }
 
 #[cfg(test)]
-fn _typecheck_handler_fn2r<In1, In2, O, E, Fut, S>(
+fn _typecheck_handler_fn2rs<In1, In2, O, E, Fut, S>(
     f: impl FnOnce(In1, In2) -> Fut + Clone + Send + 'static,
 ) where
     In1: FromRequestParts<S> + Send + 'static,
@@ -128,25 +144,25 @@ fn _typecheck_handler_fn2r<In1, In2, O, E, Fut, S>(
     O: Serialize,
     E: Serialize,
     S: Send + Sync + 'static,
-    Fut: Future<Output = Result<O, E>> + Send,
+    Fut: Future<Output = Result<O, (StatusCode, E)>> + Send,
 {
     use super::_axum_handler_type_checker_2_args_generic;
 
-    _axum_handler_type_checker_2_args_generic::<_, Json<In2>, _, _, S>(&handler_fn2r(f));
+    _axum_handler_type_checker_2_args_generic::<_, Json<In2>, _, _, S>(&handler_fn2rs(f));
 }
 
-//=================
-// Handlers for AsyncFn[x]
+/// Returns a handler for [`AsyncFn2<Out = Result<O, E>>`] that takes
+/// [`Json<F::In2>`] as the second argument, returns `(StatusCode, Json<Result<O, E>>)`,
+/// and assigns [`StatusCode::INTERNAL_SERVER_ERROR`] to any error result.
 
-/// Returns a handler for `AsyncFn2<Out = Result<O, E>>` that takes
-/// [`Json<F::In2>`] as the second argument and assigns [`StatusCode::INTERNAL_SERVER_ERROR`]
-/// to any error result.
 pub fn handler_asyncfn2r<O, E, F, S>(
     f: F,
 ) -> impl Fn(
     F::In1,
     Json<F::In2>,
-) -> Pin<Box<(dyn Future<Output = (StatusCode, Json<F::Out>)> + Send + 'static)>>
+) -> Pin<
+    Box<(dyn Future<Output = Result<Json<O>, (StatusCode, Json<E>)>> + Send + 'static)>,
+>
        + Send
        + Sync // not needed for Axum
        + 'static
@@ -166,7 +182,9 @@ pub fn handler_asyncfn2r_arc<O, E, F, S>(
 ) -> impl Fn(
     F::In1,
     Json<F::In2>,
-) -> Pin<Box<(dyn Future<Output = (StatusCode, Json<F::Out>)> + Send + 'static)>>
+) -> Pin<
+    Box<(dyn Future<Output = Result<Json<O>, (StatusCode, Json<E>)>> + Send + 'static)>,
+>
        + Send
        + Sync // not needed for Axum
        + 'static

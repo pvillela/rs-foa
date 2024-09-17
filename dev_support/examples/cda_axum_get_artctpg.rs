@@ -8,7 +8,7 @@ use foa::{
     error::FoaError,
     web::axum::{
         handler_asyncfn2r_arc, handler_fn2r, identity_mapper, HandlerAsyncFn2r,
-        HandlerAsyncFn2rArc, HandlerAsyncFn2rWithErrorMapperOld,
+        HandlerAsyncFn2rArc, HandlerAsyncFn2rWithErrorMapper, HandlerAsyncFn2rWithErrorMapperOld,
     },
 };
 use std::{sync::Arc, time::Duration};
@@ -36,8 +36,15 @@ async fn main() {
             axum::routing::post(HandlerAsyncFn2rArc::new(FooSflIC)),
         )
         .route(
-            "/mapped",
+            "/mapped-old",
             axum::routing::post(HandlerAsyncFn2rWithErrorMapperOld::new(
+                Arc::new(FooSflIC),
+                identity_mapper::<FoaError<Ctx>>,
+            )),
+        )
+        .route(
+            "/rs",
+            axum::routing::post(HandlerAsyncFn2rWithErrorMapper::new(
                 Arc::new(FooSflIC),
                 identity_mapper::<FoaError<Ctx>>,
             )),
