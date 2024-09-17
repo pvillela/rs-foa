@@ -152,9 +152,8 @@ fn _typecheck_handler_fn2rs<In1, In2, O, E, Fut, S>(
 }
 
 /// Returns a handler for [`AsyncFn2<Out = Result<O, E>>`] that takes
-/// [`Json<F::In2>`] as the second argument, returns `(StatusCode, Json<Result<O, E>>)`,
+/// [`Json<F::In2>`] as the second argument, returns [`Result<Json<O>, (StatusCode, Json<E>)>`],
 /// and assigns [`StatusCode::INTERNAL_SERVER_ERROR`] to any error result.
-
 pub fn handler_asyncfn2r<O, E, F, S>(
     f: F,
 ) -> impl Fn(
@@ -177,6 +176,9 @@ where
     handler_fn2r(f.into_fnonce_when_clone())
 }
 
+/// Returns a handler for the [`Arc`] of an [`AsyncFn2<Out = Result<O, E>>`] that takes
+/// [`Json<F::In2>`] as the second argument, returns [`Result<Json<O>, (StatusCode, Json<E>)>`],
+/// and assigns [`StatusCode::INTERNAL_SERVER_ERROR`] to any error result.
 pub fn handler_asyncfn2r_arc<O, E, F, S>(
     f: F,
 ) -> impl Fn(
@@ -200,9 +202,8 @@ where
     handler_asyncfn2r(Arc::new(f))
 }
 
-/// Returns a handler for `AsyncFn2<Out = Result<O, E>>` that takes
-/// [`Json<F::In2>`] as the second argument and
-/// ????
+/// Returns a handler for [`AsyncFn2<Out = Result<O, (StatusCode, E)>>`] that takes
+/// [`Json<F::In2>`] as the second argument and returns [`Result<Json<O>, (StatusCode, Json<E>)>`].
 pub fn handler_asyncfn2rs<O, E, F, S>(
     f: F,
 ) -> impl Fn(
@@ -225,9 +226,35 @@ where
     handler_fn2rs(f.into_fnonce_when_clone())
 }
 
-/// Type wrapper for `AsyncFn2<Out = Result<O, E>>` that creates a handler that takes
+/// Returns a handler for the [`Arc`] of an [`AsyncFn2<Out = Result<O, (StatusCode, E)>>`] that takes
+/// [`Json<F::In2>`] as the second argument and returns [`Result<Json<O>, (StatusCode, Json<E>)>`].
+pub fn handler_asyncfn2rs_arc<O, E, F, S>(
+    f: F,
+) -> impl Fn(
+    F::In1,
+    Json<F::In2>,
+) -> Pin<
+    Box<(dyn Future<Output = Result<Json<O>, (StatusCode, Json<E>)>> + Send + 'static)>,
+>
+       + Send
+       + 'static
+       + Clone
+where
+    F: AsyncFn2<Out = Result<O, (StatusCode, E)>> + Send + Sync + 'static,
+    F::In1: FromRequestParts<S>,
+    F::In2: DeserializeOwned,
+    O: Serialize,
+    E: Serialize,
+    S: Send + Sync + 'static,
+{
+    handler_asyncfn2rs(Arc::new(f))
+}
+
+/// Type wrapper for `AsyncFn2<Out = Result<O, E>>` that implements a handler that takes
 /// [`Json<F::In2>`] as the second argument and assigns [`StatusCode::INTERNAL_SERVER_ERROR`]
-/// to any error result. More convenient to use than [`handler_asyncfn2r`].
+/// to any error result.
+/// More convenient to use than [`handler_asyncfn2r`] due to better type inference for type constructors
+/// than for functions.
 #[derive(Clone)]
 pub struct HandlerAsyncFn2r<F>(pub F);
 
@@ -255,9 +282,10 @@ where
     }
 }
 
-/// Type wrapper for `AsyncFn2<Out = Result<O, E>>` that creates a handler that takes
-/// [`Json<F::In2>`] as the second argument and assigns [`StatusCode::INTERNAL_SERVER_ERROR`]
-/// to any error result. More convenient to use than [`handler_asyncfn2r`].
+/// Type wrapper for `AsyncFn2<Out = Result<O, (StatusCode, E)>>` that implements a handler that takes
+/// [`Json<F::In2>`] as the second argument and returns [`Result<Json<O>, (StatusCode, Json<E>)>`].
+/// More convenient to use than [`handler_asyncfn2rs`] due to better type inference for type constructors
+/// than for functions.
 #[derive(Clone)]
 pub struct HandlerAsyncFn2rs<F>(pub F);
 
@@ -285,9 +313,10 @@ where
     }
 }
 
-/// JSON handler type wrapper for `AsyncFn2<Out = Result<O, E>>` and a function that maps errors
-/// to a pair [`(StatusCode, EMO)`].
-pub struct HandlerAsyncFn2rWithErrorMapper<EMI, EMO, F, M>(pub F, M, PhantomData<(EMI, EMO)>);
+/// Type wrapper for an `AsyncFn2<Out = Result<O, E>>` and a function that maps errors
+/// to a pair [`(StatusCode, EMO)`]; implements a handler that takes
+/// [`Json<F::In2>`] as the second argument and returns [`Result<Json<O>, (StatusCode, Json<E>)>`].
+pub struct HandlerAsyncFn2rWithErrorMapper<EMI, EMO, F, M>(F, M, PhantomData<(EMI, EMO)>);
 
 impl<F, M, EMI, EMO> HandlerAsyncFn2rWithErrorMapper<EMI, EMO, F, M> {
     pub fn new(f: F, m: M) -> Self {
@@ -323,83 +352,5 @@ where
         let mf = WithMappedErrors::new(self.0, self.1);
         let h = HandlerAsyncFn2rs(mf);
         h.call(req, state)
-    }
-}
-
-/// JSON handler type wrapper for `AsyncFn2<Out = Result<O, E>>` and a function that maps errors
-/// to a pair [`(StatusCode, EMO)`].
-pub struct HandlerAsyncFn2rWithErrorMapperOld<EMI, EMO, F, M>(pub F, M, PhantomData<(EMI, EMO)>);
-
-impl<F, M, EMI, EMO> HandlerAsyncFn2rWithErrorMapperOld<EMI, EMO, F, M> {
-    pub fn new(f: F, m: M) -> Self {
-        Self(f, m, PhantomData)
-    }
-}
-
-impl<EMI, EMO, F, M> Clone for HandlerAsyncFn2rWithErrorMapperOld<EMI, EMO, F, M>
-where
-    F: Clone,
-    M: Clone,
-{
-    fn clone(&self) -> Self {
-        Self(self.0.clone(), self.1.clone(), PhantomData)
-    }
-}
-
-impl<O, E, EMI, EMO, F, M, S> Handler<(), S> for HandlerAsyncFn2rWithErrorMapperOld<EMI, EMO, F, M>
-where
-    F: AsyncFn2<Out = Result<O, E>> + Send + Sync + 'static + Clone,
-    F::In1: FromRequestParts<S>,
-    F::In2: DeserializeOwned,
-    O: Serialize + Send,
-    E: Serialize + Into<EMI> + Send,
-    S: Send + Sync + 'static,
-    M: Fn(EMI) -> (StatusCode, EMO) + Send + Sync + 'static + Clone,
-    EMI: Send + 'static + Sync,
-    EMO: Serialize + Send + 'static + Sync,
-{
-    type Future = Pin<Box<dyn Future<Output = Response> + Send>>;
-
-    fn call(self, req: Request, state: S) -> Self::Future {
-        let mf = WithMappedErrorsOld(self.0, self.1, PhantomData);
-        let h = mf.into_fnonce_when_clone();
-        h.call(req, state)
-    }
-}
-
-/// Wrapper type that takes an `AsyncFn2<Out = Result<O, E>>` and a function that maps errors
-/// to a pair [`(StatusCode, EMO)`], producing an
-/// [`AsyncFn2<In1 = F::In1, In2 = Json<F::In2>, Out = Result<Json<O>, (StatusCode, Json<EMO>)>>`].
-struct WithMappedErrorsOld<EMI, EMO, F, M>(F, M, PhantomData<(EMI, EMO)>);
-
-impl<EMI, EMO, F: Clone, M: Clone> Clone for WithMappedErrorsOld<EMI, EMO, F, M> {
-    fn clone(&self) -> Self {
-        Self(self.0.clone(), self.1.clone(), PhantomData)
-    }
-}
-
-impl<O, E, EMI, EMO, F, M> AsyncFn2 for WithMappedErrorsOld<EMI, EMO, F, M>
-where
-    F: AsyncFn2<Out = Result<O, E>> + Send + Sync + 'static,
-    F::In2: DeserializeOwned,
-    O: Serialize + Send,
-    E: Serialize + Into<EMI> + Send,
-    M: Fn(EMI) -> (StatusCode, EMO) + Send + Sync + 'static,
-    EMI: Send + Sync,
-    EMO: Send + Sync,
-{
-    type In1 = F::In1;
-    type In2 = Json<F::In2>;
-    type Out = Result<Json<O>, (StatusCode, Json<EMO>)>;
-
-    async fn invoke(&self, in1: Self::In1, Json(in2): Self::In2) -> Self::Out {
-        let out_f = self.0.invoke(in1, in2).await;
-        match out_f {
-            Ok(out) => Ok(Json(out)),
-            Err(err) => {
-                let (status_code, err) = self.1(err.into());
-                Err((status_code, Json(err)))
-            }
-        }
     }
 }
