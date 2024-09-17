@@ -7,7 +7,7 @@ use foa::{
     db::sqlx::{AsyncTxFn, DbCtx},
     error::FoaError,
     tokio::task_local::{TaskLocal, TaskLocalCtx},
-    web::axum::handler_asyncfn2_arc,
+    web::axum::handler_asyncfn2r_arc,
 };
 use serde::Serialize;
 use sqlx::{Postgres, Transaction};
@@ -59,7 +59,10 @@ async fn main() {
 
     let f = F.in_tx_tl_scoped::<<Ctx as TaskLocalCtx>::TaskLocal>();
 
-    let app = Router::new().route("/", axum::routing::post(handler_asyncfn2_arc::<_, ()>(f)));
+    let app = Router::new().route(
+        "/",
+        axum::routing::post(handler_asyncfn2r_arc::<_, _, _, ()>(f)),
+    );
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:8080")
         .await

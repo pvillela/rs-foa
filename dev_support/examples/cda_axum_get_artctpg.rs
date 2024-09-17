@@ -5,27 +5,13 @@ use dev_support::artctpg::run::{
 };
 use dev_support::foa_exp::web::axum::json_handlers_experiment::{direct, from_scratch};
 use foa::{
-    fun::{AsyncFn, AsyncFn2},
+    error::FoaError,
     web::axum::{
-        handler_asyncfn2r_arc, handler_fn2r, HandlerAsyncFn2r, HandlerAsyncFn2rArc,
-        HandlerAsyncFn2rWithErrorMapper,
+        handler_asyncfn2r_arc, handler_fn2r, identity_mapper, HandlerAsyncFn2r,
+        HandlerAsyncFn2rArc, HandlerAsyncFn2rWithErrorMapperOld,
     },
 };
 use std::{sync::Arc, time::Duration};
-
-type FooOut = <FooSflIC as AsyncFn2>::Out;
-
-#[derive(Clone)]
-struct IdentityErrorMapper;
-
-impl AsyncFn for IdentityErrorMapper {
-    type In = FooOut;
-    type Out = FooOut;
-
-    async fn invoke(&self, input: Self::In) -> Self::Out {
-        input
-    }
-}
 
 #[tokio::main]
 async fn main() {
@@ -51,9 +37,9 @@ async fn main() {
         )
         .route(
             "/mapped",
-            axum::routing::post(HandlerAsyncFn2rWithErrorMapper(
+            axum::routing::post(HandlerAsyncFn2rWithErrorMapperOld::new(
                 Arc::new(FooSflIC),
-                IdentityErrorMapper,
+                identity_mapper::<FoaError<Ctx>>,
             )),
         )
         .route(
