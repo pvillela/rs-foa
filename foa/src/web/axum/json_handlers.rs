@@ -10,12 +10,12 @@ use axum::{
     Json,
 };
 use serde::{de::DeserializeOwned, Serialize};
-use std::{future::Future, pin::Pin, sync::Arc};
+use std::{future::Future, marker::PhantomData, pin::Pin, sync::Arc};
 
 //=================
 // Type checker
 
-#[cfg(test)]
+// #[cfg(test)]
 use axum::extract::FromRequest;
 
 #[cfg(test)]
@@ -236,10 +236,67 @@ where
     }
 }
 
-#[derive(Clone)]
-pub struct HandlerAsyncFn2rWithErrorMapper<F, M>(pub F, pub M);
+pub fn handler_asyncfn2_json<In2, O, E, F, S>(
+    f: F,
+) -> impl Fn(
+    F::In1,
+    F::In2,
+) -> Pin<
+    Box<(dyn Future<Output = Result<Json<O>, (StatusCode, Json<E>)>> + Send + 'static)>,
+>
+       + Send
+       + Sync // not needed for Axum
+       + 'static
+       + Clone
+where
+    F: AsyncFn2<In2 = Json<In2>, Out = Result<Json<O>, (StatusCode, Json<E>)>>
+        + Send
+        + Sync
+        + Clone
+        + 'static,
+    F::In1: FromRequestParts<S>,
+    In2: DeserializeOwned + Send + 'static,
+    E: Serialize,
+    S: Send + Sync + 'static,
+{
+    move |req_part, json| {
+        let f = f.clone();
+        Box::pin(async move { f.invoke(req_part, json).await })
+    }
+}
 
-impl<O, E, EMI, EMO, F, Mpr, S> Handler<(), S> for HandlerAsyncFn2rWithErrorMapper<F, Mpr>
+pub fn handler_asyncfn2_general<F, S, M>(
+    f: F,
+) -> impl Fn(F::In1, F::In2) -> Pin<Box<(dyn Future<Output = F::Out> + Send + 'static)>>
+       + Send
+       + Sync // not needed for Axum
+       + 'static
+       + Clone
+where
+    F: AsyncFn2 + Send + Sync + Clone + 'static,
+    F::In1: FromRequestParts<S>,
+    F::In2: FromRequest<S, M> + Send + 'static,
+    S: Send + Sync + 'static,
+{
+    move |req_part, json| {
+        let f = f.clone();
+        Box::pin(async move { f.invoke(req_part, json).await })
+    }
+}
+
+pub struct HandlerAsyncFn2rWithErrorMapper<F, M, EMI, EMO>(pub F, pub M, PhantomData<(EMI, EMO)>);
+
+impl<F, M, EMI, EMO> Clone for HandlerAsyncFn2rWithErrorMapper<F, M, EMI, EMO>
+where
+    F: Clone,
+    M: Clone,
+{
+    fn clone(&self) -> Self {
+        Self(self.0.clone(), self.1.clone(), PhantomData)
+    }
+}
+
+impl<O, E, EMI, EMO, F, Mpr, S> Handler<(), S> for HandlerAsyncFn2rWithErrorMapper<F, Mpr, EMI, EMO>
 where
     F: AsyncFn2<Out = Result<O, E>> + Send + Sync + 'static + Clone,
     F::In1: FromRequestParts<S>,
@@ -247,45 +304,51 @@ where
     O: Serialize + Send,
     E: Serialize + Into<EMI> + Send,
     S: Send + Sync + 'static,
-    Mpr: AsyncFn<In = Result<O, EMI>, Out = Result<O, EMO>> + Send + Sync + 'static + Clone,
-    EMO: Serialize + Send,
+    Mpr: Fn(EMI) -> (StatusCode, EMO) + Send + Sync + 'static + Clone,
+    EMI: Send + 'static + Sync,
+    EMO: Serialize + Send + 'static + Sync,
 {
     type Future = Pin<Box<dyn Future<Output = Response> + Send>>;
 
     fn call(self, req: Request, state: S) -> Self::Future {
-        let mf = WithMappedErrors(self.0, self.1);
-        let h = HandlerAsyncFn2r(mf);
-        Handler::<(), S>::call(h, req, state)
+        let mf = WithMappedErrors(self.0, self.1, PhantomData);
+        // let h = handler_with_error_mapping(mf);
+        let h = handler_asyncfn2_general(mf);
+        // Handler::<_, S>::call(h, req, state)
+        h.call(req, state)
     }
 }
 
-struct WithMappedErrors<F, M>(F, M);
+struct WithMappedErrors<EMI, EMO, F, M>(F, M, PhantomData<(EMI, EMO)>);
 
-impl<F: Clone, M: Clone> Clone for WithMappedErrors<F, M> {
+impl<EMI, EMO, F: Clone, M: Clone> Clone for WithMappedErrors<EMI, EMO, F, M> {
     fn clone(&self) -> Self {
-        Self(self.0.clone(), self.1.clone())
+        Self(self.0.clone(), self.1.clone(), PhantomData)
     }
 }
 
-impl<O, E, EMI, EMO, F, Mpr> AsyncFn2 for WithMappedErrors<F, Mpr>
+impl<O, E, EMI, EMO, F, Mpr> AsyncFn2 for WithMappedErrors<EMI, EMO, F, Mpr>
 where
     F: AsyncFn2<Out = Result<O, E>> + Send + Sync + 'static,
     F::In2: DeserializeOwned,
     O: Serialize + Send,
     E: Serialize + Into<EMI> + Send,
-    Mpr: AsyncFn<In = Result<O, EMI>, Out = Result<O, EMO>> + Send + Sync + 'static,
-    EMO: Send,
+    Mpr: Fn(EMI) -> (StatusCode, EMO) + Send + Sync + 'static,
+    EMI: Send + Sync,
+    EMO: Send + Sync,
 {
     type In1 = F::In1;
-    type In2 = F::In2;
-    type Out = Mpr::Out;
+    type In2 = Json<F::In2>;
+    type Out = Result<Json<O>, (StatusCode, Json<EMO>)>;
 
-    async fn invoke(&self, in1: Self::In1, in2: Self::In2) -> Self::Out {
+    async fn invoke(&self, in1: Self::In1, Json(in2): Self::In2) -> Self::Out {
         let out_f = self.0.invoke(in1, in2).await;
-        let in_m: Mpr::In = match out_f {
-            Ok(out) => Ok(out),
-            Err(err) => Err(err.into()),
-        };
-        self.1.invoke(in_m).await
+        match out_f {
+            Ok(out) => Ok(Json(out)),
+            Err(err) => {
+                let (status_code, err) = self.1(err.into());
+                Err((status_code, Json(err)))
+            }
+        }
     }
 }
