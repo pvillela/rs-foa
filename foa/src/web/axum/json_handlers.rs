@@ -173,7 +173,9 @@ where
     F::Out: Serialize,
     S: Send + Sync + 'static,
 {
-    handler_fn2r(f.into_fnonce_when_clone())
+    // could have used `f.into_fnonce_when_clone()` but that would involve another box-pinning
+    let fc = move |in1, in2| async move { f.invoke(in1, in2).await };
+    handler_fn2r(fc)
 }
 
 /// Returns a handler for the [`Arc`] of an [`AsyncFn2<Out = Result<O, E>>`] that takes
@@ -223,7 +225,9 @@ where
     E: Serialize,
     S: Send + Sync + 'static,
 {
-    handler_fn2rs(f.into_fnonce_when_clone())
+    // could have used `f.into_fnonce_when_clone()` but that would involve another box-pinning
+    let fc = move |in1, in2| async move { f.invoke(in1, in2).await };
+    handler_fn2rs(fc)
 }
 
 /// Returns a handler for the [`Arc`] of an [`AsyncFn2<Out = Result<O, (StatusCode, E)>>`] that takes

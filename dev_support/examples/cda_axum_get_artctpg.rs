@@ -1,4 +1,4 @@
-use axum::Router;
+use axum::{extract::FromRequestParts, handler::Handler, Router};
 use dev_support::artctpg::run::{
     ctx::Ctx,
     svc_flows::{make_foo_sfl, FooSflIC},
@@ -6,12 +6,26 @@ use dev_support::artctpg::run::{
 use dev_support::foa_exp::web::axum::json_handlers_experiment::{direct, from_scratch};
 use foa::{
     error::FoaError,
+    fun::AsyncFn2,
     web::axum::{
         handler_asyncfn2r_arc, handler_fn2r, identity_mapper, HandlerAsyncFn2r,
         HandlerAsyncFn2rArc, HandlerAsyncFn2rWithErrorMapper,
     },
 };
+use serde::{de::DeserializeOwned, Serialize};
 use std::{sync::Arc, time::Duration};
+
+fn handler<O, E, F, S>(f: F) -> impl Handler<(), S>
+where
+    F: AsyncFn2<Out = Result<O, E>> + Send + Sync + 'static + Clone,
+    F::In1: FromRequestParts<S>,
+    F::In2: DeserializeOwned,
+    O: Serialize + Send,
+    E: Serialize + Send + Sync + 'static,
+    S: Send + Sync + 'static,
+{
+    HandlerAsyncFn2rWithErrorMapper::new(f, identity_mapper::<E>)
+}
 
 #[tokio::main]
 async fn main() {
@@ -42,6 +56,7 @@ async fn main() {
                 identity_mapper::<FoaError<Ctx>>,
             )),
         )
+        .route("/rs-fn", axum::routing::post(handler(Arc::new(FooSflIC))))
         .route(
             "/scratch",
             axum::routing::post(from_scratch::HandlerAsyncFn2r(Arc::new(FooSflIC))),
