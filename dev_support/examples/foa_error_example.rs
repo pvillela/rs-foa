@@ -43,31 +43,36 @@ impl ErrCtx for Ctx0 {
 }
 
 fn error0<CTX: ErrCtx>() -> FoaError<CTX> {
-    FoaError::new(&ERROR0)
+    // FoaError::new(&ERROR0)
+    ERROR0.new_error()
 }
 
 fn error1_std<CTX: ErrCtx>() -> FoaError<CTX> {
-    FoaError::new_with_args_and_cause_std(&ERROR1, [&42.to_string()], error0::<CTX>())
+    // FoaError::new_with_args_and_cause_std(&ERROR1, [&42.to_string()], error0::<CTX>())
+    ERROR1.new_error_with_args([&42.to_string()], error0::<CTX>())
 }
 
 fn error1_ser<CTX: ErrCtx>() -> FoaError<CTX> {
-    FoaError::new_with_args_and_cause_ser(&ERROR1, [&42.to_string()], error0::<CTX>())
+    // FoaError::new_with_args_and_cause_ser(&ERROR1, [&42.to_string()], error0::<CTX>())
+    ERROR1.new_error_with_args_ser([&42.to_string()], error0::<CTX>())
 }
 
 fn error2_std<CTX: ErrCtx>() -> FoaError<CTX> {
-    FoaError::new_with_args_and_cause_std(
-        &ERROR2,
-        [&99.to_string(), "2nd arg"],
-        error1_std::<CTX>(),
-    )
+    // FoaError::new_with_args_and_cause_std(
+    //     &ERROR2,
+    //     [&99.to_string(), "2nd arg"],
+    //     error1_std::<CTX>(),
+    // )
+    ERROR2.new_error_with_args([&99.to_string(), "2nd arg"], error1_std::<CTX>())
 }
 
 fn error2_ser<CTX: ErrCtx>() -> FoaError<CTX> {
-    FoaError::new_with_args_and_cause_ser(
-        &ERROR2,
-        [&99.to_string(), "2nd arg"],
-        error1_ser::<CTX>(),
-    )
+    // FoaError::new_with_args_and_cause_ser(
+    //     &ERROR2,
+    //     [&99.to_string(), "2nd arg"],
+    //     error1_ser::<CTX>(),
+    // )
+    ERROR2.new_error_with_args_ser([&99.to_string(), "2nd arg"], error1_std::<CTX>())
 }
 
 fn print_error<CTX: ErrCtx>(err: FoaError<CTX>) {

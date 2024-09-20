@@ -25,7 +25,7 @@ pub const DB_ERROR: ErrorKind<0, true> = ErrorKind("DB_ERROR", "database error")
 
 impl<CTX> From<sqlx::Error> for FoaError<CTX> {
     fn from(cause: sqlx::Error) -> Self {
-        FoaError::new_with_cause_std(&DB_ERROR, cause)
+        DB_ERROR.new_error(cause)
     }
 }
 

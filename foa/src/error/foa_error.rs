@@ -32,6 +32,63 @@ impl<const ARITY: usize, const HASCAUSE: bool> ErrorKind<ARITY, HASCAUSE> {
             dev_msg: self.1,
         }
     }
+
+    fn new_error_priv<CTX>(&self, args: [&str; ARITY], cause: Option<BoxError>) -> FoaError<CTX> {
+        let args_vec = args
+            .into_iter()
+            .map(|arg| arg.to_owned())
+            .collect::<Vec<_>>();
+
+        FoaError {
+            kind: self.to_uni(),
+            args: args_vec,
+            source: cause,
+            _ctx: NoDebug(PhantomData),
+        }
+    }
+}
+
+impl ErrorKind<0, false> {
+    pub fn new_error<CTX>(&self) -> FoaError<CTX> {
+        self.new_error_priv([], None)
+    }
+}
+
+impl ErrorKind<0, true> {
+    pub fn new_error<CTX>(&self, cause: impl StdError + Send + Sync + 'static) -> FoaError<CTX> {
+        self.new_error_priv([], Some(BoxError::new_std(cause)))
+    }
+
+    pub fn new_error_ser<CTX>(
+        &self,
+        cause: impl StdError + Serialize + Send + Sync + 'static,
+    ) -> FoaError<CTX> {
+        self.new_error_priv([], Some(BoxError::new_ser(cause)))
+    }
+}
+
+impl<const ARITY: usize> ErrorKind<ARITY, false> {
+    pub fn new_error_with_args<CTX>(&self, args: [&str; ARITY]) -> FoaError<CTX> {
+        self.new_error_priv(args, None)
+    }
+}
+
+impl<const ARITY: usize> ErrorKind<ARITY, true> {
+    pub fn new_error_with_args<CTX>(
+        &self,
+        args: [&str; ARITY],
+        cause: impl StdError + Send + Sync + 'static,
+    ) -> FoaError<CTX> {
+        self.new_error_priv(args, Some(BoxError::new_std(cause)))
+    }
+
+    pub fn new_error_with_args_ser<CTX>(
+        &self,
+        args: [&str; ARITY],
+        cause: impl StdError + Serialize + Send + Sync + 'static,
+    ) -> FoaError<CTX> {
+        self.new_error_priv(args, Some(BoxError::new_ser(cause)))
+    }
 }
 
 #[derive(Serialize)]
@@ -54,63 +111,59 @@ struct FoaErrorDevProxy<'a> {
 }
 
 impl<CTX> FoaError<CTX> {
-    fn new_priv<const ARITY: usize, const HASCAUSE: bool>(
+    pub fn new_error<const ARITY: usize, const HASCAUSE: bool>(
         kind: &'static ErrorKind<ARITY, HASCAUSE>,
         args: [&str; ARITY],
         cause: Option<BoxError>,
     ) -> Self {
-        let args_vec = args
-            .into_iter()
-            .map(|arg| arg.to_owned())
-            .collect::<Vec<_>>();
-
-        Self {
-            kind: kind.to_uni(),
-            args: args_vec,
-            source: cause,
-            _ctx: NoDebug(PhantomData),
-        }
+        kind.new_error_priv(args, cause)
     }
 
+    #[deprecated]
     pub fn new(kind: &'static ErrorKind<0, false>) -> Self {
-        Self::new_priv(kind, [], None)
+        Self::new_error(kind, [], None)
     }
 
+    #[deprecated]
     pub fn new_with_args<const ARITY: usize>(
         kind: &'static ErrorKind<ARITY, false>,
         args: [&str; ARITY],
     ) -> Self {
-        Self::new_priv(kind, args, None)
+        Self::new_error(kind, args, None)
     }
 
-    pub fn new_with_cause_std(
+    #[deprecated]
+    pub fn new_with_cause(
         kind: &'static ErrorKind<0, true>,
         cause: impl StdError + Send + Sync + 'static,
     ) -> Self {
-        Self::new_priv(kind, [], Some(BoxError::new_std(cause)))
+        Self::new_error(kind, [], Some(BoxError::new_std(cause)))
     }
 
+    #[deprecated]
     pub fn new_with_cause_ser(
         kind: &'static ErrorKind<0, true>,
         cause: impl StdError + Serialize + Send + Sync + 'static,
     ) -> Self {
-        Self::new_priv(kind, [], Some(BoxError::new_ser(cause)))
+        Self::new_error(kind, [], Some(BoxError::new_ser(cause)))
     }
 
-    pub fn new_with_args_and_cause_std<const ARITY: usize>(
+    #[deprecated]
+    pub fn new_with_args_and_cause<const ARITY: usize>(
         kind: &'static ErrorKind<ARITY, true>,
         args: [&str; ARITY],
         cause: impl StdError + Send + Sync + 'static,
     ) -> Self {
-        Self::new_priv(kind, args, Some(BoxError::new_std(cause)))
+        Self::new_error(kind, args, Some(BoxError::new_std(cause)))
     }
 
+    #[deprecated]
     pub fn new_with_args_and_cause_ser<const ARITY: usize>(
         kind: &'static ErrorKind<ARITY, true>,
         args: [&str; ARITY],
         cause: impl StdError + Serialize + Send + Sync + 'static,
     ) -> Self {
-        Self::new_priv(kind, args, Some(BoxError::new_ser(cause)))
+        Self::new_error(kind, args, Some(BoxError::new_ser(cause)))
     }
 
     pub fn has_kind<const A: usize, const H: bool>(&self, kind: ErrorKind<A, H>) -> bool {
@@ -185,13 +238,13 @@ where
 
 #[cfg(test)]
 mod test {
-    use super::{ErrorKind, FoaError};
+    use super::ErrorKind;
 
     const FOO_ERROR: ErrorKind<0, false> = ErrorKind("FOO_ERROR", "foo message");
 
     #[test]
     fn test() {
-        let err = FoaError::<()>::new(&FOO_ERROR);
+        let err = FOO_ERROR.new_error::<()>();
         assert!(err.has_kind(FOO_ERROR));
     }
 }

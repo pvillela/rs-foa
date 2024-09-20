@@ -70,7 +70,7 @@ where
         tx: &mut Transaction<'_, Postgres>,
     ) -> Result<FooOut, FoaError<CTX>> {
         if input.age_delta < 0 {
-            return Err(FoaError::new(&FOO_ERROR));
+            return Err(FOO_ERROR.new_error());
         }
         let app_cfg_info = CTX::cfg();
         let cfg = app_cfg_info.ref_into();
