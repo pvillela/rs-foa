@@ -1,6 +1,9 @@
 use crate::context::{ErrCtx, Locale, LocalizedMsg};
 
-pub fn interpolated_string(mut raw_msg: &str, args: &Vec<String>) -> String {
+pub fn interpolated_string<S>(mut raw_msg: &str, args: &[S]) -> String
+where
+    S: AsRef<str>,
+{
     let mut msg = String::with_capacity(raw_msg.len() * 2);
     for arg in args {
         let Some(idx) = raw_msg.find("{}") else {
@@ -8,7 +11,7 @@ pub fn interpolated_string(mut raw_msg: &str, args: &Vec<String>) -> String {
         };
         let prefix = &raw_msg[0..idx];
         msg.push_str(prefix);
-        msg.push_str(arg);
+        msg.push_str(arg.as_ref());
         raw_msg = &raw_msg[idx + 2..];
     }
 
@@ -22,9 +25,10 @@ pub fn interpolated_string(mut raw_msg: &str, args: &Vec<String>) -> String {
     msg
 }
 
-pub fn interpolated_localized_msg<CTX>(kind: &str, args: &Vec<String>) -> String
+pub fn interpolated_localized_msg<CTX, S>(kind: &str, args: &[S]) -> String
 where
     CTX: ErrCtx,
+    S: AsRef<str>,
 {
     let Some(raw_msg) = localized_msg::<CTX>(kind) else {
         return "invalid message key".to_owned();

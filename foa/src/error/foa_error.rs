@@ -1,6 +1,7 @@
 use crate::{
     context::ErrCtx,
     error::BoxError,
+    hash::{base64_encode_trunc_of_u8_arr, hash_sha256_of_str_arr},
     nodebug::NoDebug,
     string::{interpolated_localized_msg, interpolated_string},
 };
@@ -21,13 +22,15 @@ pub struct ErrorKind<const ARITY: usize, const HASCAUSE: bool>(
 
 #[derive(Debug, Serialize)]
 struct Kind {
+    address: usize,
     name: &'static str,
     dev_msg: &'static str,
 }
 
 impl<const ARITY: usize, const HASCAUSE: bool> ErrorKind<ARITY, HASCAUSE> {
-    const fn to_uni(&self) -> Kind {
+    fn to_uni(&self) -> Kind {
         Kind {
+            address: self.address(),
             name: self.0,
             dev_msg: self.1,
         }
@@ -45,6 +48,10 @@ impl<const ARITY: usize, const HASCAUSE: bool> ErrorKind<ARITY, HASCAUSE> {
             source: cause,
             _ctx: NoDebug(PhantomData),
         }
+    }
+
+    fn address(&self) -> usize {
+        self as *const Self as usize
     }
 }
 
@@ -110,6 +117,14 @@ struct FoaErrorDevProxy<'a> {
     source: &'a Option<BoxError>,
 }
 
+#[derive(Debug)]
+#[allow(unused)]
+struct FoaErrorProdProxy {
+    name: &'static str,
+    dev_msg: &'static str,
+    args: Vec<String>,
+}
+
 impl<CTX> FoaError<CTX> {
     pub fn new_error<const ARITY: usize, const HASCAUSE: bool>(
         kind: &'static ErrorKind<ARITY, HASCAUSE>,
@@ -167,7 +182,7 @@ impl<CTX> FoaError<CTX> {
     }
 
     pub fn has_kind<const A: usize, const H: bool>(&self, kind: ErrorKind<A, H>) -> bool {
-        self.kind.name == kind.0
+        self.kind.address == kind.address()
     }
 
     fn dev_proxy(&self) -> FoaErrorDevProxy {
@@ -175,6 +190,22 @@ impl<CTX> FoaError<CTX> {
             kind: &self.kind,
             args: &self.args,
             source: &self.source,
+        }
+    }
+
+    fn prod_proxy(&self) -> FoaErrorProdProxy {
+        let args = self
+            .args
+            .iter()
+            .map(|arg| {
+                let hash = hash_sha256_of_str_arr(&[arg]);
+                base64_encode_trunc_of_u8_arr(&hash, 8)
+            })
+            .collect::<Vec<_>>();
+        FoaErrorProdProxy {
+            name: self.kind.name,
+            dev_msg: self.kind.dev_msg,
+            args,
         }
     }
 }
@@ -187,15 +218,12 @@ where
         if cfg!(debug_assertions) {
             f.write_str("FoaError[")?;
             self.dev_proxy().fmt(f)?;
-            // f.write_str("], display=[")?;
-            // let msg = interpolated_string(self.kind.dev_msg, &self.args);
-            // f.write_str(&msg)?;
             f.write_char(']')
         } else {
             f.write_str("FoaError[")?;
-            self.kind.fmt(f)?;
+            self.prod_proxy().fmt(f)?;
             f.write_str(", display=[")?;
-            let msg = interpolated_localized_msg::<CTX>(self.kind.name, &self.args);
+            let msg = interpolated_localized_msg::<CTX, _>(self.kind.name, &self.args);
             f.write_str(&msg)?;
             f.write_str("]]")
         }
@@ -208,14 +236,10 @@ where
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if cfg!(debug_assertions) {
-            // f.write_str("display=[")?;
             let msg = interpolated_string(self.kind.dev_msg, &self.args);
             f.write_str(&msg)
-            // f.write_str("], debug=[")?;
-            // <Self as Debug>::fmt(self, f)
-            // f.write_char(']')
         } else {
-            let msg = interpolated_localized_msg::<CTX>(self.kind.name, &self.args);
+            let msg = interpolated_localized_msg::<CTX, _>(self.kind.name, &self.args);
             f.write_str(&msg)
         }
     }

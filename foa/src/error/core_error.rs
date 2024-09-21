@@ -3,7 +3,7 @@ use std::{error::Error as StdError, fmt::Debug, marker::PhantomData, sync::Arc};
 use thiserror::Error;
 
 #[derive(Error, Debug, Clone)]
-#[error("{}", interpolated_localized_msg::<CTX>(kind, args))]
+#[error("{}", interpolated_localized_msg::<CTX, _>(kind, args))]
 pub struct CoreError<CTX>
 where
     CTX: ErrCtx,
