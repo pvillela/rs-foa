@@ -9,3 +9,6 @@ pub use core_error::*;
 
 mod foa_error;
 pub use foa_error::*;
+
+mod errors;
+pub use errors::*;

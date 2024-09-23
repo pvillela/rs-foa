@@ -5,9 +5,11 @@ use foa::{
     error::{ErrorKind, FoaError},
 };
 
-const ERROR0: ErrorKind<0, false> = ErrorKind("ERROR0", "error kind with no args");
-const ERROR1: ErrorKind<1, true> = ErrorKind("ERROR1", "error kind with '{}' as single arg");
-const ERROR2: ErrorKind<2, true> = ErrorKind("ERROR2", "error kind with '{}' and '{}' as args");
+const ERROR0: ErrorKind<0, false> = ErrorKind::new("ERROR0", "error kind with no args", None);
+const ERROR1: ErrorKind<1, true> =
+    ErrorKind::new("ERROR1", "error kind with '{}' as single arg", None);
+const ERROR2: ErrorKind<2, true> =
+    ErrorKind::new("ERROR2", "error kind with '{}' and '{}' as args", None);
 
 #[derive(Debug, Clone)]
 struct Ctx0;

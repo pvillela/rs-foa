@@ -1,4 +1,5 @@
 use crate::context::{ErrCtx, Locale, LocalizedMsg};
+use base64ct::{Base64, Encoding};
 
 pub fn interpolated_string<S>(mut raw_msg: &str, args: &[S]) -> String
 where
@@ -41,4 +42,17 @@ where
     CTX: ErrCtx,
 {
     CTX::LocalizedMsg::localized_msg(kind, CTX::Locale::locale())
+}
+
+/// Encodes a byte array as a lower hex string.
+pub fn hex_lower_str_of_u8_arr(arr: &[u8]) -> String {
+    arr.iter().map(|b| format!("{:02x}", b)).collect::<String>()
+}
+
+/// Encodes a byte array as a Base64 string, truncating it to a given max size.
+/// If the max size is greater than or equal to the length of the array then
+/// the encoding is returned without truncation.
+pub fn base64_encode_trunc_of_u8_arr(arr: &[u8], max_size: usize) -> String {
+    let trunc = arr.len().min(max_size);
+    Base64::encode_string(&arr[0..trunc])
 }

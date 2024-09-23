@@ -1,4 +1,3 @@
-use base64ct::{Base64, Encoding};
 use sha2::{Digest, Sha256};
 
 /// Computes the MD5 hash of a string array.
@@ -33,21 +32,4 @@ where
         hasher.update(data.as_ref());
     }
     hasher.finalize().into()
-}
-
-/// Encodes a byte array as a lower hex string.
-pub fn hex_lower_str_of_u8_arr(arr: &[u8]) -> String {
-    let mut hex_str = String::with_capacity(32);
-    for b in arr {
-        hex_str.push_str(&format!("{:x}", b));
-    }
-    hex_str
-}
-
-/// Encodes a byte array as a Base64 string, truncating it to a given max size.
-/// If the max size is greater than or equal to the length of the array then
-/// the encoding is returned without truncation.
-pub fn base64_encode_trunc_of_u8_arr(arr: &[u8], max_size: usize) -> String {
-    let trunc = arr.len().min(max_size);
-    Base64::encode_string(&arr[0..trunc])
 }
