@@ -2,9 +2,9 @@ use super::ctx::Ctx;
 use crate::artctpg::svc::{FooIn, FooOut, FooSflI};
 use foa::{
     db::sqlx::AsyncTxFn,
-    error::FoaError,
     fun::AsyncFn2,
     tokio::task_local::{TaskLocal, TaskLocalCtx},
+    Error,
 };
 use std::{future::Future, pin::Pin};
 
@@ -16,7 +16,7 @@ pub struct FooSflIC;
 impl AsyncFn2 for FooSflIC {
     type In1 = CtxTlValue;
     type In2 = FooIn;
-    type Out = Result<FooOut, FoaError<Ctx>>;
+    type Out = Result<FooOut, Error<Ctx>>;
 
     async fn invoke(&self, input1: Self::In1, input2: Self::In2) -> Self::Out {
         FooSflI(Ctx)
@@ -29,7 +29,7 @@ impl AsyncFn2 for FooSflIC {
 pub fn make_foo_sfl() -> impl FnOnce(
     CtxTlValue,
     FooIn,
-) -> Pin<Box<(dyn Future<Output = Result<FooOut, FoaError<Ctx>>> + Send + 'static)>>
+) -> Pin<Box<(dyn Future<Output = Result<FooOut, Error<Ctx>>> + Send + 'static)>>
        + Send
        + Sync // optional, results from Self: Sync
        + Clone

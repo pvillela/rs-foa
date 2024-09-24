@@ -63,13 +63,13 @@ impl<const ARITY: usize, const HASCAUSE: bool> ErrorKind<ARITY, HASCAUSE> {
         &'static self,
         args: [&str; ARITY],
         cause: Option<BoxError>,
-    ) -> FoaError<CTX> {
+    ) -> Error<CTX> {
         let args_vec = args
             .into_iter()
             .map(|arg| arg.to_owned())
             .collect::<Vec<_>>();
 
-        FoaError {
+        Error {
             core: self.core(),
             args: args_vec,
             source: cause,
@@ -79,7 +79,7 @@ impl<const ARITY: usize, const HASCAUSE: bool> ErrorKind<ARITY, HASCAUSE> {
 }
 
 impl ErrorKind<0, false> {
-    pub fn new_error<CTX>(&'static self) -> FoaError<CTX> {
+    pub fn new_error<CTX>(&'static self) -> Error<CTX> {
         self.new_error_priv([], None)
     }
 }
@@ -88,20 +88,20 @@ impl ErrorKind<0, true> {
     pub fn new_error<CTX>(
         &'static self,
         cause: impl StdError + Send + Sync + 'static,
-    ) -> FoaError<CTX> {
+    ) -> Error<CTX> {
         self.new_error_priv([], Some(BoxError::new_std(cause)))
     }
 
     pub fn new_error_ser<CTX>(
         &'static self,
         cause: impl StdError + Serialize + Send + Sync + 'static,
-    ) -> FoaError<CTX> {
+    ) -> Error<CTX> {
         self.new_error_priv([], Some(BoxError::new_ser(cause)))
     }
 }
 
 impl<const ARITY: usize> ErrorKind<ARITY, false> {
-    pub fn new_error_with_args<CTX>(&'static self, args: [&str; ARITY]) -> FoaError<CTX> {
+    pub fn new_error_with_args<CTX>(&'static self, args: [&str; ARITY]) -> Error<CTX> {
         self.new_error_priv(args, None)
     }
 }
@@ -111,7 +111,7 @@ impl<const ARITY: usize> ErrorKind<ARITY, true> {
         &'static self,
         args: [&str; ARITY],
         cause: impl StdError + Send + Sync + 'static,
-    ) -> FoaError<CTX> {
+    ) -> Error<CTX> {
         self.new_error_priv(args, Some(BoxError::new_std(cause)))
     }
 
@@ -119,13 +119,13 @@ impl<const ARITY: usize> ErrorKind<ARITY, true> {
         &'static self,
         args: [&str; ARITY],
         cause: impl StdError + Serialize + Send + Sync + 'static,
-    ) -> FoaError<CTX> {
+    ) -> Error<CTX> {
         self.new_error_priv(args, Some(BoxError::new_ser(cause)))
     }
 }
 
 #[derive(Serialize)]
-pub struct FoaError<CTX> {
+pub struct Error<CTX> {
     core: &'static KindCore,
     args: Vec<String>,
     source: Option<BoxError>,
@@ -133,7 +133,7 @@ pub struct FoaError<CTX> {
     _ctx: NoDebug<PhantomData<CTX>>,
 }
 
-pub type BasicError = FoaError<()>;
+pub type BasicError = Error<()>;
 
 #[derive(Debug)]
 #[allow(unused)]
@@ -151,7 +151,7 @@ struct FoaErrorProdProxy {
     args: Vec<String>,
 }
 
-impl<CTX> FoaError<CTX> {
+impl<CTX> Error<CTX> {
     pub fn new_error<const ARITY: usize, const HASCAUSE: bool>(
         kind: &'static ErrorKind<ARITY, HASCAUSE>,
         args: [&str; ARITY],
@@ -236,7 +236,7 @@ impl<CTX> FoaError<CTX> {
     }
 }
 
-impl<CTX> Debug for FoaError<CTX>
+impl<CTX> Debug for Error<CTX>
 where
     CTX: ErrCtx,
 {
@@ -256,7 +256,7 @@ where
     }
 }
 
-impl<CTX> Display for FoaError<CTX>
+impl<CTX> Display for Error<CTX>
 where
     CTX: ErrCtx,
 {
@@ -271,7 +271,7 @@ where
     }
 }
 
-impl<CTX> StdError for FoaError<CTX>
+impl<CTX> StdError for Error<CTX>
 where
     CTX: ErrCtx,
 {

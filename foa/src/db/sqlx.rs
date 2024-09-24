@@ -1,5 +1,5 @@
 use crate::{
-    error::{ErrorKind, FoaError, RUNTIME_ERROR},
+    error::{ErrorKind, Error, RUNTIME_ERROR},
     fun::{AsyncFn, AsyncFn2},
     tokio::task_local::{invoke_tl_scoped, tl_scoped, TaskLocal},
 };
@@ -24,7 +24,7 @@ impl<T> PgDbCtx for T where T: DbCtx<Db: Db<Database = Postgres>> {}
 pub const DB_ERROR: ErrorKind<0, true> =
     ErrorKind::new("DB_ERROR", "database error", Some(RUNTIME_ERROR.core()));
 
-impl<CTX> From<sqlx::Error> for FoaError<CTX> {
+impl<CTX> From<sqlx::Error> for Error<CTX> {
     fn from(cause: sqlx::Error) -> Self {
         DB_ERROR.new_error(cause)
     }

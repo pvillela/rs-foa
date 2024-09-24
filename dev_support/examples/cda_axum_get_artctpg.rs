@@ -5,12 +5,12 @@ use dev_support::artctpg::run::{
 };
 use dev_support::foa_exp::web::axum::json_handlers_experiment::{direct, from_scratch};
 use foa::{
-    error::FoaError,
     fun::AsyncFn2,
     web::axum::{
         handler_asyncfn2r_arc, handler_fn2r, identity_mapper, HandlerAsyncFn2r,
         HandlerAsyncFn2rArc, HandlerAsyncFn2rWithErrorMapper,
     },
+    Error,
 };
 use serde::{de::DeserializeOwned, Serialize};
 use std::{sync::Arc, time::Duration};
@@ -53,7 +53,7 @@ async fn main() {
             "/rs",
             axum::routing::post(HandlerAsyncFn2rWithErrorMapper::new(
                 Arc::new(FooSflIC),
-                identity_mapper::<FoaError<Ctx>>,
+                identity_mapper::<Error<Ctx>>,
             )),
         )
         .route("/rs-fn", axum::routing::post(handler(Arc::new(FooSflIC))))

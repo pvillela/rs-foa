@@ -2,7 +2,7 @@ use std::{error::Error as _, fmt::Debug, ops::Deref};
 
 use foa::{
     context::{ErrCtx, Locale, LocaleCtx, LocalizedMsg},
-    error::{ErrorKind, FoaError},
+    error::{ErrorKind, Error},
 };
 
 const ERROR0: ErrorKind<0, false> = ErrorKind::new("ERROR0", "error kind with no args", None);
@@ -44,22 +44,22 @@ impl ErrCtx for Ctx0 {
     type LocalizedMsg = SubCtx0;
 }
 
-fn error0<CTX: ErrCtx>() -> FoaError<CTX> {
+fn error0<CTX: ErrCtx>() -> Error<CTX> {
     // FoaError::new(&ERROR0)
     ERROR0.new_error()
 }
 
-fn error1_std<CTX: ErrCtx>() -> FoaError<CTX> {
+fn error1_std<CTX: ErrCtx>() -> Error<CTX> {
     // FoaError::new_with_args_and_cause_std(&ERROR1, [&42.to_string()], error0::<CTX>())
     ERROR1.new_error_with_args([&42.to_string()], error0::<CTX>())
 }
 
-fn error1_ser<CTX: ErrCtx>() -> FoaError<CTX> {
+fn error1_ser<CTX: ErrCtx>() -> Error<CTX> {
     // FoaError::new_with_args_and_cause_ser(&ERROR1, [&42.to_string()], error0::<CTX>())
     ERROR1.new_error_with_args_ser([&42.to_string()], error0::<CTX>())
 }
 
-fn error2_std<CTX: ErrCtx>() -> FoaError<CTX> {
+fn error2_std<CTX: ErrCtx>() -> Error<CTX> {
     // FoaError::new_with_args_and_cause_std(
     //     &ERROR2,
     //     [&99.to_string(), "2nd arg"],
@@ -68,7 +68,7 @@ fn error2_std<CTX: ErrCtx>() -> FoaError<CTX> {
     ERROR2.new_error_with_args([&99.to_string(), "2nd arg"], error1_std::<CTX>())
 }
 
-fn error2_ser<CTX: ErrCtx>() -> FoaError<CTX> {
+fn error2_ser<CTX: ErrCtx>() -> Error<CTX> {
     // FoaError::new_with_args_and_cause_ser(
     //     &ERROR2,
     //     [&99.to_string(), "2nd arg"],
@@ -77,7 +77,7 @@ fn error2_ser<CTX: ErrCtx>() -> FoaError<CTX> {
     ERROR2.new_error_with_args_ser([&99.to_string(), "2nd arg"], error1_std::<CTX>())
 }
 
-fn print_error<CTX: ErrCtx>(err: FoaError<CTX>) {
+fn print_error<CTX: ErrCtx>(err: Error<CTX>) {
     println!("display: {err}");
     println!("debug: {err:?}");
     println!("JSON: {}", serde_json::to_string(&err).unwrap());
@@ -90,7 +90,7 @@ fn main() {
 
     {
         println!("error0");
-        let err: FoaError<()> = error0();
+        let err: Error<()> = error0();
         print_error(err);
     }
 
@@ -98,7 +98,7 @@ fn main() {
 
     {
         println!("error1_std");
-        let err: FoaError<()> = error1_std();
+        let err: Error<()> = error1_std();
         print_error(err);
     }
 
@@ -106,7 +106,7 @@ fn main() {
 
     {
         println!("error1_ser");
-        let err: FoaError<()> = error1_ser();
+        let err: Error<()> = error1_ser();
         print_error(err);
     }
 
@@ -114,7 +114,7 @@ fn main() {
 
     {
         println!("error2_std");
-        let err: FoaError<()> = error2_std();
+        let err: Error<()> = error2_std();
         print_error(err);
     }
 
@@ -122,7 +122,7 @@ fn main() {
 
     {
         println!("error2_ser");
-        let err: FoaError<()> = error2_ser();
+        let err: Error<()> = error2_ser();
         print_error(err);
     }
 
@@ -132,7 +132,7 @@ fn main() {
 
     {
         println!("error0");
-        let err: FoaError<Ctx0> = error0();
+        let err: Error<Ctx0> = error0();
         print_error(err);
     }
 
@@ -140,7 +140,7 @@ fn main() {
 
     {
         println!("error1_std");
-        let err: FoaError<Ctx0> = error1_std();
+        let err: Error<Ctx0> = error1_std();
         print_error(err);
     }
 
@@ -148,7 +148,7 @@ fn main() {
 
     {
         println!("error1_ser");
-        let err: FoaError<Ctx0> = error1_ser();
+        let err: Error<Ctx0> = error1_ser();
         print_error(err);
     }
 
@@ -156,7 +156,7 @@ fn main() {
 
     {
         println!("error2_std");
-        let err: FoaError<Ctx0> = error2_std();
+        let err: Error<Ctx0> = error2_std();
         print_error(err);
     }
 
@@ -164,7 +164,7 @@ fn main() {
 
     {
         println!("error2_ser");
-        let err: FoaError<Ctx0> = error2_ser();
+        let err: Error<Ctx0> = error2_ser();
         print_error(err);
     }
 }

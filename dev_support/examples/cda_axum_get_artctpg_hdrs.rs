@@ -5,9 +5,9 @@ use dev_support::artctpg::{
 };
 use foa::{
     db::sqlx::{AsyncTxFn, DbCtx},
-    error::FoaError,
     tokio::task_local::{TaskLocal, TaskLocalCtx},
     web::axum::handler_asyncfn2r_arc,
+    Error,
 };
 use serde::Serialize;
 use sqlx::{Postgres, Transaction};
@@ -24,7 +24,7 @@ struct F;
 impl AsyncTxFn for F {
     type In = FooIn;
     type Out = FooOutExt;
-    type E = FoaError<Ctx>;
+    type E = Error<Ctx>;
     type Db = <Ctx as DbCtx>::Db;
 
     async fn invoke(

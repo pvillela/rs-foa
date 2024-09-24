@@ -3,7 +3,7 @@ use axum::http::request::Parts;
 use foa::{
     context::{Cfg, Locale, LocaleCtx},
     db::sqlx::{AsyncTxFn, PgDbCtx},
-    error::{ErrorKind, FoaError, VALIDATION_ERROR},
+    error::{Error, ErrorKind, VALIDATION_ERROR},
     refinto::RefInto,
     tokio::task_local::{TaskLocal, TaskLocalCtx},
 };
@@ -35,7 +35,7 @@ pub trait FooSfl<CTX> {
     async fn foo_sfl(
         input: FooIn,
         tx: &mut Transaction<'_, Postgres>,
-    ) -> Result<FooOut, FoaError<CTX>>;
+    ) -> Result<FooOut, Error<CTX>>;
 }
 // endregion:   --- Stereotype signature
 
@@ -71,7 +71,7 @@ where
     async fn foo_sfl(
         input: FooIn,
         tx: &mut Transaction<'_, Postgres>,
-    ) -> Result<FooOut, FoaError<CTX>> {
+    ) -> Result<FooOut, Error<CTX>> {
         if input.age_delta < 0 {
             return Err(FOO_ERROR.new_error());
         }
@@ -146,14 +146,14 @@ where
 {
     type In = FooIn;
     type Out = FooOut;
-    type E = FoaError<CTX>;
+    type E = Error<CTX>;
     type Db = CTX::Db;
 
     async fn invoke(
         &self,
         input: FooIn,
         tx: &mut Transaction<'_, Postgres>,
-    ) -> Result<FooOut, FoaError<CTX>> {
+    ) -> Result<FooOut, Error<CTX>> {
         FooSflI::<CTX>::foo_sfl(input, tx).await
     }
 }

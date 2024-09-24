@@ -6,9 +6,9 @@ use dev_support::artctpg::svc::{
 use foa::{
     context::{Cfg, LocaleCtx},
     db::sqlx::{AsyncTxFn, PgDbCtx},
-    error::FoaError,
     refinto::RefInto,
     tokio::task_local::{invoke_tl_scoped, TaskLocal, TaskLocalCtx},
+    Error,
 };
 use sqlx::{Postgres, Transaction};
 use std::{fmt::Debug, marker::PhantomData};
@@ -80,20 +80,20 @@ where
 {
     type In = FooIn;
     type Out = FooOut;
-    type E = FoaError<CTX>;
+    type E = Error<CTX>;
     type Db = CTX::Db;
 
     async fn invoke(
         &self,
         input: FooIn,
         tx: &mut Transaction<'_, Postgres>,
-    ) -> Result<FooOut, FoaError<CTX>> {
+    ) -> Result<FooOut, Error<CTX>> {
         InitDafI::<CTX>::init_daf(tx).await?;
         FooSflI::<CTX>::foo_sfl(input, tx).await
     }
 }
 
-pub async fn common_test<CTX>(parts: Parts) -> Result<FooOut, FoaError<CTX>>
+pub async fn common_test<CTX>(parts: Parts) -> Result<FooOut, Error<CTX>>
 where
     CTX: Cfg<CfgInfo = CfgTestInput>
         + LocaleCtx

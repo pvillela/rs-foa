@@ -1,5 +1,5 @@
 use crate::artctpg::svc::common::AppCfgInfoArc;
-use foa::{context::Cfg, error::FoaError, refinto::RefInto};
+use foa::{context::Cfg, refinto::RefInto, Error};
 use sqlx::{Postgres, Transaction};
 use tracing::instrument;
 
@@ -7,7 +7,7 @@ use tracing::instrument;
 
 pub trait ReadDaf<CTX> {
     #[allow(async_fn_in_trait)]
-    async fn read_daf(tx: &mut Transaction<'_, Postgres>) -> Result<i32, FoaError<CTX>>;
+    async fn read_daf(tx: &mut Transaction<'_, Postgres>) -> Result<i32, Error<CTX>>;
 }
 
 // endregion:   --- Stereotype signature
@@ -33,7 +33,7 @@ where
 {
     #[instrument(level = "trace", skip_all)]
     #[allow(async_fn_in_trait)]
-    async fn read_daf(tx: &mut Transaction<'_, Postgres>) -> Result<i32, FoaError<CTX>> {
+    async fn read_daf(tx: &mut Transaction<'_, Postgres>) -> Result<i32, Error<CTX>> {
         let app_cfg_info = CTX::cfg();
         let cfg = app_cfg_info.ref_into();
 
