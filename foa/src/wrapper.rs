@@ -9,8 +9,7 @@ use std::{
     sync::Arc,
 };
 
-//=================
-// Wrapper
+// region:      --- Wrapper
 
 /// Generic wrapper to enable the addition of new methods to a wrapped type `T`,
 ///
@@ -135,8 +134,9 @@ where
     }
 }
 
-//=================
-// Example of complex usage of `W`.
+// endregion:   --- Wrapper
+
+// region:      --- Example of complex usage of `W`
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct MappableDiscr<D>(D);
@@ -152,3 +152,5 @@ impl<T, D, Ph> Mappable<T, D, Ph> {
         Mappable::new(f(&self.0))
     }
 }
+
+// endregion:   --- Example of complex usage of `W`

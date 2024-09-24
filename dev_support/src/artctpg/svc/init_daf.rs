@@ -8,16 +8,16 @@ use foa::{
 use sqlx::{Postgres, Transaction};
 use tracing::instrument;
 
-//=================
-// This section defines the stereotype signature
+// region:      --- Stereotype signature
 
 pub trait InitDaf<CTX> {
     #[allow(async_fn_in_trait)]
     async fn init_daf(tx: &mut Transaction<'_, Postgres>) -> Result<(), FoaError<CTX>>;
 }
 
-//=================
-// This section implements the stereotype but depends on signatures only
+// endregion:   --- Stereotype signature
+
+// region:      --- Stereotype implementation with dependencies' signatures only
 
 pub struct InitDafCfgInfo<'a> {
     pub name: &'a str,
@@ -67,25 +67,15 @@ where
 /// Stereotype instance
 pub struct InitDafI<CTX: InitDafCtx>(pub CTX);
 
-//=================
-// This section depends on dependencies implementations
+// endregion:   --- Stereotype implementation with dependencies' signatures only
+
+// region:      --- Depends on dependencies' implementations
 
 // *** N/A ***
 
-//=================
-// This section depends on application configuration implementation
+// endregion:   --- Depends on dependencies' implementations
 
-impl<'a> RefInto<'a, InitDafCfgInfo<'a>> for AppCfgInfoArc {
-    fn ref_into(&'a self) -> InitDafCfgInfo {
-        InitDafCfgInfo {
-            name: &self.x,
-            initial_age: self.y,
-        }
-    }
-}
-
-//=================
-// This section has additional platform technology-specific code
+// region:      --- Additional platform technology-specific code
 
 impl<CTX> AsyncTxFn for InitDafI<CTX>
 where
@@ -101,3 +91,18 @@ where
         InitDafI::<CTX>::init_daf(tx).await
     }
 }
+
+// endregion:   --- Additional platform technology-specific code
+
+// region:      --- Depends on application configuration implementation
+
+impl<'a> RefInto<'a, InitDafCfgInfo<'a>> for AppCfgInfoArc {
+    fn ref_into(&'a self) -> InitDafCfgInfo {
+        InitDafCfgInfo {
+            name: &self.x,
+            initial_age: self.y,
+        }
+    }
+}
+
+// endregion:   --- Depends on application configuration implementation

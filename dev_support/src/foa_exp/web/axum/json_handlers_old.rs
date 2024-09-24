@@ -13,8 +13,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
-//=================
-// Type checker
+// region:      --- Type checker
 
 #[cfg(test)]
 use axum::{extract::FromRequest, response::IntoResponse};
@@ -32,8 +31,9 @@ pub fn _axum_handler_type_checker_2_args_generic<In1, In2, Out, Fut, S>(
 {
 }
 
-//=================
-// Handlers for AsyncRFn[x]
+// endregion:   --- Type checker
+
+// region:      --- Handlers for AsyncRFn[x]
 
 pub fn handler_asyncrfn<F>(
     f: F,
@@ -123,6 +123,10 @@ where
     handler_asyncrfn2(Arc::new(f))
 }
 
+// endregion:   --- Handlers for AsyncRFn[x]
+
+// region:      --- deprecated handlers
+
 #[deprecated]
 pub async fn handler_tx_headers_old<F, MF, TL>(
     parts: Parts,
@@ -157,3 +161,5 @@ where
         &handler_tx_headers_old::<F, MF, TL>,
     );
 }
+
+// endregion:   --- deprecated handlers

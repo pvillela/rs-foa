@@ -2,8 +2,7 @@ use serde::Serialize;
 use serde_json::Value;
 use std::{error::Error as StdError, fmt::Display};
 
-//==============
-// Error utils
+// region:      --- utils
 
 pub fn error_chain(err: &(dyn StdError)) -> Vec<&(dyn StdError)> {
     let mut vec = Vec::new();
@@ -45,8 +44,9 @@ pub fn error_recursive_msg(err: &(dyn StdError)) -> String {
     buf
 }
 
-//==============
-// SerializableError (JSON)
+// endregion    --- utils
+
+// region:      --- SerializableError (JSON)
 
 pub trait SerializableError: StdError + Send + Sync {
     fn to_json(&self) -> Value;
@@ -71,8 +71,9 @@ impl StdError for Box<dyn SerializableError> {
     }
 }
 
-//==============
-// StdBoxError
+// endregion:   --- SerializableError (JSON)
+
+// region:      --- StdBoxError
 
 #[derive(Debug)]
 struct StdBoxError(Box<dyn StdError + Send + Sync>);
@@ -112,8 +113,9 @@ impl Serialize for StdBoxError {
     }
 }
 
-//==============
-// SerBoxError
+// endregion:   --- StdBoxError
+
+// region:      --- SerBoxError
 
 #[derive(Debug)]
 struct SerBoxError(Box<dyn SerializableError>);
@@ -149,8 +151,9 @@ impl Serialize for SerBoxError {
     }
 }
 
-//==============
-// BoxError
+// endregion:   --- SerBoxError
+
+// region:      --- BoxError
 
 #[derive(Debug)]
 #[allow(private_interfaces)]
@@ -205,3 +208,5 @@ impl Serialize for BoxError {
         }
     }
 }
+
+// endregion:   --- BoxError

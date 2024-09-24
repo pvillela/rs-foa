@@ -3,16 +3,16 @@ use foa::{context::Cfg, error::FoaError, refinto::RefInto};
 use sqlx::{Postgres, Transaction};
 use tracing::instrument;
 
-//=================
-// This section defines the stereotype signature
+// region:      --- Stereotype signature
 
 pub trait ReadDaf<CTX> {
     #[allow(async_fn_in_trait)]
     async fn read_daf(tx: &mut Transaction<'_, Postgres>) -> Result<i32, FoaError<CTX>>;
 }
 
-//=================
-// This section implements the stereotype but depends on signatures only
+// endregion:   --- Stereotype signature
+
+// region:      --- Stereotype implementation with dependencies' signatures only
 
 pub struct ReadDafCfgInfo<'a> {
     pub name: &'a str,
@@ -46,13 +46,21 @@ where
     }
 }
 
-//=================
-// This section depends on dependencies implementations
+// endregion:   --- Stereotype implementation with dependencies' signatures only
+
+// region:      --- Depends on dependencies' implementations
 
 // *** N/A ***
 
-//=================
-// This section depends on application configuration implementation
+// endregion:   --- Depends on dependencies' implementations
+
+// region:      --- Additional platform technology-specific code
+
+// *** N/A ***
+
+// endregion:   --- Additional platform technology-specific code
+
+// region:      --- Depends on application configuration implementation
 
 impl<'a> RefInto<'a, ReadDafCfgInfo<'a>> for AppCfgInfoArc {
     fn ref_into(&'a self) -> ReadDafCfgInfo {
@@ -60,7 +68,4 @@ impl<'a> RefInto<'a, ReadDafCfgInfo<'a>> for AppCfgInfoArc {
     }
 }
 
-//=================
-// This section has additional platform technology-specific code
-
-// *** N/A ***
+// endregion:   --- Depends on application configuration implementation

@@ -7,9 +7,8 @@ use foa::{
 use regex::Regex;
 use serde::Serialize;
 use std::{fmt::Debug, marker::PhantomData, ops::Deref};
-use thiserror::Error;
 
-#[derive(Error, Debug, Serialize)]
+#[derive(thiserror::Error, Debug, Serialize)]
 enum XyzError<CTX>
 where
     CTX: ErrCtx,

@@ -1,4 +1,4 @@
-use std::{error::Error, fmt::Debug, ops::Deref};
+use std::{error::Error as _, fmt::Debug, ops::Deref};
 
 use foa::{
     context::{ErrCtx, Locale, LocaleCtx, LocalizedMsg},

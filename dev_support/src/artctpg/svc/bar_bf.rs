@@ -2,15 +2,14 @@ use super::common::AppCfgInfoArc;
 use foa::{context::Cfg, refinto::RefInto};
 use tracing::instrument;
 
-//=================
-// This section defines the stereotype signature
+// region:      --- Stereotype signature
 
 pub trait BarBf<CTX> {
     fn bar_bf(base_age: i32, age_delta: i32) -> i32;
 }
+// endregion:   --- Stereotype signature
 
-//=================
-// This section implements the stereotype but depends on signatures only
+// region:      --- Stereotype implementation with dependencies' signatures only
 
 pub struct BarBfCfgInfo {
     pub age_increment: i32,
@@ -37,13 +36,21 @@ where
     }
 }
 
-//=================
-// This section depends on dependencies implementations
+// endregion:   --- Stereotype implementation with dependencies' signatures only
+
+// region:      --- Depends on dependencies' implementations
 
 // *** N/A ***
 
-//=================
-// This section depends on application configuration implementation
+// endregion:   --- Depends on dependencies' implementations
+
+// region:      --- Additional platform technology-specific code
+
+// *** N/A ***
+
+// endregion:   --- Additional platform technology-specific code
+
+// region:      --- Depends on application configuration implementation
 
 impl<'a> RefInto<'a, BarBfCfgInfo> for AppCfgInfoArc {
     fn ref_into(&'a self) -> BarBfCfgInfo {
@@ -52,8 +59,4 @@ impl<'a> RefInto<'a, BarBfCfgInfo> for AppCfgInfoArc {
         }
     }
 }
-
-//=================
-// This section has additional platform technology-specific code
-
-// *** N/A ***
+// endregion:   --- Depends on application configuration implementation

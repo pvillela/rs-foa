@@ -10,8 +10,7 @@ use foa::{
 use serde::{Deserialize, Serialize};
 use sqlx::{Postgres, Transaction};
 use tracing::instrument;
-//=================
-// This section defines the stereotype signature
+// region:      --- Stereotype signature
 
 #[derive(Clone, Deserialize, Debug)]
 pub struct FooIn {
@@ -38,9 +37,9 @@ pub trait FooSfl<CTX> {
         tx: &mut Transaction<'_, Postgres>,
     ) -> Result<FooOut, FoaError<CTX>>;
 }
+// endregion:   --- Stereotype signature
 
-//=================
-// This section implements the stereotype but depends on signatures only
+// region:      --- Stereotype implementation with dependencies' signatures only
 
 pub struct FooSflCfgInfo<'a> {
     pub name: &'a str,
@@ -96,9 +95,9 @@ where
         })
     }
 }
+// endregion:   --- Stereotype implementation with dependencies' signatures only
 
-//=================
-// This section depends on dependencies implementations
+// region:      --- Depends on dependencies' implementations
 
 /// Trait alias
 pub trait FooCtx:
@@ -136,20 +135,9 @@ mod illustrative {
 #[derive(Clone)]
 pub struct FooSflI<CTX: FooCtx>(pub CTX);
 
-//=================
-// This section depends on application configuration implementation
+// endregion:   --- Depends on dependencies' implementations
 
-impl<'a> RefInto<'a, FooSflCfgInfo<'a>> for AppCfgInfoArc {
-    fn ref_into(&'a self) -> FooSflCfgInfo<'a> {
-        FooSflCfgInfo {
-            name: &self.x,
-            count: self.refresh_count,
-        }
-    }
-}
-
-//=================
-// This section has additional platform technology-specific code
+// region:      --- Additional platform technology-specific code
 
 impl<CTX> AsyncTxFn for FooSflI<CTX>
 where
@@ -169,3 +157,17 @@ where
         FooSflI::<CTX>::foo_sfl(input, tx).await
     }
 }
+
+// endregion:   --- Additional platform technology-specific code
+
+// region:      --- Depends on application configuration implementation
+
+impl<'a> RefInto<'a, FooSflCfgInfo<'a>> for AppCfgInfoArc {
+    fn ref_into(&'a self) -> FooSflCfgInfo<'a> {
+        FooSflCfgInfo {
+            name: &self.x,
+            count: self.refresh_count,
+        }
+    }
+}
+// endregion:   --- Depends on application configuration implementation

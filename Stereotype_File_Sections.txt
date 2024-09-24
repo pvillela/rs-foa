@@ -1,15 +1,19 @@
+// region:      --- Stereotype signature
 
-//=================
-// This section defines the stereotype signature
+// endregion:   --- Stereotype signature
 
-//=================
-// This section implements the stereotype but depends on signatures only
+// region:      --- Stereotype implementation with dependencies' signatures only
 
-//=================
-// This section depends on dependencies implementations
+// endregion:   --- Stereotype implementation with dependencies' signatures only
 
-//=================
-// This section depends on application configuration implementation
+// region:      --- Depends on dependencies' implementations
 
-//=================
-// This section has additional platform technology-specific code
+// endregion:   --- Depends on dependencies' implementations
+
+// region:      --- Additional platform technology-specific code
+
+// endregion:   --- Additional platform technology-specific code
+
+// region:      --- Depends on application configuration implementation
+
+// endregion:   --- Depends on application configuration implementation

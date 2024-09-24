@@ -3,9 +3,8 @@
 use foa::error::AppError;
 use serde::Serialize;
 use std::fmt::Debug;
-use thiserror::Error;
 
-#[derive(Error, Debug, Serialize)]
+#[derive(thiserror::Error, Debug, Serialize)]
 enum CoreAppError {
     #[error("user with name \"{0}\" already exists")]
     UsernameDuplicate(String),
@@ -14,18 +13,18 @@ enum CoreAppError {
     UsernameEmpty,
 }
 
-#[derive(Error, Debug, Serialize, Clone)]
+#[derive(thiserror::Error, Debug, Serialize, Clone)]
 #[error("error type 1")]
 struct Err1;
 
-#[derive(Error, Debug, Serialize, Clone)]
+#[derive(thiserror::Error, Debug, Serialize, Clone)]
 #[error("error type 2: foo={foo}")]
 struct Err2 {
     foo: String,
     source: Err1,
 }
 
-#[derive(Error, Debug, Serialize, Clone)]
+#[derive(thiserror::Error, Debug, Serialize, Clone)]
 #[error("error type 3: bar={bar}")]
 struct Err3 {
     bar: u32,

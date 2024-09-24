@@ -1,7 +1,6 @@
 use std::{fmt::Debug, ops::Deref};
 
-//=============
-// Context traits
+// region:      --- Context traits
 
 pub trait Cfg {
     type CfgInfo;
@@ -33,8 +32,9 @@ pub trait SecCtx {
     // TBD
 }
 
-//=============
-// impls for NullCtx
+// endregion:   --- Context traits
+
+// region:      --- impls for NullCtx
 
 pub type NullCtx = ();
 
@@ -59,3 +59,5 @@ impl LocaleCtx for NullCtx {
 impl ErrCtx for NullCtx {
     type LocalizedMsg = NullSubCtx;
 }
+
+// endregion:   --- impls for NullCtx
