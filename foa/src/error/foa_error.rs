@@ -37,12 +37,16 @@ impl PartialEq for KindCore {
 impl Eq for KindCore {}
 
 #[derive(Debug)]
-pub struct ErrorKind<const ARITY: usize, const HASCAUSE: bool> {
+pub struct ErrorKind<T, const HASCAUSE: bool> {
     core: KindCore,
     tag: Option<&'static ErrorTag>,
+    _t: PhantomData<T>,
 }
 
-impl<const ARITY: usize, const HASCAUSE: bool> ErrorKind<ARITY, HASCAUSE> {
+pub type SimpleErrorKind<const ARITY: usize, const HASCAUSE: bool> =
+    ErrorKind<[String; ARITY], HASCAUSE>;
+
+impl<const ARITY: usize, const HASCAUSE: bool> SimpleErrorKind<ARITY, HASCAUSE> {
     pub const fn core(&self) -> &KindCore {
         &self.core
     }
@@ -59,6 +63,7 @@ impl<const ARITY: usize, const HASCAUSE: bool> ErrorKind<ARITY, HASCAUSE> {
         Self {
             core: KindCore { name, msg: msg },
             tag,
+            _t: PhantomData,
         }
     }
 
@@ -81,13 +86,13 @@ impl<const ARITY: usize, const HASCAUSE: bool> ErrorKind<ARITY, HASCAUSE> {
     }
 }
 
-impl ErrorKind<0, false> {
+impl SimpleErrorKind<0, false> {
     pub fn new_error<CTX>(&'static self) -> Error<CTX> {
         self.new_error_priv([], None)
     }
 }
 
-impl ErrorKind<0, true> {
+impl SimpleErrorKind<0, true> {
     pub fn new_error<CTX>(
         &'static self,
         cause: impl StdError + Send + Sync + 'static,
@@ -103,13 +108,13 @@ impl ErrorKind<0, true> {
     }
 }
 
-impl<const ARITY: usize> ErrorKind<ARITY, false> {
+impl<const ARITY: usize> SimpleErrorKind<ARITY, false> {
     pub fn new_error_with_args<CTX>(&'static self, args: [&str; ARITY]) -> Error<CTX> {
         self.new_error_priv(args, None)
     }
 }
 
-impl<const ARITY: usize> ErrorKind<ARITY, true> {
+impl<const ARITY: usize> SimpleErrorKind<ARITY, true> {
     pub fn new_error_with_args<CTX>(
         &'static self,
         args: [&str; ARITY],
@@ -156,7 +161,7 @@ struct FoaErrorProdProxy {
 
 impl<CTX> Error<CTX> {
     pub fn new_error<const ARITY: usize, const HASCAUSE: bool>(
-        kind: &'static ErrorKind<ARITY, HASCAUSE>,
+        kind: &'static SimpleErrorKind<ARITY, HASCAUSE>,
         args: [&str; ARITY],
         cause: Option<BoxError>,
     ) -> Self {
@@ -164,13 +169,13 @@ impl<CTX> Error<CTX> {
     }
 
     #[deprecated]
-    pub fn new(kind: &'static ErrorKind<0, false>) -> Self {
+    pub fn new(kind: &'static SimpleErrorKind<0, false>) -> Self {
         Self::new_error(kind, [], None)
     }
 
     #[deprecated]
     pub fn new_with_args<const ARITY: usize>(
-        kind: &'static ErrorKind<ARITY, false>,
+        kind: &'static SimpleErrorKind<ARITY, false>,
         args: [&str; ARITY],
     ) -> Self {
         Self::new_error(kind, args, None)
@@ -178,7 +183,7 @@ impl<CTX> Error<CTX> {
 
     #[deprecated]
     pub fn new_with_cause(
-        kind: &'static ErrorKind<0, true>,
+        kind: &'static SimpleErrorKind<0, true>,
         cause: impl StdError + Send + Sync + 'static,
     ) -> Self {
         Self::new_error(kind, [], Some(BoxError::new_std(cause)))
@@ -186,7 +191,7 @@ impl<CTX> Error<CTX> {
 
     #[deprecated]
     pub fn new_with_cause_ser(
-        kind: &'static ErrorKind<0, true>,
+        kind: &'static SimpleErrorKind<0, true>,
         cause: impl StdError + Serialize + Send + Sync + 'static,
     ) -> Self {
         Self::new_error(kind, [], Some(BoxError::new_ser(cause)))
@@ -194,7 +199,7 @@ impl<CTX> Error<CTX> {
 
     #[deprecated]
     pub fn new_with_args_and_cause<const ARITY: usize>(
-        kind: &'static ErrorKind<ARITY, true>,
+        kind: &'static SimpleErrorKind<ARITY, true>,
         args: [&str; ARITY],
         cause: impl StdError + Send + Sync + 'static,
     ) -> Self {
@@ -203,14 +208,14 @@ impl<CTX> Error<CTX> {
 
     #[deprecated]
     pub fn new_with_args_and_cause_ser<const ARITY: usize>(
-        kind: &'static ErrorKind<ARITY, true>,
+        kind: &'static SimpleErrorKind<ARITY, true>,
         args: [&str; ARITY],
         cause: impl StdError + Serialize + Send + Sync + 'static,
     ) -> Self {
         Self::new_error(kind, args, Some(BoxError::new_ser(cause)))
     }
 
-    pub fn has_kind<const A: usize, const H: bool>(&self, kind: ErrorKind<A, H>) -> bool {
+    pub fn has_kind<const A: usize, const H: bool>(&self, kind: SimpleErrorKind<A, H>) -> bool {
         self.core == kind.core()
     }
 
@@ -291,9 +296,10 @@ where
 
 #[cfg(test)]
 mod test {
-    use super::ErrorKind;
+    use super::SimpleErrorKind;
 
-    const FOO_ERROR: ErrorKind<0, false> = ErrorKind::new("FOO_ERROR", "foo message", None);
+    const FOO_ERROR: SimpleErrorKind<0, false> =
+        SimpleErrorKind::new("FOO_ERROR", "foo message", None);
 
     #[test]
     fn test() {

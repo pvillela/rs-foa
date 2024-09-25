@@ -2,14 +2,14 @@ use std::{error::Error as _, fmt::Debug, ops::Deref};
 
 use foa::{
     context::{ErrCtx, Locale, LocaleCtx, LocalizedMsg},
-    error::{ErrorKind, Error},
+    error::{SimpleErrorKind, Error},
 };
 
-const ERROR0: ErrorKind<0, false> = ErrorKind::new("ERROR0", "error kind with no args", None);
-const ERROR1: ErrorKind<1, true> =
-    ErrorKind::new("ERROR1", "error kind with '{}' as single arg", None);
-const ERROR2: ErrorKind<2, true> =
-    ErrorKind::new("ERROR2", "error kind with '{}' and '{}' as args", None);
+const ERROR0: SimpleErrorKind<0, false> = SimpleErrorKind::new("ERROR0", "error kind with no args", None);
+const ERROR1: SimpleErrorKind<1, true> =
+    SimpleErrorKind::new("ERROR1", "error kind with '{}' as single arg", None);
+const ERROR2: SimpleErrorKind<2, true> =
+    SimpleErrorKind::new("ERROR2", "error kind with '{}' and '{}' as args", None);
 
 #[derive(Debug, Clone)]
 struct Ctx0;
