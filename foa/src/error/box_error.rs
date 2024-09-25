@@ -1,6 +1,6 @@
 use serde::Serialize;
 use serde_json::Value;
-use std::{error::Error as StdError, fmt::Display};
+use std::{any::Any, error::Error as StdError, fmt::Display};
 
 // region:      --- utils
 
@@ -48,7 +48,7 @@ pub fn error_recursive_msg(err: &(dyn StdError)) -> String {
 
 // region:      --- SerializableError (JSON)
 
-pub trait SerializableError: StdError + Send + Sync {
+pub trait SerializableError: StdError + Send + Sync + Any {
     fn to_json(&self) -> Value;
 
     fn src(&self) -> Option<&(dyn StdError + 'static)> {
@@ -58,7 +58,7 @@ pub trait SerializableError: StdError + Send + Sync {
 
 impl<T> SerializableError for T
 where
-    T: StdError + Serialize + Send + Sync,
+    T: StdError + Serialize + Send + Sync + 'static,
 {
     fn to_json(&self) -> Value {
         serde_json::to_value(self).expect("serde_json::to_value() error")
@@ -118,10 +118,10 @@ impl Serialize for StdBoxError {
 // region:      --- SerBoxError
 
 #[derive(Debug)]
-struct SerBoxError(Box<dyn SerializableError>);
+pub struct SerBoxError(pub Box<dyn SerializableError>);
 
 impl SerBoxError {
-    fn new(inner: impl SerializableError + Send + Sync + 'static) -> Self {
+    pub fn new(inner: impl SerializableError + Send + Sync + 'static) -> Self {
         Self(Box::new(inner))
     }
 

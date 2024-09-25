@@ -322,7 +322,16 @@ where
 /// [`Json<F::In2>`] as the second argument and returns [`Result<Json<O>, (StatusCode, Json<E>)>`].
 pub struct HandlerAsyncFn2rWithErrorMapper<EMI, EMO, F, M>(F, M, PhantomData<(EMI, EMO)>);
 
-impl<F, M, EMI, EMO> HandlerAsyncFn2rWithErrorMapper<EMI, EMO, F, M> {
+impl<O, E, EMI, EMO, F, M> HandlerAsyncFn2rWithErrorMapper<EMI, EMO, F, M>
+where
+    F: AsyncFn2<Out = Result<O, E>> + Send + Sync + 'static + Clone,
+    F::In2: DeserializeOwned,
+    O: Serialize + Send,
+    E: Serialize + Into<EMI> + Send,
+    M: Fn(EMI) -> (StatusCode, EMO) + Send + Sync + 'static + Clone,
+    EMI: Send + 'static + Sync,
+    EMO: Serialize + Send + 'static + Sync,
+{
     pub fn new(f: F, m: M) -> Self {
         Self(f, m, PhantomData)
     }

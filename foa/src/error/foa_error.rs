@@ -13,6 +13,8 @@ use std::{
     marker::PhantomData,
 };
 
+use super::{SerBoxError, SerializableError};
+
 #[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct ErrorTag(pub &'static str);
 
@@ -291,6 +293,18 @@ where
             }
             None => None,
         }
+    }
+}
+
+impl<CTX: ErrCtx> From<Error<CTX>> for Box<dyn SerializableError> {
+    fn from(value: Error<CTX>) -> Self {
+        Box::new(value)
+    }
+}
+
+impl<CTX: ErrCtx> From<Error<CTX>> for SerBoxError {
+    fn from(value: Error<CTX>) -> Self {
+        SerBoxError::new(value)
     }
 }
 

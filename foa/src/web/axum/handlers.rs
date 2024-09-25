@@ -1,9 +1,14 @@
+use crate::context::ErrCtx;
+use crate::error::{SerBoxError, FOO_ERROR};
 use crate::fun::AsyncFn2;
+use crate::Error;
 use axum::extract::{FromRequest, FromRequestParts};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
 use serde::Serialize;
+use std::any::Any;
+use std::error::Error as _;
 use std::future::Future;
 use std::marker::PhantomData;
 
@@ -97,6 +102,51 @@ where
     }
 }
 
-pub fn identity_mapper<E>(ei: E) -> (StatusCode, E) {
-    (StatusCode::INTERNAL_SERVER_ERROR, ei)
+pub fn default_mapper<CTX: ErrCtx>(be: SerBoxError) -> (StatusCode, SerBoxError) {
+    // let e_opt = be.downcast_ref::<Error<CTX>>();
+    // if e_opt.is_none() {
+    //     return (StatusCode::INTERNAL_SERVER_ERROR, be);
+    // }
+
+    // let e = e_opt.unwrap();
+
+    // let src = e.source();
+    // if src.is_none() {
+    //     return (StatusCode::BAD_REQUEST, be);
+    // }
+
+    // let e1 = src.unwrap();
+
+    // let e1d = e1.downcast_ref::<sqlx::Error>();
+    // if e1d.is_none() {
+    //     // return (StatusCode::BAD_REQUEST, be);
+    // }
+
+    // let e2 = e1d.unwrap();
+
+    // let x = e2.to_string();
+    // let err = FOO_ERROR.new_error_with_args::<()>([&x]);
+    // let berr: Box<dyn std::error::Error> = Box::new(err);
+    // return (StatusCode::INTERNAL_SERVER_ERROR, berr);
+
+    let be_any = &be.0 as &dyn Any;
+    let ret = match be_any.downcast_ref::<Error<CTX>>() {
+        Some(e) => {
+            let src = e.source();
+            match src {
+                None => (StatusCode::INTERNAL_SERVER_ERROR, be),
+                Some(e1) => match e1.downcast_ref::<sqlx::Error>() {
+                    None => (StatusCode::BAD_REQUEST, be),
+                    Some(e2) => {
+                        let x = e2.to_string();
+                        let err = FOO_ERROR.new_error_with_args::<()>([&x]);
+                        let berr = SerBoxError::new(err);
+                        (StatusCode::INTERNAL_SERVER_ERROR, berr)
+                    }
+                },
+            }
+        }
+        None => (StatusCode::INTERNAL_SERVER_ERROR, be),
+    };
+    ret
 }
