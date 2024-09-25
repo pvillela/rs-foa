@@ -13,16 +13,13 @@ use std::{
     marker::PhantomData,
 };
 
-#[derive(Debug)]
-pub struct ErrorKind<const ARITY: usize, const HASCAUSE: bool> {
-    core: KindCore,
-    parent: Option<&'static KindCore>,
-}
+#[derive(Debug, Serialize, PartialEq, Eq)]
+pub struct ErrorTag(pub &'static str);
 
 #[derive(Debug, Serialize)]
 pub struct KindCore {
     name: &'static str,
-    dev_msg: &'static str,
+    msg: &'static str,
 }
 
 impl KindCore {
@@ -39,23 +36,29 @@ impl PartialEq for KindCore {
 
 impl Eq for KindCore {}
 
+#[derive(Debug)]
+pub struct ErrorKind<const ARITY: usize, const HASCAUSE: bool> {
+    core: KindCore,
+    tag: Option<&'static ErrorTag>,
+}
+
 impl<const ARITY: usize, const HASCAUSE: bool> ErrorKind<ARITY, HASCAUSE> {
     pub const fn core(&self) -> &KindCore {
         &self.core
     }
 
-    pub const fn parent(&self) -> Option<&'static KindCore> {
-        self.parent
+    pub const fn tag(&self) -> Option<&'static ErrorTag> {
+        self.tag
     }
 
     pub const fn new(
         name: &'static str,
-        dev_msg: &'static str,
-        parent: Option<&'static KindCore>,
+        msg: &'static str,
+        tag: Option<&'static ErrorTag>,
     ) -> Self {
         Self {
-            core: KindCore { name, dev_msg },
-            parent,
+            core: KindCore { name, msg: msg },
+            tag,
         }
     }
 
@@ -147,7 +150,7 @@ struct FoaErrorDevProxy<'a> {
 #[allow(unused)]
 struct FoaErrorProdProxy {
     name: &'static str,
-    dev_msg: &'static str,
+    msg: &'static str,
     args: Vec<String>,
 }
 
@@ -230,7 +233,7 @@ impl<CTX> Error<CTX> {
             .collect::<Vec<_>>();
         FoaErrorProdProxy {
             name: self.core.name,
-            dev_msg: self.core.dev_msg,
+            msg: self.core.msg,
             args,
         }
     }
@@ -262,7 +265,7 @@ where
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if cfg!(debug_assertions) {
-            let msg = interpolated_string(self.core.dev_msg, &self.args);
+            let msg = interpolated_string(self.core.msg, &self.args);
             f.write_str(&msg)
         } else {
             let msg = interpolated_localized_msg::<CTX, _>(self.core.name, &self.args);
