@@ -1,9 +1,9 @@
-use crate::{context::ErrCtx, nodebug::NoDebug, string::interpolated_localized_msg};
+use crate::{context::ErrCtx, nodebug::NoDebug, string::interpolated_localized_msg_vec};
 use std::{error::Error as StdError, fmt::Debug, marker::PhantomData, sync::Arc};
 use thiserror::Error;
 
 #[derive(Error, Debug, Clone)]
-#[error("{}", interpolated_localized_msg::<CTX, _>(kind, args))]
+#[error("{}", interpolated_localized_msg_vec::<CTX, _>(kind, args))]
 pub struct CoreError<CTX>
 where
     CTX: ErrCtx,

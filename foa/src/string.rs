@@ -1,7 +1,8 @@
 use crate::context::{ErrCtx, Locale, LocalizedMsg};
 use base64ct::{Base64, Encoding};
 
-pub fn interpolated_string<S>(mut raw_msg: &str, args: &[S]) -> String
+/// Interpolates a string with a list of arguments.
+pub fn interpolated_string_vec<S>(mut raw_msg: &str, args: &[S]) -> String
 where
     S: AsRef<str>,
 {
@@ -26,7 +27,8 @@ where
     msg
 }
 
-pub fn interpolated_localized_msg<CTX, S>(kind: &str, args: &[S]) -> String
+/// Interpolates a localized message with a list of arguments.
+pub fn interpolated_localized_msg_vec<CTX, S>(kind: &str, args: &[S]) -> String
 where
     CTX: ErrCtx,
     S: AsRef<str>,
@@ -34,7 +36,36 @@ where
     let Some(raw_msg) = localized_msg::<CTX>(kind) else {
         return "invalid message key".to_owned();
     };
-    interpolated_string(raw_msg, args)
+    interpolated_string_vec(raw_msg, args)
+}
+
+/// Interpolates a string with properties (list of name-value pairs).
+pub fn interpolated_string_props<'a, P, S>(raw_msg: &'a str, props: P) -> String
+where
+    S: AsRef<str>,
+    P: Iterator<Item = (S, S)>,
+{
+    let mut msg = raw_msg.to_owned();
+    for (name, value) in props {
+        let name = name.as_ref();
+        let value = value.as_ref();
+        let placeholder = format!("{{{name}}}");
+        msg = msg.replace(&placeholder, &value);
+    }
+    msg
+}
+
+/// Interpolates a localized message with properties (list of name-value pairs).
+pub fn interpolated_localized_msg_props<'a, CTX, P, S>(kind: &str, props: P) -> String
+where
+    CTX: ErrCtx,
+    S: AsRef<str>,
+    P: Iterator<Item = (S, S)>,
+{
+    let Some(raw_msg) = localized_msg::<CTX>(kind) else {
+        return "invalid message key".to_owned();
+    };
+    interpolated_string_props(raw_msg, props)
 }
 
 pub fn localized_msg<CTX>(kind: &str) -> Option<&str>

@@ -2,7 +2,7 @@
 
 use foa::{
     context::{ErrCtx, Locale, LocaleCtx, LocalizedMsg},
-    string::interpolated_localized_msg,
+    string::interpolated_localized_msg_vec,
 };
 use regex::Regex;
 use serde::Serialize;
@@ -48,7 +48,7 @@ where
         .map(|arg| arg.to_owned())
         .collect::<Vec<_>>();
 
-    interpolated_localized_msg::<CTX, _>(kind, &args)
+    interpolated_localized_msg_vec::<CTX, _>(kind, &args)
 }
 
 #[derive(Debug, Clone)]
