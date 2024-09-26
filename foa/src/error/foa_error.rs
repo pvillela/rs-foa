@@ -13,7 +13,7 @@ use std::{
     marker::PhantomData,
 };
 
-use super::{SerBoxError, SerializableError};
+use super::{JsonBoxError, JsonError};
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct ErrorTag(pub &'static str);
@@ -293,15 +293,15 @@ where
     }
 }
 
-impl<CTX: ErrCtx> From<Error<CTX>> for Box<dyn SerializableError> {
+impl<CTX: ErrCtx> From<Error<CTX>> for Box<dyn JsonError> {
     fn from(value: Error<CTX>) -> Self {
         Box::new(value)
     }
 }
 
-impl<CTX: ErrCtx> From<Error<CTX>> for SerBoxError {
+impl<CTX: ErrCtx> From<Error<CTX>> for JsonBoxError {
     fn from(value: Error<CTX>) -> Self {
-        SerBoxError::new(value)
+        JsonBoxError::new(value)
     }
 }
 

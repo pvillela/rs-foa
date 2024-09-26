@@ -1,5 +1,5 @@
 use crate::context::ErrCtx;
-use crate::error::{SerBoxError, FOO_ERROR};
+use crate::error::{ErrorKind, JsonBoxError};
 use crate::fun::AsyncFn2;
 use crate::Error;
 use axum::extract::{FromRequest, FromRequestParts};
@@ -102,7 +102,7 @@ where
     }
 }
 
-pub fn default_mapper<CTX: ErrCtx>(be: SerBoxError) -> (StatusCode, SerBoxError) {
+pub fn default_mapper<CTX: ErrCtx>(be: JsonBoxError) -> (StatusCode, JsonBoxError) {
     // let e_opt = be.downcast_ref::<Error<CTX>>();
     // if e_opt.is_none() {
     //     return (StatusCode::INTERNAL_SERVER_ERROR, be);
@@ -129,6 +129,9 @@ pub fn default_mapper<CTX: ErrCtx>(be: SerBoxError) -> (StatusCode, SerBoxError)
     // let berr: Box<dyn std::error::Error> = Box::new(err);
     // return (StatusCode::INTERNAL_SERVER_ERROR, berr);
 
+    const FOO_ERROR: ErrorKind<1, false> =
+        ErrorKind::new("FOO_ERROR", "foo error {foo}", ["foo"], None);
+
     let be_any = &be.0 as &dyn Any;
     let ret = match be_any.downcast_ref::<Error<CTX>>() {
         Some(e) => {
@@ -140,7 +143,7 @@ pub fn default_mapper<CTX: ErrCtx>(be: SerBoxError) -> (StatusCode, SerBoxError)
                     Some(e2) => {
                         let x = e2.to_string();
                         let err = FOO_ERROR.new_error_with_args::<()>([&x]);
-                        let berr = SerBoxError::new(err);
+                        let berr = JsonBoxError::new(err);
                         (StatusCode::INTERNAL_SERVER_ERROR, berr)
                     }
                 },
