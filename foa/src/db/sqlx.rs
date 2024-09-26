@@ -24,7 +24,7 @@ impl<T> PgDbCtx for T where T: DbCtx<Db: Db<Database = Postgres>> {}
 pub const DB_ERROR: ErrorKind<0, true> =
     ErrorKind::new("DB_ERROR", "database error", [], Some(&RUNTIME_TAG));
 
-impl<CTX> From<sqlx::Error> for Error<CTX> {
+impl From<sqlx::Error> for Error {
     fn from(cause: sqlx::Error) -> Self {
         DB_ERROR.new_error(cause)
     }

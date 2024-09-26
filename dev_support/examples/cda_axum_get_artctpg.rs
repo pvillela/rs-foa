@@ -26,7 +26,7 @@ where
     JsonBoxError: From<E>,
     S: Send + Sync + 'static,
 {
-    HandlerAsyncFn2rWithErrorMapper::new(f, default_mapper::<CTX>)
+    HandlerAsyncFn2rWithErrorMapper::new(f, default_mapper)
 }
 
 #[tokio::main]
@@ -55,7 +55,7 @@ async fn main() {
             "/rs",
             axum::routing::post(HandlerAsyncFn2rWithErrorMapper::new(
                 Arc::new(FooSflIC),
-                default_mapper::<Ctx>,
+                default_mapper,
             )),
         )
         .route(

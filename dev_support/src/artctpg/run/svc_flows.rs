@@ -16,7 +16,7 @@ pub struct FooSflIC;
 impl AsyncFn2 for FooSflIC {
     type In1 = CtxTlValue;
     type In2 = FooIn;
-    type Out = Result<FooOut, Error<Ctx>>;
+    type Out = Result<FooOut, Error>;
 
     async fn invoke(&self, input1: Self::In1, input2: Self::In2) -> Self::Out {
         FooSflI(Ctx)
@@ -29,7 +29,7 @@ impl AsyncFn2 for FooSflIC {
 pub fn make_foo_sfl() -> impl FnOnce(
     CtxTlValue,
     FooIn,
-) -> Pin<Box<(dyn Future<Output = Result<FooOut, Error<Ctx>>> + Send + 'static)>>
+) -> Pin<Box<(dyn Future<Output = Result<FooOut, Error>> + Send + 'static)>>
        + Send
        + Sync // optional, results from Self: Sync
        + Clone

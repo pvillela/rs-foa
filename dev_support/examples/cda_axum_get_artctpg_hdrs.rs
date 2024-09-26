@@ -24,7 +24,7 @@ struct F;
 impl AsyncTxFn for F {
     type In = FooIn;
     type Out = FooOutExt;
-    type E = Error<Ctx>;
+    type E = Error;
     type Db = <Ctx as DbCtx>::Db;
 
     async fn invoke(
@@ -32,7 +32,7 @@ impl AsyncTxFn for F {
         input: Self::In,
         tx: &mut Transaction<'_, Postgres>,
     ) -> Result<Self::Out, Self::E> {
-        let foo = FooSflI::<Ctx>::foo_sfl(input, tx).await?;
+        let foo = <FooSflI<Ctx> as FooSfl<Ctx>>::foo_sfl(input, tx).await?;
         let header_map = <Ctx as TaskLocalCtx>::TaskLocal::cloned_value().headers;
         let headers = header_map
             .iter()

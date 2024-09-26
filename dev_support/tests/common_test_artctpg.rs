@@ -80,20 +80,20 @@ where
 {
     type In = FooIn;
     type Out = FooOut;
-    type E = Error<CTX>;
+    type E = Error;
     type Db = CTX::Db;
 
     async fn invoke(
         &self,
         input: FooIn,
         tx: &mut Transaction<'_, Postgres>,
-    ) -> Result<FooOut, Error<CTX>> {
-        InitDafI::<CTX>::init_daf(tx).await?;
-        FooSflI::<CTX>::foo_sfl(input, tx).await
+    ) -> Result<FooOut, Error> {
+        <InitDafI<CTX> as InitDaf<CTX>>::init_daf(tx).await?;
+        <FooSflI<CTX> as FooSfl<CTX>>::foo_sfl(input, tx).await
     }
 }
 
-pub async fn common_test<CTX>(parts: Parts) -> Result<FooOut, Error<CTX>>
+pub async fn common_test<CTX>(parts: Parts) -> Result<FooOut, Error>
 where
     CTX: Cfg<CfgInfo = CfgTestInput>
         + LocaleCtx
@@ -106,7 +106,7 @@ where
 {
     let handle = tokio::spawn(async move {
         invoke_tl_scoped::<_, <CTX as TaskLocalCtx>::TaskLocal>(
-            &TestFooSflI(PhantomData).in_tx(),
+            &TestFooSflI(PhantomData::<CTX>).in_tx(),
             parts.clone(),
             FooIn { age_delta: 1 },
         )

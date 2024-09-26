@@ -1,16 +1,9 @@
 use crate::string::base64_encode_trunc_of_u8_arr;
-use crate::{
-    context::ErrCtx,
-    error::BoxError,
-    hash::hash_sha256_of_str_arr,
-    nodebug::NoDebug,
-    string::{interpolated_localized_msg_props, interpolated_string_props},
-};
+use crate::{error::BoxError, hash::hash_sha256_of_str_arr, string::interpolated_string_props};
 use serde::Serialize;
 use std::{
     error::Error as StdError,
     fmt::{Debug, Display},
-    marker::PhantomData,
 };
 
 use super::{JsonBoxError, JsonError};
@@ -67,11 +60,7 @@ impl<const ARITY: usize, const HASCAUSE: bool> ErrorKind<ARITY, HASCAUSE> {
         }
     }
 
-    fn new_error_priv<CTX>(
-        &'static self,
-        args: [&str; ARITY],
-        cause: Option<BoxError>,
-    ) -> Error<CTX> {
+    fn new_error_priv(&'static self, args: [&str; ARITY], cause: Option<BoxError>) -> Error {
         let props = args
             .into_iter()
             .zip(self.prop_names)
@@ -82,67 +71,59 @@ impl<const ARITY: usize, const HASCAUSE: bool> ErrorKind<ARITY, HASCAUSE> {
             core: self.core(),
             props,
             source: cause,
-            _ctx: NoDebug(PhantomData),
         }
     }
 }
 
 impl ErrorKind<0, false> {
-    pub fn new_error<CTX>(&'static self) -> Error<CTX> {
+    pub fn new_error(&'static self) -> Error {
         self.new_error_priv([], None)
     }
 }
 
 impl ErrorKind<0, true> {
-    pub fn new_error<CTX>(
-        &'static self,
-        cause: impl StdError + Send + Sync + 'static,
-    ) -> Error<CTX> {
+    pub fn new_error(&'static self, cause: impl StdError + Send + Sync + 'static) -> Error {
         self.new_error_priv([], Some(BoxError::new_std(cause)))
     }
 
-    pub fn new_error_ser<CTX>(
+    pub fn new_error_ser(
         &'static self,
         cause: impl StdError + Serialize + Send + Sync + 'static,
-    ) -> Error<CTX> {
+    ) -> Error {
         self.new_error_priv([], Some(BoxError::new_ser(cause)))
     }
 }
 
 impl<const ARITY: usize> ErrorKind<ARITY, false> {
-    pub fn new_error_with_args<CTX>(&'static self, args: [&str; ARITY]) -> Error<CTX> {
+    pub fn new_error_with_args(&'static self, args: [&str; ARITY]) -> Error {
         self.new_error_priv(args, None)
     }
 }
 
 impl<const ARITY: usize> ErrorKind<ARITY, true> {
-    pub fn new_error_with_args<CTX>(
+    pub fn new_error_with_args(
         &'static self,
         args: [&str; ARITY],
         cause: impl StdError + Send + Sync + 'static,
-    ) -> Error<CTX> {
+    ) -> Error {
         self.new_error_priv(args, Some(BoxError::new_std(cause)))
     }
 
-    pub fn new_error_with_args_ser<CTX>(
+    pub fn new_error_with_args_ser(
         &'static self,
         args: [&str; ARITY],
         cause: impl StdError + Serialize + Send + Sync + 'static,
-    ) -> Error<CTX> {
+    ) -> Error {
         self.new_error_priv(args, Some(BoxError::new_ser(cause)))
     }
 }
 
 #[derive(Serialize)]
-pub struct Error<CTX> {
+pub struct Error {
     core: &'static KindCore,
     props: Vec<(String, String)>,
     source: Option<BoxError>,
-    #[serde(skip_serializing)]
-    _ctx: NoDebug<PhantomData<CTX>>,
 }
-
-pub type BasicError = Error<()>;
 
 #[derive(Debug)]
 #[allow(unused)]
@@ -160,7 +141,9 @@ struct FoaErrorProdProxy {
     props: Vec<(String, String)>,
 }
 
-impl<CTX> Error<CTX> {
+impl Error {
+    const TRUNC: usize = 8;
+
     pub fn new_error<const ARITY: usize, const HASCAUSE: bool>(
         kind: &'static ErrorKind<ARITY, HASCAUSE>,
         args: [&str; ARITY],
@@ -234,7 +217,7 @@ impl<CTX> Error<CTX> {
             .iter()
             .map(|(name, value)| {
                 let vhash = hash_sha256_of_str_arr(&[value]);
-                let vb64 = base64_encode_trunc_of_u8_arr(&vhash, 8);
+                let vb64 = base64_encode_trunc_of_u8_arr(&vhash, Self::TRUNC);
                 (name.to_owned(), vb64)
             })
             .collect::<Vec<_>>();
@@ -246,10 +229,7 @@ impl<CTX> Error<CTX> {
     }
 }
 
-impl<CTX> Debug for Error<CTX>
-where
-    CTX: ErrCtx,
-{
+impl Debug for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if cfg!(debug_assertions) {
             self.dev_proxy().fmt(f)
@@ -259,29 +239,26 @@ where
     }
 }
 
-impl<CTX> Display for Error<CTX>
-where
-    CTX: ErrCtx,
-{
+impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if cfg!(debug_assertions) {
             let msg =
                 interpolated_string_props(self.core.msg, self.props.iter().map(|p| (&p.0, &p.1)));
             f.write_str(&msg)
         } else {
-            let msg = interpolated_localized_msg_props::<CTX, _, _>(
-                self.core.name,
-                self.props.iter().map(|p| (&p.0, &p.1)),
-            );
+            let props = self.props.iter().map(|p| {
+                let (name, value) = (&p.0, &p.1);
+                let vhash = hash_sha256_of_str_arr(&[value]);
+                let vb64 = base64_encode_trunc_of_u8_arr(&vhash, Self::TRUNC);
+                (name, vb64)
+            });
+            let msg = interpolated_string_props(self.core.msg, props);
             f.write_str(&msg)
         }
     }
 }
 
-impl<CTX> StdError for Error<CTX>
-where
-    CTX: ErrCtx,
-{
+impl StdError for Error {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match &self.source {
             Some(source) => {
@@ -293,14 +270,14 @@ where
     }
 }
 
-impl<CTX: ErrCtx> From<Error<CTX>> for Box<dyn JsonError> {
-    fn from(value: Error<CTX>) -> Self {
+impl From<Error> for Box<dyn JsonError> {
+    fn from(value: Error) -> Self {
         Box::new(value)
     }
 }
 
-impl<CTX: ErrCtx> From<Error<CTX>> for JsonBoxError {
-    fn from(value: Error<CTX>) -> Self {
+impl From<Error> for JsonBoxError {
+    fn from(value: Error) -> Self {
         JsonBoxError::new(value)
     }
 }
@@ -313,7 +290,7 @@ mod test {
 
     #[test]
     fn test() {
-        let err = FOO_ERROR.new_error::<()>();
+        let err = FOO_ERROR.new_error();
         assert!(err.has_kind(FOO_ERROR));
     }
 }

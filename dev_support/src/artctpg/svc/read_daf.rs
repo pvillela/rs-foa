@@ -7,7 +7,7 @@ use tracing::instrument;
 
 pub trait ReadDaf<CTX> {
     #[allow(async_fn_in_trait)]
-    async fn read_daf(tx: &mut Transaction<'_, Postgres>) -> Result<i32, Error<CTX>>;
+    async fn read_daf(tx: &mut Transaction<'_, Postgres>) -> Result<i32, Error>;
 }
 
 // endregion:   --- Stereotype signature
@@ -33,7 +33,7 @@ where
 {
     #[instrument(level = "trace", skip_all)]
     #[allow(async_fn_in_trait)]
-    async fn read_daf(tx: &mut Transaction<'_, Postgres>) -> Result<i32, Error<CTX>> {
+    async fn read_daf(tx: &mut Transaction<'_, Postgres>) -> Result<i32, Error> {
         let app_cfg_info = CTX::cfg();
         let cfg = app_cfg_info.ref_into();
 

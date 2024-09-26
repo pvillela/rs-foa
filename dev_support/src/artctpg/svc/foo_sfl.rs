@@ -32,10 +32,7 @@ pub struct FooOut {
 
 pub trait FooSfl<CTX> {
     #[allow(async_fn_in_trait)]
-    async fn foo_sfl(
-        input: FooIn,
-        tx: &mut Transaction<'_, Postgres>,
-    ) -> Result<FooOut, Error<CTX>>;
+    async fn foo_sfl(input: FooIn, tx: &mut Transaction<'_, Postgres>) -> Result<FooOut, Error>;
 }
 // endregion:   --- Stereotype signature
 
@@ -69,10 +66,7 @@ where
 {
     #[instrument(level = "trace", skip_all)]
     #[allow(async_fn_in_trait)]
-    async fn foo_sfl(
-        input: FooIn,
-        tx: &mut Transaction<'_, Postgres>,
-    ) -> Result<FooOut, Error<CTX>> {
+    async fn foo_sfl(input: FooIn, tx: &mut Transaction<'_, Postgres>) -> Result<FooOut, Error> {
         if input.age_delta < 0 {
             return Err(FOO_ERROR.new_error());
         }
@@ -96,6 +90,7 @@ where
         })
     }
 }
+
 // endregion:   --- Stereotype implementation with dependencies' signatures only
 
 // region:      --- Depends on dependencies' implementations
@@ -121,20 +116,28 @@ impl<CTX> FooCtx for CTX where
 {
 }
 
+/// Stereotype instance
+#[derive(Clone)]
+pub struct FooSflI<CTX: FooCtx>(pub CTX);
+
 /// Any type parameterized by `CTX` where `CTX: FooCtx` implements `FooSfl<CTX>` as
 /// it is recursively true for its dependencies.
 #[cfg(test)]
 #[allow(unused)]
-mod illustrative {
+mod type_checking {
+    use std::marker::PhantomData;
+
     use super::*;
 
     trait FooSflAlias<CTX>: FooSfl<CTX> {}
     impl<CTX, T> FooSflAlias<CTX> for T where CTX: FooCtx {}
-}
 
-/// Stereotype instance
-#[derive(Clone)]
-pub struct FooSflI<CTX: FooCtx>(pub CTX);
+    fn foo<CTX: FooCtx>(_f: impl FooSfl<CTX>) {}
+
+    fn bar<CTX: FooCtx>(ctx: CTX) {
+        foo::<CTX>(FooSflI::<CTX>(ctx))
+    }
+}
 
 // endregion:   --- Depends on dependencies' implementations
 
@@ -147,15 +150,15 @@ where
 {
     type In = FooIn;
     type Out = FooOut;
-    type E = Error<CTX>;
+    type E = Error;
     type Db = CTX::Db;
 
     async fn invoke(
         &self,
         input: FooIn,
         tx: &mut Transaction<'_, Postgres>,
-    ) -> Result<FooOut, Error<CTX>> {
-        FooSflI::<CTX>::foo_sfl(input, tx).await
+    ) -> Result<FooOut, Error> {
+        <FooSflI<CTX> as FooSfl<CTX>>::foo_sfl(input, tx).await
     }
 }
 

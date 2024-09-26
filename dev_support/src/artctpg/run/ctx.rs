@@ -86,7 +86,7 @@ impl Ctx {
     }
 
     /// Simulates reading [`AppCfgInfo`] from external source.
-    pub async fn read_app_cfg_info() -> Result<AppCfgInfo, Error<Ctx>> {
+    pub async fn read_app_cfg_info() -> Result<AppCfgInfo, Error> {
         let count = REFRESH_COUNT.fetch_add(1, Ordering::Relaxed);
         let app_cfg_info = match REFRESH_COUNT.load(Ordering::Relaxed) {
             0 => AppCfgInfo {
@@ -106,7 +106,7 @@ impl Ctx {
     }
 
     /// Refreshes [`CtxInfo`] based on [`AppCfgInfo`] read from external source.
-    pub async fn refresh_cfg() -> Result<(), Error<Ctx>> {
+    pub async fn refresh_cfg() -> Result<(), Error> {
         let app_cfg = Arc::new(Self::read_app_cfg_info().await?);
         let new_state = match Self::try_state() {
             None => CtxInfo {

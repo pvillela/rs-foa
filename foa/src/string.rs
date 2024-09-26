@@ -40,10 +40,11 @@ where
 }
 
 /// Interpolates a string with properties (list of name-value pairs).
-pub fn interpolated_string_props<'a, P, S>(raw_msg: &'a str, props: P) -> String
+pub fn interpolated_string_props<'a, P, S1, S2>(raw_msg: &'a str, props: P) -> String
 where
-    S: AsRef<str>,
-    P: Iterator<Item = (S, S)>,
+    S1: AsRef<str>,
+    S2: AsRef<str>,
+    P: Iterator<Item = (S1, S2)>,
 {
     let mut msg = raw_msg.to_owned();
     for (name, value) in props {
@@ -56,11 +57,12 @@ where
 }
 
 /// Interpolates a localized message with properties (list of name-value pairs).
-pub fn interpolated_localized_msg_props<'a, CTX, P, S>(kind: &str, props: P) -> String
+pub fn interpolated_localized_msg_props<'a, CTX, P, S1, S2>(kind: &str, props: P) -> String
 where
     CTX: ErrCtx,
-    S: AsRef<str>,
-    P: Iterator<Item = (S, S)>,
+    S1: AsRef<str>,
+    S2: AsRef<str>,
+    P: Iterator<Item = (S1, S2)>,
 {
     let Some(raw_msg) = localized_msg::<CTX>(kind) else {
         return "invalid message key".to_owned();

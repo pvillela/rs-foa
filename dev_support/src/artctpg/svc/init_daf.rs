@@ -12,7 +12,7 @@ use tracing::instrument;
 
 pub trait InitDaf<CTX> {
     #[allow(async_fn_in_trait)]
-    async fn init_daf(tx: &mut Transaction<'_, Postgres>) -> Result<(), Error<CTX>>;
+    async fn init_daf(tx: &mut Transaction<'_, Postgres>) -> Result<(), Error>;
 }
 
 // endregion:   --- Stereotype signature
@@ -39,7 +39,7 @@ where
 {
     #[instrument(level = "trace", skip_all)]
     #[allow(async_fn_in_trait)]
-    async fn init_daf(tx: &mut Transaction<'_, Postgres>) -> Result<(), Error<CTX>> {
+    async fn init_daf(tx: &mut Transaction<'_, Postgres>) -> Result<(), Error> {
         let app_cfg_info = CTX::cfg();
         let cfg = app_cfg_info.ref_into();
 
@@ -84,11 +84,11 @@ where
 {
     type In = ();
     type Out = ();
-    type E = Error<CTX>;
+    type E = Error;
     type Db = CTX::Db;
 
-    async fn invoke(&self, _: (), tx: &mut Transaction<'_, Postgres>) -> Result<(), Error<CTX>> {
-        InitDafI::<CTX>::init_daf(tx).await
+    async fn invoke(&self, _: (), tx: &mut Transaction<'_, Postgres>) -> Result<(), Error> {
+        <InitDafI<CTX> as InitDaf<CTX>>::init_daf(tx).await
     }
 }
 

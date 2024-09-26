@@ -1,4 +1,3 @@
-use crate::context::ErrCtx;
 use crate::error::{ErrorKind, JsonBoxError};
 use crate::fun::AsyncFn2;
 use crate::Error;
@@ -102,7 +101,7 @@ where
     }
 }
 
-pub fn default_mapper<CTX: ErrCtx>(be: JsonBoxError) -> (StatusCode, JsonBoxError) {
+pub fn default_mapper(be: JsonBoxError) -> (StatusCode, JsonBoxError) {
     // let e_opt = be.downcast_ref::<Error<CTX>>();
     // if e_opt.is_none() {
     //     return (StatusCode::INTERNAL_SERVER_ERROR, be);
@@ -133,7 +132,7 @@ pub fn default_mapper<CTX: ErrCtx>(be: JsonBoxError) -> (StatusCode, JsonBoxErro
         ErrorKind::new("FOO_ERROR", "foo error {foo}", ["foo"], None);
 
     let be_any = &be.0 as &dyn Any;
-    let ret = match be_any.downcast_ref::<Error<CTX>>() {
+    let ret = match be_any.downcast_ref::<Error>() {
         Some(e) => {
             let src = e.source();
             match src {
@@ -142,7 +141,7 @@ pub fn default_mapper<CTX: ErrCtx>(be: JsonBoxError) -> (StatusCode, JsonBoxErro
                     None => (StatusCode::BAD_REQUEST, be),
                     Some(e2) => {
                         let x = e2.to_string();
-                        let err = FOO_ERROR.new_error_with_args::<()>([&x]);
+                        let err = FOO_ERROR.new_error_with_args([&x]);
                         let berr = JsonBoxError::new(err);
                         (StatusCode::INTERNAL_SERVER_ERROR, berr)
                     }
