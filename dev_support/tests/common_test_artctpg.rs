@@ -8,7 +8,7 @@ use foa::{
     db::sqlx::{AsyncTxFn, PgDbCtx},
     refinto::RefInto,
     tokio::task_local::{invoke_tl_scoped, TaskLocal, TaskLocalCtx},
-    Error,
+    Error, Result,
 };
 use sqlx::{Postgres, Transaction};
 use std::{fmt::Debug, marker::PhantomData};
@@ -83,17 +83,13 @@ where
     type E = Error;
     type Db = CTX::Db;
 
-    async fn invoke(
-        &self,
-        input: FooIn,
-        tx: &mut Transaction<'_, Postgres>,
-    ) -> Result<FooOut, Error> {
+    async fn invoke(&self, input: FooIn, tx: &mut Transaction<'_, Postgres>) -> Result<FooOut> {
         <InitDafI<CTX> as InitDaf<CTX>>::init_daf(tx).await?;
         <FooSflI<CTX> as FooSfl<CTX>>::foo_sfl(input, tx).await
     }
 }
 
-pub async fn common_test<CTX>(parts: Parts) -> Result<FooOut, Error>
+pub async fn common_test<CTX>(parts: Parts) -> Result<FooOut>
 where
     CTX: Cfg<CfgInfo = CfgTestInput>
         + LocaleCtx

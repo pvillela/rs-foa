@@ -4,7 +4,7 @@ use foa::{
     db::sqlx::AsyncTxFn,
     fun::AsyncFn2,
     tokio::task_local::{TaskLocal, TaskLocalCtx},
-    Error,
+    Result,
 };
 use std::{future::Future, pin::Pin};
 
@@ -16,7 +16,7 @@ pub struct FooSflIC;
 impl AsyncFn2 for FooSflIC {
     type In1 = CtxTlValue;
     type In2 = FooIn;
-    type Out = Result<FooOut, Error>;
+    type Out = Result<FooOut>;
 
     async fn invoke(&self, input1: Self::In1, input2: Self::In2) -> Self::Out {
         FooSflI(Ctx)
@@ -26,10 +26,8 @@ impl AsyncFn2 for FooSflIC {
 }
 
 /// This requires [`Ctx`] : [`Clone`]
-pub fn make_foo_sfl() -> impl FnOnce(
-    CtxTlValue,
-    FooIn,
-) -> Pin<Box<(dyn Future<Output = Result<FooOut, Error>> + Send + 'static)>>
+pub fn make_foo_sfl(
+) -> impl FnOnce(CtxTlValue, FooIn) -> Pin<Box<(dyn Future<Output = Result<FooOut>> + Send + 'static)>>
        + Send
        + Sync // optional, results from Self: Sync
        + Clone

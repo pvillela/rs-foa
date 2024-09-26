@@ -6,10 +6,12 @@ use foa::{
     error::{Error, ErrorKind, VALIDATION_TAG},
     refinto::RefInto,
     tokio::task_local::{TaskLocal, TaskLocalCtx},
+    Result,
 };
 use serde::{Deserialize, Serialize};
 use sqlx::{Postgres, Transaction};
 use tracing::instrument;
+
 // region:      --- Stereotype signature
 
 #[derive(Clone, Deserialize, Debug)]
@@ -32,7 +34,7 @@ pub struct FooOut {
 
 pub trait FooSfl<CTX> {
     #[allow(async_fn_in_trait)]
-    async fn foo_sfl(input: FooIn, tx: &mut Transaction<'_, Postgres>) -> Result<FooOut, Error>;
+    async fn foo_sfl(input: FooIn, tx: &mut Transaction<'_, Postgres>) -> Result<FooOut>;
 }
 // endregion:   --- Stereotype signature
 
@@ -66,7 +68,7 @@ where
 {
     #[instrument(level = "trace", skip_all)]
     #[allow(async_fn_in_trait)]
-    async fn foo_sfl(input: FooIn, tx: &mut Transaction<'_, Postgres>) -> Result<FooOut, Error> {
+    async fn foo_sfl(input: FooIn, tx: &mut Transaction<'_, Postgres>) -> Result<FooOut> {
         if input.age_delta < 0 {
             return Err(FOO_ERROR.new_error());
         }
@@ -153,11 +155,7 @@ where
     type E = Error;
     type Db = CTX::Db;
 
-    async fn invoke(
-        &self,
-        input: FooIn,
-        tx: &mut Transaction<'_, Postgres>,
-    ) -> Result<FooOut, Error> {
+    async fn invoke(&self, input: FooIn, tx: &mut Transaction<'_, Postgres>) -> Result<FooOut> {
         <FooSflI<CTX> as FooSfl<CTX>>::foo_sfl(input, tx).await
     }
 }

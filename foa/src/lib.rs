@@ -12,4 +12,4 @@ pub mod trait_utils;
 pub mod web;
 pub mod wrapper;
 
-pub use error::Error;
+pub use error::{Error, Result};

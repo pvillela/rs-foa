@@ -3,7 +3,7 @@ use foa::{
     context::Cfg,
     db::sqlx::{AsyncTxFn, PgDbCtx},
     refinto::RefInto,
-    Error,
+    Error, Result,
 };
 use sqlx::{Postgres, Transaction};
 use tracing::instrument;
@@ -12,7 +12,7 @@ use tracing::instrument;
 
 pub trait InitDaf<CTX> {
     #[allow(async_fn_in_trait)]
-    async fn init_daf(tx: &mut Transaction<'_, Postgres>) -> Result<(), Error>;
+    async fn init_daf(tx: &mut Transaction<'_, Postgres>) -> Result<()>;
 }
 
 // endregion:   --- Stereotype signature
@@ -39,7 +39,7 @@ where
 {
     #[instrument(level = "trace", skip_all)]
     #[allow(async_fn_in_trait)]
-    async fn init_daf(tx: &mut Transaction<'_, Postgres>) -> Result<(), Error> {
+    async fn init_daf(tx: &mut Transaction<'_, Postgres>) -> Result<()> {
         let app_cfg_info = CTX::cfg();
         let cfg = app_cfg_info.ref_into();
 
@@ -87,7 +87,7 @@ where
     type E = Error;
     type Db = CTX::Db;
 
-    async fn invoke(&self, _: (), tx: &mut Transaction<'_, Postgres>) -> Result<(), Error> {
+    async fn invoke(&self, _: (), tx: &mut Transaction<'_, Postgres>) -> Result<()> {
         <InitDafI<CTX> as InitDaf<CTX>>::init_daf(tx).await
     }
 }

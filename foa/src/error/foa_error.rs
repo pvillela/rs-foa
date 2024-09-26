@@ -1,3 +1,4 @@
+use super::{JsonBoxError, JsonError};
 use crate::string::base64_encode_trunc_of_u8_arr;
 use crate::{error::BoxError, hash::hash_sha256_of_str_arr, string::interpolated_string_props};
 use serde::Serialize;
@@ -6,10 +7,14 @@ use std::{
     fmt::{Debug, Display},
 };
 
-use super::{JsonBoxError, JsonError};
+// region:      --- ErrorTag
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct ErrorTag(pub &'static str);
+
+// endregion:   --- ErrorTag
+
+// region:      --- KindCore
 
 #[derive(Debug, Serialize)]
 pub struct KindCore {
@@ -30,6 +35,10 @@ impl PartialEq for KindCore {
 }
 
 impl Eq for KindCore {}
+
+// endregion:   --- KindCore
+
+// region:      --- ErrorKind
 
 #[derive(Debug)]
 pub struct ErrorKind<const ARITY: usize, const HASCAUSE: bool> {
@@ -118,12 +127,18 @@ impl<const ARITY: usize> ErrorKind<ARITY, true> {
     }
 }
 
+// endregion:   --- ErrorKind
+
+// region:      --- Error
+
 #[derive(Serialize)]
 pub struct Error {
     core: &'static KindCore,
     props: Vec<(String, String)>,
     source: Option<BoxError>,
 }
+
+pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug)]
 #[allow(unused)]
@@ -281,6 +296,8 @@ impl From<Error> for JsonBoxError {
         JsonBoxError::new(value)
     }
 }
+
+// endregion:   --- ErrorKind
 
 #[cfg(test)]
 mod test {
