@@ -12,3 +12,5 @@ pub use foa_error::*;
 
 mod tags;
 pub use tags::*;
+
+mod foa_error_old;

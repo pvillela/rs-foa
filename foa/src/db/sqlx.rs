@@ -1,5 +1,5 @@
 use crate::{
-    error::{Error, ErrorKind, RUNTIME_TAG},
+    error::{Error, PropsErrorKind, RUNTIME_TAG},
     fun::{AsyncFn, AsyncFn2},
     tokio::task_local::{invoke_tl_scoped, tl_scoped, TaskLocal},
 };
@@ -21,8 +21,8 @@ pub trait Db {
 pub trait PgDbCtx: DbCtx<Db: Db<Database = Postgres>> {}
 impl<T> PgDbCtx for T where T: DbCtx<Db: Db<Database = Postgres>> {}
 
-pub const DB_ERROR: ErrorKind<0, true> =
-    ErrorKind::new("DB_ERROR", "database error", [], Some(&RUNTIME_TAG));
+pub const DB_ERROR: PropsErrorKind<0, true> =
+    PropsErrorKind::new("DB_ERROR", "database error", [], Some(&RUNTIME_TAG));
 
 impl From<sqlx::Error> for Error {
     fn from(cause: sqlx::Error) -> Self {

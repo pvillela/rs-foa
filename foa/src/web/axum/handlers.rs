@@ -1,4 +1,4 @@
-use crate::error::{ErrorKind, JsonBoxError};
+use crate::error::{JsonBoxError, PropsErrorKind};
 use crate::fun::AsyncFn2;
 use crate::Error;
 use axum::extract::{FromRequest, FromRequestParts};
@@ -128,8 +128,8 @@ pub fn default_mapper(be: JsonBoxError) -> (StatusCode, JsonBoxError) {
     // let berr: Box<dyn std::error::Error> = Box::new(err);
     // return (StatusCode::INTERNAL_SERVER_ERROR, berr);
 
-    const FOO_ERROR: ErrorKind<1, false> =
-        ErrorKind::new("FOO_ERROR", "foo error {foo}", ["foo"], None);
+    const FOO_ERROR: PropsErrorKind<1, false> =
+        PropsErrorKind::new("FOO_ERROR", "foo error {foo}", ["foo"], None);
 
     let be_any = &be.0 as &dyn Any;
     let ret = match be_any.downcast_ref::<Error>() {

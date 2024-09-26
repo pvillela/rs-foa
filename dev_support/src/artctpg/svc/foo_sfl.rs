@@ -3,7 +3,7 @@ use axum::http::request::Parts;
 use foa::{
     context::{Cfg, Locale, LocaleCtx},
     db::sqlx::{AsyncTxFn, PgDbCtx},
-    error::{Error, ErrorKind, VALIDATION_TAG},
+    error::{Error, PropsErrorKind, VALIDATION_TAG},
     refinto::RefInto,
     tokio::task_local::{TaskLocal, TaskLocalCtx},
     Result,
@@ -54,7 +54,7 @@ where
 {
 }
 
-const FOO_ERROR: ErrorKind<0, false> = ErrorKind::new(
+const FOO_ERROR: PropsErrorKind<0, false> = PropsErrorKind::new(
     "FOO_ERROR",
     "foo_sfl input invalid",
     [],
