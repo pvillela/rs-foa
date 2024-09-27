@@ -1,6 +1,6 @@
 use super::{JsonBoxError, JsonError, StdBoxError};
 use crate::string::base64_encode_trunc_of_u8_arr;
-use crate::{error::BoxError, hash::hash_sha256_of_str_arr, string::interpolated_string_props};
+use crate::{hash::hash_sha256_of_str_arr, string::interpolated_string_props};
 use serde::Serialize;
 use std::{
     error::Error as StdError,
@@ -43,33 +43,43 @@ impl Eq for KindId {}
 // region:      --- PropsError
 
 pub struct PropsError {
-    kind_id: &'static KindId,
     msg: &'static str,
     props: Vec<(String, String)>,
+    source: Option<StdBoxError>,
 }
 
 #[derive(Debug)]
 #[allow(unused)]
 struct PropsErrorDevProxy<'a> {
-    kind_id: &'a KindId,
     msg: &'static str,
     props: &'a Vec<(String, String)>,
+    source: &'a Option<StdBoxError>,
 }
 
 #[derive(Debug)]
 #[allow(unused)]
 struct PropsErrorProdProxy {
-    kind_id: &'static KindId,
     msg: &'static str,
     props: Vec<(String, String)>,
 }
 
 impl PropsError {
+    pub fn props(&self) -> impl Iterator<Item = (&str, &str)> {
+        self.props.iter().map(|p| (p.0.as_str(), p.1.as_str()))
+    }
+
+    pub fn prop(&self, key: &str) -> Option<&str> {
+        self.props
+            .iter()
+            .find(|&p| p.0 == key)
+            .map(|p| p.1.as_str())
+    }
+
     fn dev_proxy(&self) -> PropsErrorDevProxy {
         PropsErrorDevProxy {
-            kind_id: self.kind_id,
             msg: self.msg,
             props: &self.props,
+            source: &self.source,
         }
     }
 
@@ -84,7 +94,6 @@ impl PropsError {
             })
             .collect::<Vec<_>>();
         PropsErrorProdProxy {
-            kind_id: self.kind_id,
             msg: self.msg,
             props,
         }
@@ -165,15 +174,14 @@ impl<const ARITY: usize, const HASCAUSE: bool> PropsErrorKind<ARITY, HASCAUSE> {
             .map(|(name, value)| (name.to_owned(), value.to_owned()))
             .collect::<Vec<_>>();
         let payload = PropsError {
-            kind_id: &self.kind_id(),
             msg: self.msg,
             props,
+            source: cause,
         };
 
         Error {
             kind_id: self.kind_id(),
             payload: StdBoxError::new(payload),
-            source: cause,
         }
     }
 }
@@ -215,40 +223,15 @@ impl<const ARITY: usize> PropsErrorKind<ARITY, true> {
 pub struct Error {
     kind_id: &'static KindId,
     payload: StdBoxError,
-    source: Option<StdBoxError>,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Debug)]
-#[allow(unused)]
-struct FoaErrorDevProxy<'a> {
-    kind_id: &'a KindId,
-    props: &'a Vec<(String, String)>,
-    source: &'a Option<BoxError>,
-}
-
-#[derive(Debug)]
-#[allow(unused)]
-struct FoaErrorProdProxy {
-    name: &'static str,
-    msg: &'static str,
-    props: Vec<(String, String)>,
-}
-
 impl Error {
-    pub fn new<C>(
-        kind_id: &'static KindId,
-        payload: impl StdError + Send + Sync + 'static,
-        cause: Option<C>,
-    ) -> Self
-    where
-        C: StdError + Send + Sync + 'static,
-    {
+    pub fn new(kind_id: &'static KindId, payload: impl StdError + Send + Sync + 'static) -> Self {
         Self {
             kind_id,
             payload: StdBoxError::new(payload),
-            source: cause.map(|c| StdBoxError::new(c)),
         }
     }
 
@@ -265,13 +248,7 @@ impl Display for Error {
 
 impl StdError for Error {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
-        match &self.source {
-            Some(source) => {
-                let err = source.as_dyn_std_error();
-                Some(err)
-            }
-            None => None,
-        }
+        self.payload.source()
     }
 }
 
