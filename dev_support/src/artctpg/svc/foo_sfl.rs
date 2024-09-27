@@ -56,7 +56,7 @@ where
 
 const FOO_ERROR: PropsErrorKind<0, false> = PropsErrorKind::new(
     "FOO_ERROR",
-    "foo_sfl input invalid",
+    Some("foo_sfl input invalid"),
     [],
     Some(&VALIDATION_TAG),
 );

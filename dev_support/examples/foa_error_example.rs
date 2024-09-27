@@ -3,16 +3,16 @@ use std::error::Error as _;
 use foa::error::{Error, PropsErrorKind};
 
 const ERROR0: PropsErrorKind<0, false> =
-    PropsErrorKind::new("ERROR0", "error kind with no args", [], None);
+    PropsErrorKind::new("ERROR0", Some("error kind with no args"), [], None);
 const ERROR1: PropsErrorKind<1, true> = PropsErrorKind::new(
     "ERROR1",
-    "error kind with '{xyz}' as single arg",
+    Some("error kind with '{xyz}' as single arg"),
     ["xyz"],
     None,
 );
 const ERROR2: PropsErrorKind<2, true> = PropsErrorKind::new(
     "ERROR2",
-    "error kind with '{aaa}' and '{bbb}' as args",
+    Some("error kind with '{aaa}' and '{bbb}' as args"),
     ["aaa", "bbb"],
     None,
 );

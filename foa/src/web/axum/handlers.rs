@@ -129,7 +129,7 @@ pub fn default_mapper(be: JsonBoxError) -> (StatusCode, JsonBoxError) {
     // return (StatusCode::INTERNAL_SERVER_ERROR, berr);
 
     const FOO_ERROR: PropsErrorKind<1, false> =
-        PropsErrorKind::new("FOO_ERROR", "foo error {foo}", ["foo"], None);
+        PropsErrorKind::new("FOO_ERROR", Some("foo error {foo}"), ["foo"], None);
 
     let be_any = &be.0 as &dyn Any;
     let ret = match be_any.downcast_ref::<Error>() {

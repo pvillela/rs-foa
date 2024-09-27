@@ -22,7 +22,7 @@ pub trait PgDbCtx: DbCtx<Db: Db<Database = Postgres>> {}
 impl<T> PgDbCtx for T where T: DbCtx<Db: Db<Database = Postgres>> {}
 
 pub const DB_ERROR: PropsErrorKind<0, true> =
-    PropsErrorKind::new("DB_ERROR", "database error", [], Some(&RUNTIME_TAG));
+    PropsErrorKind::new("DB_ERROR", Some("database error"), [], Some(&RUNTIME_TAG));
 
 impl From<sqlx::Error> for Error {
     fn from(cause: sqlx::Error) -> Self {
