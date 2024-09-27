@@ -1,6 +1,10 @@
 use serde::Serialize;
 use serde_json::Value;
-use std::{any::Any, error::Error as StdError, fmt::Display};
+use std::{
+    any::Any,
+    error::Error as StdError,
+    fmt::{Debug, Display},
+};
 
 // region:      --- utils
 
@@ -75,7 +79,6 @@ impl StdError for Box<dyn JsonError> {
 
 // region:      --- StdBoxError
 
-#[derive(Debug)]
 pub struct StdBoxError(Box<dyn StdError + Send + Sync + 'static>);
 
 impl StdBoxError {
@@ -88,9 +91,15 @@ impl StdBoxError {
     }
 }
 
+impl Debug for StdBoxError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(&self.0, f)
+    }
+}
+
 impl Display for StdBoxError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
+        Display::fmt(&self.0, f)
     }
 }
 
@@ -117,7 +126,6 @@ impl Serialize for StdBoxError {
 
 // region:      --- JsonBoxError
 
-#[derive(Debug)]
 pub struct JsonBoxError(pub Box<dyn JsonError>);
 
 impl JsonBoxError {
@@ -130,9 +138,15 @@ impl JsonBoxError {
     }
 }
 
+impl Debug for JsonBoxError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(&self.0, f)
+    }
+}
+
 impl Display for JsonBoxError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
+        Display::fmt(&self.0, f)
     }
 }
 
@@ -155,7 +169,6 @@ impl Serialize for JsonBoxError {
 
 // region:      --- BoxError
 
-#[derive(Debug)]
 #[allow(private_interfaces)]
 pub enum BoxError {
     Std(StdBoxError),
@@ -179,11 +192,20 @@ impl BoxError {
     }
 }
 
+impl Debug for BoxError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Std(err) => Debug::fmt(err, f),
+            Self::Ser(err) => Debug::fmt(err, f),
+        }
+    }
+}
+
 impl Display for BoxError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Std(err) => err.fmt(f),
-            Self::Ser(err) => err.fmt(f),
+            Self::Std(err) => Display::fmt(err, f),
+            Self::Ser(err) => Display::fmt(err, f),
         }
     }
 }
