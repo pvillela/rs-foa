@@ -54,7 +54,7 @@ where
 {
 }
 
-const FOO_ERROR: PropsErrorKind<0, false> = PropsErrorKind::new(
+const FOO_ERROR: PropsErrorKind<0, false> = PropsErrorKind::with_prop_names(
     "FOO_ERROR",
     Some("foo_sfl input invalid"),
     [],
@@ -70,7 +70,7 @@ where
     #[allow(async_fn_in_trait)]
     async fn foo_sfl(input: FooIn, tx: &mut Transaction<'_, Postgres>) -> Result<FooOut> {
         if input.age_delta < 0 {
-            return Err(FOO_ERROR.new_error());
+            return Err(FOO_ERROR.error());
         }
         let app_cfg_info = CTX::cfg();
         let cfg = app_cfg_info.ref_into();

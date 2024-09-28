@@ -117,6 +117,8 @@ pub struct PropsErrorKind<const ARITY: usize, const HASCAUSE: bool> {
     tag: Option<&'static ErrorTag>,
 }
 
+pub type BasicErrorKind<const HASCAUSE: bool> = PropsErrorKind<0, HASCAUSE>;
+
 impl<const ARITY: usize, const HASCAUSE: bool> PropsErrorKind<ARITY, HASCAUSE> {
     pub const fn kind_id(&self) -> &KindId {
         &self.kind_id
@@ -126,7 +128,7 @@ impl<const ARITY: usize, const HASCAUSE: bool> PropsErrorKind<ARITY, HASCAUSE> {
         self.tag
     }
 
-    pub const fn new(
+    pub const fn with_prop_names(
         name: &'static str,
         msg: Option<&'static str>,
         prop_names: [&'static str; ARITY],
@@ -140,11 +142,11 @@ impl<const ARITY: usize, const HASCAUSE: bool> PropsErrorKind<ARITY, HASCAUSE> {
         }
     }
 
-    fn new_error_priv(&'static self, args: [&str; ARITY], cause: Option<StdBoxError>) -> Error {
+    fn error_priv(&'static self, values: [&str; ARITY], cause: Option<StdBoxError>) -> Error {
         let props = self
             .prop_names
             .into_iter()
-            .zip(args)
+            .zip(values)
             .map(|(name, value)| (name.to_owned(), value.to_owned()))
             .collect::<Vec<_>>();
         let msg = match self.msg {
@@ -161,47 +163,76 @@ impl<const ARITY: usize, const HASCAUSE: bool> PropsErrorKind<ARITY, HASCAUSE> {
     }
 }
 
-impl PropsErrorKind<0, false> {
-    pub fn new_error(&'static self) -> Error {
-        self.new_error_priv([], None)
+impl<const HASCAUSE: bool> BasicErrorKind<HASCAUSE> {
+    pub const fn new(
+        name: &'static str,
+        msg: Option<&'static str>,
+        tag: Option<&'static ErrorTag>,
+    ) -> Self {
+        Self {
+            kind_id: KindId(name),
+            msg,
+            prop_names: [],
+            tag,
+        }
     }
 }
 
-impl PropsErrorKind<0, true> {
-    pub fn new_error(&'static self, cause: impl StdError + Send + Sync + 'static) -> Error {
-        self.new_error_priv([], Some(StdBoxError::new(cause)))
+impl BasicErrorKind<false> {
+    pub fn error(&'static self) -> Error {
+        self.error_priv([], None)
+    }
+}
+
+impl BasicErrorKind<true> {
+    pub fn error(&'static self, cause: impl StdError + Send + Sync + 'static) -> Error {
+        self.error_priv([], Some(StdBoxError::new(cause)))
     }
 }
 
 impl<const ARITY: usize> PropsErrorKind<ARITY, false> {
-    pub fn new_error_with_args(&'static self, args: [&str; ARITY]) -> Error {
-        self.new_error_priv(args, None)
+    pub fn error_with_values(&'static self, values: [&str; ARITY]) -> Error {
+        self.error_priv(values, None)
     }
 }
 
 impl<const ARITY: usize> PropsErrorKind<ARITY, true> {
-    pub fn new_error_with_args(
+    pub fn error_with_values(
         &'static self,
-        args: [&str; ARITY],
+        values: [&str; ARITY],
         cause: impl StdError + Send + Sync + 'static,
     ) -> Error {
-        self.new_error_priv(args, Some(StdBoxError::new(cause)))
+        self.error_priv(values, Some(StdBoxError::new(cause)))
     }
 }
 
 // endregion:   --- PropsErrorKind
 
 #[cfg(test)]
-mod test {
+mod test_props_error {
     use super::PropsErrorKind;
 
-    const FOO_ERROR: PropsErrorKind<0, false> =
-        PropsErrorKind::new("FOO_ERROR", Some("foo message"), [], None);
+    const FOO_ERROR: PropsErrorKind<1, false> =
+        PropsErrorKind::with_prop_names("FOO_ERROR", Some("foo message: {xyz}"), ["xyz"], None);
 
     #[test]
     fn test() {
-        let err = FOO_ERROR.new_error();
+        let err = FOO_ERROR.error_with_values(["hi there!"]);
         assert!(err.has_kind(FOO_ERROR.kind_id()));
-        assert_eq!(err.to_string(), "foo message");
+        assert_eq!(err.to_string(), "foo message: hi there!");
+    }
+}
+
+#[cfg(test)]
+mod test_basic_error {
+    use super::BasicErrorKind;
+
+    const FOO_ERROR: BasicErrorKind<false> = BasicErrorKind::new("FOO_ERROR", None, None);
+
+    #[test]
+    fn test() {
+        let err = FOO_ERROR.error();
+        assert!(err.has_kind(FOO_ERROR.kind_id()));
+        assert_eq!(err.to_string(), "FOO_ERROR");
     }
 }

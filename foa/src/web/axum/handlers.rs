@@ -129,7 +129,7 @@ pub fn default_mapper(be: JserBoxError) -> (StatusCode, JserBoxError) {
     // return (StatusCode::INTERNAL_SERVER_ERROR, berr);
 
     const FOO_ERROR: PropsErrorKind<1, false> =
-        PropsErrorKind::new("FOO_ERROR", Some("foo error {foo}"), ["foo"], None);
+        PropsErrorKind::with_prop_names("FOO_ERROR", Some("foo error {foo}"), ["foo"], None);
 
     let be_any = &be.0 as &dyn Any;
     let ret = match be_any.downcast_ref::<Error>() {
@@ -141,7 +141,7 @@ pub fn default_mapper(be: JserBoxError) -> (StatusCode, JserBoxError) {
                     None => (StatusCode::BAD_REQUEST, be),
                     Some(e2) => {
                         let x = e2.to_string();
-                        let err = FOO_ERROR.new_error_with_args([&x]);
+                        let err = FOO_ERROR.error_with_values([&x]);
                         let berr = JserBoxError::new(err);
                         (StatusCode::INTERNAL_SERVER_ERROR, berr)
                     }

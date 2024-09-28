@@ -3,14 +3,14 @@ use std::error::Error as _;
 use foa::error::{Error, PropsErrorKind};
 
 const ERROR0: PropsErrorKind<0, false> =
-    PropsErrorKind::new("ERROR0", Some("error kind with no args"), [], None);
-const ERROR1: PropsErrorKind<1, true> = PropsErrorKind::new(
+    PropsErrorKind::with_prop_names("ERROR0", Some("error kind with no args"), [], None);
+const ERROR1: PropsErrorKind<1, true> = PropsErrorKind::with_prop_names(
     "ERROR1",
     Some("error kind with '{xyz}' as single arg"),
     ["xyz"],
     None,
 );
-const ERROR2: PropsErrorKind<2, true> = PropsErrorKind::new(
+const ERROR2: PropsErrorKind<2, true> = PropsErrorKind::with_prop_names(
     "ERROR2",
     Some("error kind with '{aaa}' and '{bbb}' as args"),
     ["aaa", "bbb"],
@@ -18,15 +18,15 @@ const ERROR2: PropsErrorKind<2, true> = PropsErrorKind::new(
 );
 
 fn error0() -> Error {
-    ERROR0.new_error()
+    ERROR0.error()
 }
 
 fn error1() -> Error {
-    ERROR1.new_error_with_args([&42.to_string()], error0())
+    ERROR1.error_with_values([&42.to_string()], error0())
 }
 
 fn error2() -> Error {
-    ERROR2.new_error_with_args([&99.to_string(), "2nd arg"], error1())
+    ERROR2.error_with_values([&99.to_string(), "2nd arg"], error1())
 }
 
 fn print_error(err: Error) {
