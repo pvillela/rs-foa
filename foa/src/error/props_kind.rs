@@ -1,6 +1,7 @@
-use super::{Error, ErrorTag, KindId, StdBoxError, TRUNC};
+use super::{BacktraceSpec, Error, ErrorTag, KindId, StdBoxError, TRUNC};
 use crate::string::base64_encode_trunc_of_u8_arr;
 use crate::{hash::hash_sha256_of_str_arr, string::interpolated_string_props};
+use std::backtrace::Backtrace;
 use std::{
     error::Error as StdError,
     fmt::{Debug, Display},
@@ -114,6 +115,7 @@ pub struct PropsErrorKind<const ARITY: usize, const HASCAUSE: bool> {
     kind_id: KindId,
     msg: Option<&'static str>,
     prop_names: [&'static str; ARITY],
+    backtrace_spec: BacktraceSpec,
     tag: Option<&'static ErrorTag>,
 }
 
@@ -132,12 +134,14 @@ impl<const ARITY: usize, const HASCAUSE: bool> PropsErrorKind<ARITY, HASCAUSE> {
         name: &'static str,
         msg: Option<&'static str>,
         prop_names: [&'static str; ARITY],
+        backtrace_spec: BacktraceSpec,
         tag: Option<&'static ErrorTag>,
     ) -> Self {
         Self {
             kind_id: KindId(name),
             msg,
             prop_names,
+            backtrace_spec,
             tag,
         }
     }
@@ -158,8 +162,13 @@ impl<const ARITY: usize, const HASCAUSE: bool> PropsErrorKind<ARITY, HASCAUSE> {
             props,
             source: cause,
         };
+        let backtrace = match self.backtrace_spec {
+            BacktraceSpec::Yes => Some(Backtrace::force_capture()),
+            BacktraceSpec::No => None,
+            BacktraceSpec::Env => Some(Backtrace::capture()),
+        };
 
-        Error::new(self.kind_id(), self.tag, payload)
+        Error::new(self.kind_id(), self.tag, payload, backtrace)
     }
 }
 
@@ -167,12 +176,14 @@ impl<const HASCAUSE: bool> BasicErrorKind<HASCAUSE> {
     pub const fn new(
         name: &'static str,
         msg: Option<&'static str>,
+        backtrace_spec: BacktraceSpec,
         tag: Option<&'static ErrorTag>,
     ) -> Self {
         Self {
             kind_id: KindId(name),
             msg,
             prop_names: [],
+            backtrace_spec,
             tag,
         }
     }
@@ -210,10 +221,17 @@ impl<const ARITY: usize> PropsErrorKind<ARITY, true> {
 
 #[cfg(test)]
 mod test_props_error {
+    use crate::error::BacktraceSpec;
+
     use super::PropsErrorKind;
 
-    const FOO_ERROR: PropsErrorKind<1, false> =
-        PropsErrorKind::with_prop_names("FOO_ERROR", Some("foo message: {xyz}"), ["xyz"], None);
+    const FOO_ERROR: PropsErrorKind<1, false> = PropsErrorKind::with_prop_names(
+        "FOO_ERROR",
+        Some("foo message: {xyz}"),
+        ["xyz"],
+        BacktraceSpec::Env,
+        None,
+    );
 
     #[test]
     fn test() {
@@ -225,9 +243,12 @@ mod test_props_error {
 
 #[cfg(test)]
 mod test_basic_error {
+    use crate::error::BacktraceSpec;
+
     use super::BasicErrorKind;
 
-    const FOO_ERROR: BasicErrorKind<false> = BasicErrorKind::new("FOO_ERROR", None, None);
+    const FOO_ERROR: BasicErrorKind<false> =
+        BasicErrorKind::new("FOO_ERROR", None, BacktraceSpec::Env, None);
 
     #[test]
     fn test() {

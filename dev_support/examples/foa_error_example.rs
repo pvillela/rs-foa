@@ -1,19 +1,25 @@
 use std::error::Error as _;
 
-use foa::error::{Error, PropsErrorKind};
+use foa::error::{BacktraceSpec, BasicErrorKind, Error, PropsErrorKind};
 
-const ERROR0: PropsErrorKind<0, false> =
-    PropsErrorKind::with_prop_names("ERROR0", Some("error kind with no args"), [], None);
+const ERROR0: PropsErrorKind<0, false> = BasicErrorKind::new(
+    "ERROR0",
+    Some("error kind with no args"),
+    BacktraceSpec::Env,
+    None,
+);
 const ERROR1: PropsErrorKind<1, true> = PropsErrorKind::with_prop_names(
     "ERROR1",
     Some("error kind with '{xyz}' as single arg"),
     ["xyz"],
+    BacktraceSpec::Env,
     None,
 );
 const ERROR2: PropsErrorKind<2, true> = PropsErrorKind::with_prop_names(
     "ERROR2",
     Some("error kind with '{aaa}' and '{bbb}' as args"),
     ["aaa", "bbb"],
+    BacktraceSpec::Env,
     None,
 );
 

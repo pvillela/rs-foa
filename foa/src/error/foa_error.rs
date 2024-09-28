@@ -1,6 +1,7 @@
 use super::{JserBoxError, JserError, StdBoxError};
 use serde::Serialize;
 use std::{
+    backtrace::Backtrace,
     error::Error as StdError,
     fmt::{Debug, Display},
 };
@@ -14,6 +15,23 @@ pub const TRUNC: usize = 8;
 pub struct ErrorTag(pub &'static str);
 
 // endregion:   --- ErrorTag
+
+//===========================
+// region:      --- Backtrace
+
+/// Specifies different backtrace generation modes.
+#[derive(Debug)]
+pub enum BacktraceSpec {
+    /// A backtrace is always generated
+    Yes,
+    /// A backtrace is never generated
+    No,
+    /// Backtrace generation is based on environment variables as per
+    /// [`std::backtrace::Backtrace`](https://doc.rust-lang.org/std/backtrace/struct.Backtrace.html).
+    Env,
+}
+
+// endregion:   --- Backtrace
 
 //===========================
 // region:      --- KindId
@@ -55,6 +73,8 @@ pub struct Error {
     kind_id: &'static KindId,
     tag: Option<&'static ErrorTag>,
     payload: StdBoxError,
+    #[serde(skip_serializing)]
+    backtrace: Option<Backtrace>,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -64,16 +84,41 @@ impl Error {
         kind_id: &'static KindId,
         tag: Option<&'static ErrorTag>,
         payload: impl StdError + Send + Sync + 'static,
+        backtrace: Option<Backtrace>,
     ) -> Self {
         Self {
             kind_id,
             tag,
             payload: StdBoxError::new(payload),
+            backtrace,
         }
     }
 
     pub fn has_kind(&self, kind: &'static KindId) -> bool {
         self.kind_id == kind
+    }
+
+    pub fn kind_id(&self) -> &'static KindId {
+        self.kind_id
+    }
+
+    pub fn tag(&self) -> Option<&'static ErrorTag> {
+        self.tag
+    }
+
+    pub fn payload(&self) -> &(dyn std::error::Error + Send + Sync + 'static) {
+        &self.payload
+    }
+
+    pub fn payload_mut(&mut self) -> &mut (dyn std::error::Error + Send + Sync + 'static) {
+        &mut self.payload
+    }
+
+    pub fn backtrace(&self) -> Option<&Backtrace> {
+        match &self.backtrace {
+            Some(backtrace) => Some(backtrace),
+            None => None,
+        }
     }
 }
 

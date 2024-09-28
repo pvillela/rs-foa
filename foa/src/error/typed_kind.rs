@@ -1,9 +1,9 @@
 //===========================
 // region:      --- TypedErrorKind
 
-use std::marker::PhantomData;
+use std::{backtrace::Backtrace, marker::PhantomData};
 
-use super::{Error, ErrorTag, KindId, StdBoxError};
+use super::{BacktraceSpec, Error, ErrorTag, KindId, StdBoxError};
 
 #[derive(Debug)]
 pub struct TypedErrorKind<T>
@@ -11,6 +11,7 @@ where
     T: std::error::Error + Send + Sync + 'static,
 {
     kind_id: KindId,
+    backtrace_spec: BacktraceSpec,
     tag: Option<&'static ErrorTag>,
     _t: PhantomData<T>,
 }
@@ -27,9 +28,14 @@ where
         self.tag
     }
 
-    pub const fn new(name: &'static str, tag: Option<&'static ErrorTag>) -> Self {
+    pub const fn new(
+        name: &'static str,
+        backtrace_spec: BacktraceSpec,
+        tag: Option<&'static ErrorTag>,
+    ) -> Self {
         Self {
             kind_id: KindId(name),
+            backtrace_spec,
             tag,
             _t: PhantomData,
         }
@@ -40,8 +46,19 @@ impl<T> TypedErrorKind<T>
 where
     T: std::error::Error + Send + Sync + 'static,
 {
-    pub fn new_error(&'static self, payload: T) -> Error {
-        Error::new(self.kind_id(), self.tag, StdBoxError::new(payload))
+    pub fn error(&'static self, payload: T) -> Error {
+        let backtrace = match self.backtrace_spec {
+            BacktraceSpec::Yes => Some(Backtrace::force_capture()),
+            BacktraceSpec::No => None,
+            BacktraceSpec::Env => Some(Backtrace::capture()),
+        };
+
+        Error::new(
+            self.kind_id(),
+            self.tag,
+            StdBoxError::new(payload),
+            backtrace,
+        )
     }
 }
 
@@ -49,6 +66,8 @@ where
 
 #[cfg(test)]
 mod test {
+    use crate::error::BacktraceSpec;
+
     use super::TypedErrorKind;
     use std::fmt::{Debug, Display};
 
@@ -63,11 +82,12 @@ mod test {
 
     impl std::error::Error for Dummy {}
 
-    const FOO_ERROR: TypedErrorKind<Dummy> = TypedErrorKind::new("FOO_ERROR", None);
+    const FOO_ERROR: TypedErrorKind<Dummy> =
+        TypedErrorKind::new("FOO_ERROR", BacktraceSpec::Env, None);
 
     #[test]
     fn test() {
-        let err = FOO_ERROR.new_error(Dummy);
+        let err = FOO_ERROR.error(Dummy);
         assert!(err.has_kind(FOO_ERROR.kind_id()));
         assert_eq!(err.to_string(), Dummy.to_string());
     }

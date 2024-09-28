@@ -1,4 +1,4 @@
-use crate::error::{JserBoxError, PropsErrorKind};
+use crate::error::{BacktraceSpec, JserBoxError, PropsErrorKind};
 use crate::fun::AsyncFn2;
 use crate::Error;
 use axum::extract::{FromRequest, FromRequestParts};
@@ -128,8 +128,13 @@ pub fn default_mapper(be: JserBoxError) -> (StatusCode, JserBoxError) {
     // let berr: Box<dyn std::error::Error> = Box::new(err);
     // return (StatusCode::INTERNAL_SERVER_ERROR, berr);
 
-    const FOO_ERROR: PropsErrorKind<1, false> =
-        PropsErrorKind::with_prop_names("FOO_ERROR", Some("foo error {foo}"), ["foo"], None);
+    const FOO_ERROR: PropsErrorKind<1, false> = PropsErrorKind::with_prop_names(
+        "FOO_ERROR",
+        Some("foo error {foo}"),
+        ["foo"],
+        BacktraceSpec::No,
+        None,
+    );
 
     let be_any = &be.0 as &dyn Any;
     let ret = match be_any.downcast_ref::<Error>() {
