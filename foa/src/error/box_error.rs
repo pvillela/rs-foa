@@ -50,17 +50,14 @@ pub fn error_recursive_msg(err: &(dyn StdError)) -> String {
 
 // endregion    --- utils
 
-// region:      --- JsonError
+// region:      --- JserError
 
-pub trait JsonError: StdError + Send + Sync + 'static + Any {
+/// Trait for errors that can be serialized to JSON with [`serde_json`].
+pub trait JserError: StdError + Send + Sync + 'static + Any {
     fn to_json(&self) -> Value;
-
-    fn src(&self) -> Option<&(dyn StdError + 'static)> {
-        StdError::source(self)
-    }
 }
 
-impl<T> JsonError for T
+impl<T> JserError for T
 where
     T: StdError + Serialize + Send + Sync + 'static,
 {
@@ -69,13 +66,13 @@ where
     }
 }
 
-impl StdError for Box<dyn JsonError> {
+impl StdError for Box<dyn JserError> {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
-        self.src()
+        self.as_ref().source()
     }
 }
 
-// endregion:   --- JsonError
+// endregion:   --- JserError
 
 // region:      --- StdBoxError
 
@@ -124,12 +121,12 @@ impl Serialize for StdBoxError {
 
 // endregion:   --- StdBoxError
 
-// region:      --- JsonBoxError
+// region:      --- JserBoxError
 
-pub struct JsonBoxError(pub Box<dyn JsonError>);
+pub struct JserBoxError(pub Box<dyn JserError>);
 
-impl JsonBoxError {
-    pub fn new(inner: impl JsonError) -> Self {
+impl JserBoxError {
+    pub fn new(inner: impl JserError) -> Self {
         Self(Box::new(inner))
     }
 
@@ -138,25 +135,25 @@ impl JsonBoxError {
     }
 }
 
-impl Debug for JsonBoxError {
+impl Debug for JserBoxError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         Debug::fmt(&self.0, f)
     }
 }
 
-impl Display for JsonBoxError {
+impl Display for JserBoxError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         Display::fmt(&self.0, f)
     }
 }
 
-impl StdError for JsonBoxError {
+impl StdError for JserBoxError {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         self.0.source()
     }
 }
 
-impl Serialize for JsonBoxError {
+impl Serialize for JserBoxError {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -165,19 +162,19 @@ impl Serialize for JsonBoxError {
     }
 }
 
-// endregion:   --- JsonBoxError
+// endregion:   --- JserBoxError
 
 // region:      --- BoxError
 
 #[allow(private_interfaces)]
 pub enum BoxError {
     Std(StdBoxError),
-    Ser(JsonBoxError),
+    Ser(JserBoxError),
 }
 
 impl BoxError {
-    pub fn new_ser(inner: impl JsonError) -> Self {
-        Self::Ser(JsonBoxError::new(inner))
+    pub fn new_ser(inner: impl JserError) -> Self {
+        Self::Ser(JserBoxError::new(inner))
     }
 
     pub fn new_std(inner: impl StdError + Send + Sync + 'static) -> Self {

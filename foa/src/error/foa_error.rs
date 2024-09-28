@@ -1,4 +1,4 @@
-use super::{JsonBoxError, JsonError, StdBoxError};
+use super::{JserBoxError, JserError, StdBoxError};
 use serde::Serialize;
 use std::{
     error::Error as StdError,
@@ -89,15 +89,15 @@ impl StdError for Error {
     }
 }
 
-impl From<Error> for Box<dyn JsonError> {
+impl From<Error> for Box<dyn JserError> {
     fn from(value: Error) -> Self {
         Box::new(value)
     }
 }
 
-impl From<Error> for JsonBoxError {
+impl From<Error> for JserBoxError {
     fn from(value: Error) -> Self {
-        JsonBoxError::new(value)
+        JserBoxError::new(value)
     }
 }
 

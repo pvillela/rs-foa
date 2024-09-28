@@ -1,4 +1,4 @@
-use crate::error::{JsonBoxError, PropsErrorKind};
+use crate::error::{JserBoxError, PropsErrorKind};
 use crate::fun::AsyncFn2;
 use crate::Error;
 use axum::extract::{FromRequest, FromRequestParts};
@@ -101,7 +101,7 @@ where
     }
 }
 
-pub fn default_mapper(be: JsonBoxError) -> (StatusCode, JsonBoxError) {
+pub fn default_mapper(be: JserBoxError) -> (StatusCode, JserBoxError) {
     // let e_opt = be.downcast_ref::<Error<CTX>>();
     // if e_opt.is_none() {
     //     return (StatusCode::INTERNAL_SERVER_ERROR, be);
@@ -142,7 +142,7 @@ pub fn default_mapper(be: JsonBoxError) -> (StatusCode, JsonBoxError) {
                     Some(e2) => {
                         let x = e2.to_string();
                         let err = FOO_ERROR.new_error_with_args([&x]);
-                        let berr = JsonBoxError::new(err);
+                        let berr = JserBoxError::new(err);
                         (StatusCode::INTERNAL_SERVER_ERROR, berr)
                     }
                 },

@@ -6,7 +6,7 @@ use dev_support::artctpg::run::{
 use dev_support::foa_exp::web::axum::json_handlers_experiment::{direct, from_scratch};
 use foa::{
     context::ErrCtx,
-    error::JsonBoxError,
+    error::JserBoxError,
     fun::AsyncFn2,
     web::axum::{
         default_mapper, handler_asyncfn2r_arc, handler_fn2r, HandlerAsyncFn2r, HandlerAsyncFn2rArc,
@@ -23,7 +23,7 @@ where
     F::In2: DeserializeOwned,
     O: Serialize + Send,
     E: Serialize + Send + Sync + 'static,
-    JsonBoxError: From<E>,
+    JserBoxError: From<E>,
     S: Send + Sync + 'static,
 {
     HandlerAsyncFn2rWithErrorMapper::new(f, default_mapper)
