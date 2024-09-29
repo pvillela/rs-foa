@@ -5,7 +5,6 @@ mod app_error;
 mod box_error;
 mod core_error;
 mod foa_error;
-mod foa_error_old;
 mod props_kind;
 mod tags;
 mod typed_kind;
