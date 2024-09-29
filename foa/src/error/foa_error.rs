@@ -1,4 +1,4 @@
-use super::{JserBoxError, JserError, StdBoxError};
+use super::{extract_boxed_error, JserBoxError, JserError, StdBoxError};
 use serde::Serialize;
 use std::{
     backtrace::Backtrace,
@@ -110,8 +110,12 @@ impl Error {
         &self.payload
     }
 
-    pub fn payload_mut(&mut self) -> &mut (dyn std::error::Error + Send + Sync + 'static) {
-        &mut self.payload
+    pub fn typed_payload<T: StdError + 'static>(&self) -> Option<&T> {
+        self.payload.0.downcast_ref::<T>()
+    }
+
+    pub fn extract_payload<T: StdError + 'static>(self) -> Option<T> {
+        extract_boxed_error(self.payload.0)
     }
 
     pub fn backtrace(&self) -> Option<&Backtrace> {
@@ -146,4 +150,67 @@ impl From<Error> for JserBoxError {
     }
 }
 
-// endregion:   --- ErrorKind
+// endregion:   --- Error
+
+//===========================
+// region:      --- ErrorExp
+
+/// Struct with the same fields as [`Error`] but where the payload is a type `T` rather than a boxed error.
+#[derive(Debug, Serialize)]
+pub struct ErrorExp<T> {
+    pub kind_id: &'static KindId,
+    pub tag: Option<&'static ErrorTag>,
+    pub payload: T,
+    #[serde(skip_serializing)]
+    pub backtrace: Option<Backtrace>,
+}
+
+impl<T: StdError + 'static> From<Error> for Option<ErrorExp<T>> {
+    fn from(value: Error) -> Self {
+        let kind_id = value.kind_id;
+        let tag = value.tag;
+        let backtrace = value.backtrace;
+        let payload = extract_boxed_error(value.payload.0)?;
+        Some(ErrorExp {
+            kind_id,
+            tag,
+            payload,
+            backtrace,
+        })
+    }
+}
+
+// endregion:   --- ErrorExp
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::error::{PropsError, PropsErrorKind};
+
+    const FOO_ERROR: PropsErrorKind<1, false> = PropsErrorKind::with_prop_names(
+        "FOO_ERROR",
+        Some("foo message: {xyz}"),
+        ["xyz"],
+        BacktraceSpec::Env,
+        None,
+    );
+
+    #[test]
+    fn test() {
+        let payload = PropsError {
+            msg: FOO_ERROR.msg.unwrap(),
+            props: vec![(FOO_ERROR.prop_names[0].into(), "hi there!".into())],
+            source: None,
+        };
+
+        let payload_msg = payload.msg;
+        let payload_props = payload.props.clone();
+
+        let err = Error::new(&FOO_ERROR.kind_id(), FOO_ERROR.tag(), payload, None);
+        assert!(err.has_kind(FOO_ERROR.kind_id()));
+        assert_eq!(err.to_string(), "foo message: hi there!");
+        let payload_ext: PropsError = err.extract_payload().unwrap();
+        assert_eq!(payload_msg, payload_ext.msg);
+        assert_eq!(payload_props, payload_ext.props);
+    }
+}

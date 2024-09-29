@@ -9,6 +9,7 @@ mod foa_error_old;
 mod props_kind;
 mod tags;
 mod typed_kind;
+mod utils;
 
 // endregion:   --- modules
 
@@ -22,5 +23,6 @@ pub use foa_error::*;
 pub use props_kind::*;
 pub use tags::*;
 pub use typed_kind::*;
+pub use utils::*;
 
 // endregion:   --- flattened

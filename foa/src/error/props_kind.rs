@@ -11,9 +11,9 @@ use std::{
 // region:      --- PropsError
 
 pub struct PropsError {
-    msg: &'static str,
-    props: Vec<(String, String)>,
-    source: Option<StdBoxError>,
+    pub(crate) msg: &'static str,
+    pub(crate) props: Vec<(String, String)>,
+    pub(crate) source: Option<StdBoxError>,
 }
 
 #[derive(Debug)]
@@ -112,11 +112,11 @@ impl std::error::Error for PropsError {
 
 #[derive(Debug)]
 pub struct PropsErrorKind<const ARITY: usize, const HASCAUSE: bool> {
-    kind_id: KindId,
-    msg: Option<&'static str>,
-    prop_names: [&'static str; ARITY],
-    backtrace_spec: BacktraceSpec,
-    tag: Option<&'static ErrorTag>,
+    pub(super) kind_id: KindId,
+    pub(super) msg: Option<&'static str>,
+    pub(super) prop_names: [&'static str; ARITY],
+    pub(super) backtrace_spec: BacktraceSpec,
+    pub(super) tag: Option<&'static ErrorTag>,
 }
 
 pub type BasicErrorKind<const HASCAUSE: bool> = PropsErrorKind<0, HASCAUSE>;
@@ -221,9 +221,8 @@ impl<const ARITY: usize> PropsErrorKind<ARITY, true> {
 
 #[cfg(test)]
 mod test_props_error {
-    use crate::error::BacktraceSpec;
-
     use super::PropsErrorKind;
+    use crate::error::BacktraceSpec;
 
     const FOO_ERROR: PropsErrorKind<1, false> = PropsErrorKind::with_prop_names(
         "FOO_ERROR",
@@ -243,9 +242,8 @@ mod test_props_error {
 
 #[cfg(test)]
 mod test_basic_error {
-    use crate::error::BacktraceSpec;
-
     use super::BasicErrorKind;
+    use crate::error::BacktraceSpec;
 
     const FOO_ERROR: BasicErrorKind<false> =
         BasicErrorKind::new("FOO_ERROR", None, BacktraceSpec::Env, None);

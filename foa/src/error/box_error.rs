@@ -76,7 +76,7 @@ impl StdError for Box<dyn JserError> {
 
 // region:      --- StdBoxError
 
-pub struct StdBoxError(Box<dyn StdError + Send + Sync + 'static>);
+pub struct StdBoxError(pub(crate) Box<dyn StdError + Send + Sync + 'static>);
 
 impl StdBoxError {
     pub fn new(inner: impl StdError + Send + Sync + 'static) -> Self {
