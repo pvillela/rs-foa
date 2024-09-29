@@ -114,14 +114,73 @@ impl Error {
         self.payload.0.downcast_ref::<T>()
     }
 
-    pub fn extract_payload<T: StdError + 'static>(self) -> Option<T> {
-        extract_boxed_error(self.payload.0)
+    pub fn extract_payload<T: StdError + 'static>(self) -> Result<T> {
+        let res = extract_boxed_error::<T>(self.payload.0);
+        res.map_err(|payload_0| Self {
+            kind_id: self.kind_id,
+            tag: self.tag,
+            payload: StdBoxError(payload_0),
+            backtrace: self.backtrace,
+        })
+    }
+
+    /// If the payload is of type `T`, returns `Err(f(payload))`;
+    /// otherwise, returns `Ok(err)` where `err` is identical to self.
+    /// This unusual signature facilitates chaining of calls of this method with different types.
+    ///
+    /// # Example
+    /// ```
+    /// use foa::Error;
+    ///
+    /// fn process_error<T1: std::error::Error + 'static, T2: std::error::Error + 'static>(
+    ///     err: Error,
+    /// ) -> std::result::Result<Error, ()> {
+    ///     err.with_payload::<T1, ()>(|_| println!("payload type was `T1`"))?
+    ///         .with_payload::<T2, ()>(|_| println!("payload type was `T2`"))
+    /// }
+    /// ```
+    pub fn with_payload<T: StdError + 'static, U>(
+        self,
+        f: impl FnOnce(T) -> U,
+    ) -> std::result::Result<Error, U> {
+        let res = self.extract_payload::<T>();
+        match res {
+            Ok(payload) => Err(f(payload)),
+            Err(err) => Ok(err),
+        }
     }
 
     pub fn backtrace(&self) -> Option<&Backtrace> {
         match &self.backtrace {
             Some(backtrace) => Some(backtrace),
             None => None,
+        }
+    }
+
+    /// If the payload is of type `T`, returns `Err(f(error_exp))` where `error_exp` is the
+    /// [`ErrorExp`] instance obtained from `self`;
+    /// otherwise, returns `Ok(err)` where `err` is identical to self.
+    /// This unusual signature facilitates chaining of calls of this method with different types.
+    ///
+    /// # Example
+    /// ```
+    /// use foa::Error;
+    ///
+    /// fn process_error<T1: std::error::Error + 'static, T2: std::error::Error + 'static>(
+    ///     err: Error,
+    /// ) -> std::result::Result<Error, ()> {
+    ///     err.with_error_exp::<T1, ()>(|_| println!("payload type was `T1`"))?
+    ///         .with_error_exp::<T2, ()>(|_| println!("payload type was `T2`"))
+    /// }
+    /// ```
+    pub fn with_errorexp<T: StdError + 'static, U>(
+        self,
+        f: impl FnOnce(ErrorExp<T>) -> U,
+    ) -> std::result::Result<Error, U> {
+        let res: Result<ErrorExp<T>> = self.into();
+        match res {
+            Ok(error_exp) => Err(f(error_exp)),
+            Err(err) => Ok(err),
         }
     }
 }
@@ -165,18 +224,26 @@ pub struct ErrorExp<T> {
     pub backtrace: Option<Backtrace>,
 }
 
-impl<T: StdError + 'static> From<Error> for Option<ErrorExp<T>> {
+impl<T: StdError + 'static> From<Error> for Result<ErrorExp<T>> {
     fn from(value: Error) -> Self {
         let kind_id = value.kind_id;
         let tag = value.tag;
+        let payload_res = extract_boxed_error::<T>(value.payload.0);
         let backtrace = value.backtrace;
-        let payload = extract_boxed_error(value.payload.0)?;
-        Some(ErrorExp {
-            kind_id,
-            tag,
-            payload,
-            backtrace,
-        })
+        match payload_res {
+            Ok(payload) => Ok(ErrorExp {
+                kind_id,
+                tag,
+                payload,
+                backtrace,
+            }),
+            Err(payload_0) => Err(Error {
+                kind_id,
+                tag,
+                payload: StdBoxError(payload_0),
+                backtrace,
+            }),
+        }
     }
 }
 
@@ -195,22 +262,77 @@ mod test {
         None,
     );
 
+    fn make_payload_error_pair() -> (PropsError, Error) {
+        fn make_payload() -> PropsError {
+            PropsError {
+                msg: FOO_ERROR.msg.unwrap(),
+                props: vec![(FOO_ERROR.prop_names[0].into(), "hi there!".into())],
+                source: None,
+            }
+        }
+
+        let err = Error::new(&FOO_ERROR.kind_id(), FOO_ERROR.tag(), make_payload(), None);
+
+        (make_payload(), err)
+    }
+
+    #[derive(Debug)]
+    struct DummyError;
+
+    impl Display for DummyError {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            Debug::fmt(&self, f)
+        }
+    }
+
+    impl std::error::Error for DummyError {}
+
     #[test]
-    fn test() {
-        let payload = PropsError {
-            msg: FOO_ERROR.msg.unwrap(),
-            props: vec![(FOO_ERROR.prop_names[0].into(), "hi there!".into())],
-            source: None,
-        };
+    fn test_extract_payload() {
+        let (payload, err) = make_payload_error_pair();
 
-        let payload_msg = payload.msg;
-        let payload_props = payload.props.clone();
-
-        let err = Error::new(&FOO_ERROR.kind_id(), FOO_ERROR.tag(), payload, None);
         assert!(err.has_kind(FOO_ERROR.kind_id()));
         assert_eq!(err.to_string(), "foo message: hi there!");
+
         let payload_ext: PropsError = err.extract_payload().unwrap();
-        assert_eq!(payload_msg, payload_ext.msg);
-        assert_eq!(payload_props, payload_ext.props);
+
+        assert_eq!(payload.msg, payload_ext.msg);
+        assert_eq!(payload.props, payload_ext.props);
+    }
+
+    #[test]
+    fn test_with_payload() {
+        let (payload, err) = make_payload_error_pair();
+
+        assert!(err.has_kind(FOO_ERROR.kind_id()));
+        assert_eq!(err.to_string(), "foo message: hi there!");
+
+        let run_assertions = || -> std::result::Result<Error, ()> {
+            err.with_payload::<DummyError, _>(|_| unreachable!())?
+                .with_payload::<PropsError, _>(|payload_ext| {
+                    assert_eq!(payload.msg, payload_ext.msg);
+                    assert_eq!(payload.props, payload_ext.props);
+                })?
+                .with_payload::<DummyError, _>(|_| unreachable!("again"))
+        };
+        assert!(run_assertions().is_err());
+    }
+
+    #[test]
+    fn test_with_errorexp() {
+        let (payload, err) = make_payload_error_pair();
+
+        assert!(err.has_kind(FOO_ERROR.kind_id()));
+        assert_eq!(err.to_string(), "foo message: hi there!");
+
+        let run_assertions = || -> std::result::Result<Error, ()> {
+            err.with_errorexp::<DummyError, _>(|_| unreachable!())?
+                .with_errorexp::<PropsError, _>(|ee| {
+                    assert_eq!(payload.msg, ee.payload.msg);
+                    assert_eq!(payload.props, ee.payload.props);
+                })?
+                .with_errorexp::<DummyError, _>(|_| unreachable!("again"))
+        };
+        assert!(run_assertions().is_err());
     }
 }
