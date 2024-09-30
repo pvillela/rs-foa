@@ -7,6 +7,7 @@ mod core_error;
 mod foa_error;
 mod props_kind;
 mod tags;
+mod trivial;
 mod typed_kind;
 mod utils;
 
@@ -21,6 +22,7 @@ pub use core_error::*;
 pub use foa_error::*;
 pub use props_kind::*;
 pub use tags::*;
+pub use trivial::*;
 pub use typed_kind::*;
 pub use utils::*;
 

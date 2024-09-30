@@ -66,29 +66,16 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::error::BacktraceSpec;
-
     use super::TypedErrorKind;
-    use std::fmt::{Debug, Display};
+    use crate::error::{BacktraceSpec, TrivialError};
 
-    #[derive(Debug)]
-    struct DummyError;
-
-    impl Display for DummyError {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            Debug::fmt(&self, f)
-        }
-    }
-
-    impl std::error::Error for DummyError {}
-
-    const FOO_ERROR: TypedErrorKind<DummyError> =
+    const FOO_ERROR: TypedErrorKind<TrivialError> =
         TypedErrorKind::new("FOO_ERROR", BacktraceSpec::Env, None);
 
     #[test]
     fn test() {
-        let err = FOO_ERROR.error(DummyError);
+        let err = FOO_ERROR.error(TrivialError(""));
         assert!(err.has_kind(FOO_ERROR.kind_id()));
-        assert_eq!(err.to_string(), DummyError.to_string());
+        assert_eq!(err.to_string(), "".to_string());
     }
 }
