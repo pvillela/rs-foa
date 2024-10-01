@@ -4,6 +4,7 @@ use std::{
     any::Any,
     error::Error as StdError,
     fmt::{Debug, Display},
+    mem::replace,
 };
 
 // region:      --- utils
@@ -55,10 +56,6 @@ pub fn error_recursive_msg(err: &(dyn StdError)) -> String {
 /// Trait for errors that can be serialized to JSON with [`serde_json`].
 pub trait JserError: StdError + Send + Sync + 'static {
     fn to_json(&self) -> Value;
-
-    fn as_any(&self) -> &dyn Any;
-
-    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 impl<T> JserError for T
@@ -67,14 +64,6 @@ where
 {
     fn to_json(&self) -> Value {
         serde_json::to_value(self).expect("serde_json::to_value() error")
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
     }
 }
 
@@ -135,14 +124,37 @@ impl Serialize for StdBoxError {
 
 // region:      --- JserBoxError
 
-#[derive(Serialize)]
-pub enum ErrorWithNull<T> {
+trait JserErrorPriv: JserError {
+    fn as_any(&self) -> &dyn Any;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
+}
+
+impl<T> JserErrorPriv for T
+where
+    T: JserError,
+{
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+}
+
+impl StdError for Box<dyn JserErrorPriv> {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        self.as_ref().source()
+    }
+}
+
+enum ErrorWithNull<T: JserError> {
     Null,
     Real(T),
 }
 
-impl<T> ErrorWithNull<T> {
-    pub fn real(self) -> Option<T> {
+impl<T: JserError> ErrorWithNull<T> {
+    fn real(self) -> Option<T> {
         match self {
             Self::Null => None,
             Self::Real(e) => Some(e),
@@ -150,7 +162,7 @@ impl<T> ErrorWithNull<T> {
     }
 }
 
-impl<T: Debug> Debug for ErrorWithNull<T> {
+impl<T: JserError> Debug for ErrorWithNull<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Null => f.write_str(""),
@@ -159,7 +171,7 @@ impl<T: Debug> Debug for ErrorWithNull<T> {
     }
 }
 
-impl<T: Display> Display for ErrorWithNull<T> {
+impl<T: JserError> Display for ErrorWithNull<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Null => f.write_str(""),
@@ -168,7 +180,7 @@ impl<T: Display> Display for ErrorWithNull<T> {
     }
 }
 
-impl<T: StdError> StdError for ErrorWithNull<T> {
+impl<T: JserError> StdError for ErrorWithNull<T> {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match self {
             Self::Null => None,
@@ -177,27 +189,49 @@ impl<T: StdError> StdError for ErrorWithNull<T> {
     }
 }
 
-impl<T> Default for ErrorWithNull<T> {
-    fn default() -> Self {
-        ErrorWithNull::Null
+impl<T: JserError> JserError for ErrorWithNull<T> {
+    fn to_json(&self) -> Value {
+        match self {
+            Self::Null => Value::Null,
+            Self::Real(e) => e.to_json(),
+        }
     }
 }
 
-impl<T> From<ErrorWithNull<T>> for Option<T> {
-    fn from(value: ErrorWithNull<T>) -> Self {
-        value.real()
-    }
-}
-
-pub struct JserBoxError(pub Box<dyn JserError>);
+pub struct JserBoxError(Box<dyn JserErrorPriv>);
 
 impl JserBoxError {
-    pub fn new(inner: impl StdError + Serialize + Send + Sync + 'static) -> Self {
+    pub fn new(inner: impl JserError) -> Self {
         Self(Box::new(ErrorWithNull::Real(inner)))
     }
 
     fn as_dyn_std_error(&self) -> &(dyn StdError + 'static) {
         &self.0 as &dyn StdError
+    }
+
+    pub fn downcast_opt<T: JserError>(mut self) -> Option<T> {
+        let x = &mut self.0;
+        let z = x.as_any_mut();
+        let dz = z.downcast_mut::<ErrorWithNull<T>>();
+        let Some(t_ref) = dz else {
+            return None;
+        };
+        let t = replace(t_ref, ErrorWithNull::Null);
+        t.real()
+    }
+
+    pub fn downcast<T: JserError>(mut self) -> Result<T, Self> {
+        if self.0.as_any().is::<ErrorWithNull<T>>() {
+            let x = &mut self.0;
+            let z = x.as_any_mut();
+            let t_ref = z
+                .downcast_mut::<ErrorWithNull<T>>()
+                .expect("downcasting success previously confirmed");
+            let t = replace(t_ref, ErrorWithNull::Null);
+            Ok(t.real().unwrap())
+        } else {
+            Err(self)
+        }
     }
 }
 
@@ -295,3 +329,19 @@ impl Serialize for BoxError {
 }
 
 // endregion:   --- BoxError
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::error::TrivialError;
+
+    #[test]
+    fn test_downcast_opt() {
+        let e3 = TrivialError("e3");
+
+        let jsb_e3 = JserBoxError::new(e3);
+
+        let e3a: TrivialError = jsb_e3.downcast_opt().unwrap();
+        assert_eq!(e3a.to_string(), "e3".to_owned());
+    }
+}
