@@ -72,6 +72,7 @@ where
     fn as_any(&self) -> &dyn Any {
         self
     }
+
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
@@ -134,11 +135,65 @@ impl Serialize for StdBoxError {
 
 // region:      --- JserBoxError
 
+#[derive(Serialize)]
+pub enum ErrorWithNull<T> {
+    Null,
+    Real(T),
+}
+
+impl<T> ErrorWithNull<T> {
+    pub fn real(self) -> Option<T> {
+        match self {
+            Self::Null => None,
+            Self::Real(e) => Some(e),
+        }
+    }
+}
+
+impl<T: Debug> Debug for ErrorWithNull<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Null => f.write_str(""),
+            Self::Real(e) => Debug::fmt(e, f),
+        }
+    }
+}
+
+impl<T: Display> Display for ErrorWithNull<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Null => f.write_str(""),
+            Self::Real(e) => Display::fmt(e, f),
+        }
+    }
+}
+
+impl<T: StdError> StdError for ErrorWithNull<T> {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        match self {
+            Self::Null => None,
+            Self::Real(e) => e.source(),
+        }
+    }
+}
+
+impl<T> Default for ErrorWithNull<T> {
+    fn default() -> Self {
+        ErrorWithNull::Null
+    }
+}
+
+impl<T> From<ErrorWithNull<T>> for Option<T> {
+    fn from(value: ErrorWithNull<T>) -> Self {
+        value.real()
+    }
+}
+
 pub struct JserBoxError(pub Box<dyn JserError>);
 
 impl JserBoxError {
-    pub fn new(inner: impl JserError) -> Self {
-        Self(Box::new(inner))
+    pub fn new(inner: impl StdError + Serialize + Send + Sync + 'static) -> Self {
+        Self(Box::new(ErrorWithNull::Real(inner)))
     }
 
     fn as_dyn_std_error(&self) -> &(dyn StdError + 'static) {
@@ -184,7 +239,7 @@ pub enum BoxError {
 }
 
 impl BoxError {
-    pub fn new_ser(inner: impl JserError) -> Self {
+    pub fn new_ser(inner: impl StdError + Serialize + Send + Sync + 'static) -> Self {
         Self::Ser(JserBoxError::new(inner))
     }
 

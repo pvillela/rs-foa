@@ -120,33 +120,55 @@ pub fn default_mapper(err: Error) -> (StatusCode, JserBoxError) {
 
 #[cfg(test)]
 mod test {
-    use crate::error::TrivialError;
+    use super::*;
+    use crate::error::{ErrorWithNull, TrivialError};
     use std::mem::replace;
 
-    use super::*;
+    // fn foo<T: std::error::Error + Send + Sync + 'static + Serialize>(
+    //     mut e: JserBoxError,
+    //     t1: T,
+    // ) -> Option<T> {
+    //     let x = &mut e.0;
+    //     let z = x.as_any_mut();
+    //     let dz = z.downcast_mut::<T>();
+    //     let Some(t_ref) = dz else {
+    //         return None;
+    //     };
+    //     let t = replace(t_ref, t1);
+    //     Some(t)
+    // }
 
-    fn foo<T: std::error::Error + Send + Sync + 'static + Serialize>(
+    fn bar<T: std::error::Error + Send + Sync + 'static + Serialize>(
         mut e: JserBoxError,
-        t1: T,
     ) -> Option<T> {
         let x = &mut e.0;
         let z = x.as_any_mut();
-        let dz = z.downcast_mut::<T>();
+        let dz = z.downcast_mut::<ErrorWithNull<T>>();
         let Some(t_ref) = dz else {
             return None;
         };
-        let t = replace(t_ref, t1);
-        Some(t)
+        let t = replace(t_ref, ErrorWithNull::Null);
+        t.real()
     }
 
+    // #[test]
+    // fn test_foo() {
+    //     let e1 = TrivialError("e1");
+    //     let e3 = TrivialError("e3");
+
+    //     let jsb_e3 = JserBoxError::new(e3);
+
+    //     let e3a = foo(jsb_e3, e1).unwrap();
+    //     assert_eq!(e3a.to_string(), "e3".to_owned());
+    // }
+
     #[test]
-    fn test_all() {
-        let e1 = TrivialError("e1");
+    fn test_bar() {
         let e3 = TrivialError("e3");
 
         let jsb_e3 = JserBoxError::new(e3);
 
-        let e3a = foo(jsb_e3, e1).unwrap();
+        let e3a: TrivialError = bar(jsb_e3).unwrap();
         assert_eq!(e3a.to_string(), "e3".to_owned());
     }
 }
