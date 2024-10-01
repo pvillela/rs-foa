@@ -17,7 +17,7 @@ arc-swap = "1.6"
 axum = "0.7"
 base64ct = { version = "1", features = ["alloc"] }
 futures = "0.3"
-# log = "0.4"
+log = "0.4"
 md5 = "0.7"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1.0"
@@ -26,6 +26,7 @@ sqlx = { version = "0", features = ["postgres", "runtime-tokio-native-tls"] }
 thiserror = "1.0"
 # anyhow = "1"
 tokio = { version = "1.40", features = ["full"] }
+valid = { version = "0.3", features = ["serde1"] }
 
 [features]
 

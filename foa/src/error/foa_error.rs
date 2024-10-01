@@ -119,17 +119,14 @@ impl Error {
     /// As this method consumes `self`, if you also need access to other [`Error`] fields then convert
     /// to an [`ErrorExp`] using `self.into()` instead.
     pub fn typed_payload<T: StdError + 'static>(self) -> Result<T> {
-        // return early if type doesn't match
-        let typed_ref = self.payload.0.downcast_ref::<T>();
-        match typed_ref {
-            None => Err(self),
-            Some(_) => {
-                let res = extract_boxed_error::<T>(self.payload.0);
-                match res {
-                    Ok(payload) => Ok(payload),
-                    Err(_) => unreachable!("downcast previously confirmed"),
-                }
+        if self.payload.0.is::<T>() {
+            let res = extract_boxed_error::<T>(self.payload.0);
+            match res {
+                Ok(payload) => Ok(payload),
+                Err(_) => unreachable!("downcast previously confirmed"),
             }
+        } else {
+            Err(self)
         }
     }
 
@@ -238,24 +235,33 @@ pub struct ErrorExp<T> {
     pub backtrace: Option<Backtrace>,
 }
 
+impl<T: StdError> Display for ErrorExp<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(&self.payload, f)
+    }
+}
+
+impl<T: StdError> StdError for ErrorExp<T> {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        self.payload.source()
+    }
+}
+
 impl<T: StdError + 'static> From<Error> for Result<ErrorExp<T>> {
     fn from(value: Error) -> Self {
-        // return early if type doesn't match
-        let typed_ref = value.payload.0.downcast_ref::<T>();
-        match typed_ref {
-            None => Err(value),
-            Some(_) => {
-                let res = extract_boxed_error::<T>(value.payload.0);
-                match res {
-                    Ok(payload) => Ok(ErrorExp {
-                        kind_id: value.kind_id,
-                        tag: value.tag,
-                        payload,
-                        backtrace: value.backtrace,
-                    }),
-                    Err(_) => unreachable!("downcast previously confirmed"),
-                }
+        if value.payload.0.is::<T>() {
+            let res = extract_boxed_error::<T>(value.payload.0);
+            match res {
+                Ok(payload) => Ok(ErrorExp {
+                    kind_id: value.kind_id,
+                    tag: value.tag,
+                    payload,
+                    backtrace: value.backtrace,
+                }),
+                Err(_) => unreachable!("downcast previously confirmed"),
             }
+        } else {
+            Err(value)
         }
     }
 }

@@ -1,9 +1,11 @@
+use std::i32;
+
 use super::{common::AppCfgInfoArc, BarBf, BarCtx, ReadDaf, ReadDafCtx, UpdateDaf, UpdateDafCtx};
 use axum::http::request::Parts;
 use foa::{
     context::{Cfg, Locale, LocaleCtx},
     db::sqlx::{AsyncTxFn, PgDbCtx},
-    error::{BacktraceSpec, BasicErrorKind, Error, PropsErrorKind, VALIDATION_TAG},
+    error::Error,
     refinto::RefInto,
     tokio::task_local::{TaskLocal, TaskLocalCtx},
     Result,
@@ -11,6 +13,7 @@ use foa::{
 use serde::{Deserialize, Serialize};
 use sqlx::{Postgres, Transaction};
 use tracing::instrument;
+use valid::{constraint::Bound, Validate};
 
 // region:      --- Stereotype signature
 
@@ -54,13 +57,6 @@ where
 {
 }
 
-const FOO_ERROR: PropsErrorKind<0, false> = BasicErrorKind::new(
-    "FOO_ERROR",
-    Some("foo_sfl input invalid"),
-    BacktraceSpec::No,
-    Some(&VALIDATION_TAG),
-);
-
 impl<CTX, T> FooSfl<CTX> for T
 where
     CTX: FooOnlyCtx + LocaleCtx + TaskLocalCtx<TaskLocal: TaskLocal<Value = Parts>>,
@@ -69,9 +65,13 @@ where
     #[instrument(level = "trace", skip_all)]
     #[allow(async_fn_in_trait)]
     async fn foo_sfl(input: FooIn, tx: &mut Transaction<'_, Postgres>) -> Result<FooOut> {
-        if input.age_delta < 0 {
-            return Err(FOO_ERROR.error());
-        }
+        let _ = input
+            .age_delta
+            .validate(
+                "age_delta must be nonnegative",
+                &Bound::ClosedRange(0, i32::MAX),
+            )
+            .result()?;
         let app_cfg_info = CTX::cfg();
         let cfg = app_cfg_info.ref_into();
         let FooIn { age_delta } = input;

@@ -9,6 +9,7 @@ pub mod static_state;
 pub mod string;
 pub mod tokio;
 pub mod trait_utils;
+pub mod validation;
 pub mod web;
 pub mod wrapper;
 

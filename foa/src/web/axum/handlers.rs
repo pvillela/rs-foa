@@ -1,4 +1,4 @@
-use crate::error::{BacktraceSpec, JserBoxError, PropsErrorKind};
+use crate::error::{ErrorExp, JserBoxError, VALIDATION_TAG};
 use crate::fun::AsyncFn2;
 use crate::Error;
 use axum::extract::{FromRequest, FromRequestParts};
@@ -6,10 +6,9 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
 use serde::Serialize;
-use std::any::Any;
-use std::error::Error as _;
 use std::future::Future;
 use std::marker::PhantomData;
+use valid::ValidationError;
 
 /// Checks a closure for compliance with Axum Handler impl requirements.
 pub(crate) fn _axum_handler_type_checker_2_args_generic<In1, In2, Out, Fut, S>(
@@ -101,59 +100,53 @@ where
     }
 }
 
-pub fn default_mapper(be: JserBoxError) -> (StatusCode, JserBoxError) {
-    // let e_opt = be.downcast_ref::<Error<CTX>>();
-    // if e_opt.is_none() {
-    //     return (StatusCode::INTERNAL_SERVER_ERROR, be);
-    // }
-
-    // let e = e_opt.unwrap();
-
-    // let src = e.source();
-    // if src.is_none() {
-    //     return (StatusCode::BAD_REQUEST, be);
-    // }
-
-    // let e1 = src.unwrap();
-
-    // let e1d = e1.downcast_ref::<sqlx::Error>();
-    // if e1d.is_none() {
-    //     // return (StatusCode::BAD_REQUEST, be);
-    // }
-
-    // let e2 = e1d.unwrap();
-
-    // let x = e2.to_string();
-    // let err = FOO_ERROR.new_error_with_args::<()>([&x]);
-    // let berr: Box<dyn std::error::Error> = Box::new(err);
-    // return (StatusCode::INTERNAL_SERVER_ERROR, berr);
-
-    const FOO_ERROR: PropsErrorKind<1, false> = PropsErrorKind::with_prop_names(
-        "FOO_ERROR",
-        Some("foo error {foo}"),
-        ["foo"],
-        BacktraceSpec::No,
-        None,
-    );
-
-    let be_any = &be.0 as &dyn Any;
-    let ret = match be_any.downcast_ref::<Error>() {
-        Some(e) => {
-            let src = e.source();
-            match src {
-                None => (StatusCode::INTERNAL_SERVER_ERROR, be),
-                Some(e1) => match e1.downcast_ref::<sqlx::Error>() {
-                    None => (StatusCode::BAD_REQUEST, be),
-                    Some(e2) => {
-                        let x = e2.to_string();
-                        let err = FOO_ERROR.error_with_values([&x]);
-                        let berr = JserBoxError::new(err);
-                        (StatusCode::INTERNAL_SERVER_ERROR, berr)
-                    }
-                },
+pub fn default_mapper(err: Error) -> (StatusCode, JserBoxError) {
+    match err.tag() {
+        Some(&VALIDATION_TAG) => {
+            let status_code = StatusCode::BAD_REQUEST;
+            let err_exp_res: Result<ErrorExp<ValidationError>, Error> = err.into();
+            match err_exp_res {
+                Ok(ee) => (status_code, JserBoxError::new(ee)),
+                Err(e) => (status_code, e.into()),
             }
         }
-        None => (StatusCode::INTERNAL_SERVER_ERROR, be),
-    };
-    ret
+        _ => {
+            err.backtrace()
+                .map(|b| log::error!("error={err:?}, backtrace={b}"));
+            (StatusCode::INTERNAL_SERVER_ERROR, err.into())
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::error::TrivialError;
+    use std::mem::replace;
+
+    use super::*;
+
+    fn foo<T: std::error::Error + Send + Sync + 'static + Serialize>(
+        mut e: JserBoxError,
+        t1: T,
+    ) -> Option<T> {
+        let x = &mut e.0;
+        let z = x.as_any_mut();
+        let dz = z.downcast_mut::<T>();
+        let Some(t_ref) = dz else {
+            return None;
+        };
+        let t = replace(t_ref, t1);
+        Some(t)
+    }
+
+    #[test]
+    fn test_all() {
+        let e1 = TrivialError("e1");
+        let e3 = TrivialError("e3");
+
+        let jsb_e3 = JserBoxError::new(e3);
+
+        let e3a = foo(jsb_e3, e1).unwrap();
+        assert_eq!(e3a.to_string(), "e3".to_owned());
+    }
 }

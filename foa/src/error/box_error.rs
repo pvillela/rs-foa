@@ -53,8 +53,12 @@ pub fn error_recursive_msg(err: &(dyn StdError)) -> String {
 // region:      --- JserError
 
 /// Trait for errors that can be serialized to JSON with [`serde_json`].
-pub trait JserError: StdError + Send + Sync + 'static + Any {
+pub trait JserError: StdError + Send + Sync + 'static {
     fn to_json(&self) -> Value;
+
+    fn as_any(&self) -> &dyn Any;
+
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 impl<T> JserError for T
@@ -63,6 +67,13 @@ where
 {
     fn to_json(&self) -> Value {
         serde_json::to_value(self).expect("serde_json::to_value() error")
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
 }
 

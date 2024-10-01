@@ -6,24 +6,22 @@ use dev_support::artctpg::run::{
 use dev_support::foa_exp::web::axum::json_handlers_experiment::{direct, from_scratch};
 use foa::{
     context::ErrCtx,
-    error::JserBoxError,
     fun::AsyncFn2,
     web::axum::{
         default_mapper, handler_asyncfn2r_arc, handler_fn2r, HandlerAsyncFn2r, HandlerAsyncFn2rArc,
         HandlerAsyncFn2rWithErrorMapper,
     },
+    Error,
 };
 use serde::{de::DeserializeOwned, Serialize};
 use std::{sync::Arc, time::Duration};
 
-fn handler<CTX: ErrCtx, O, E, F, S>(f: F) -> impl Handler<(), S>
+fn handler<CTX: ErrCtx, O, F, S>(f: F) -> impl Handler<(), S>
 where
-    F: AsyncFn2<Out = Result<O, E>> + Send + Sync + 'static + Clone,
+    F: AsyncFn2<Out = Result<O, Error>> + Send + Sync + 'static + Clone,
     F::In1: FromRequestParts<S>,
     F::In2: DeserializeOwned,
     O: Serialize + Send,
-    E: Serialize + Send + Sync + 'static,
-    JserBoxError: From<E>,
     S: Send + Sync + 'static,
 {
     HandlerAsyncFn2rWithErrorMapper::new(f, default_mapper)
@@ -60,7 +58,7 @@ async fn main() {
         )
         .route(
             "/rs-fn",
-            axum::routing::post(handler::<Ctx, _, _, _, _>(Arc::new(FooSflIC))),
+            axum::routing::post(handler::<Ctx, _, _, _>(Arc::new(FooSflIC))),
         )
         .route(
             "/scratch",
