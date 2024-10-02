@@ -1,6 +1,7 @@
 use super::{BacktraceSpec, Error, ErrorTag, KindId, StdBoxError, TRUNC};
 use crate::string::base64_encode_trunc_of_u8_arr;
 use crate::{hash::hash_sha256_of_str_arr, string::interpolated_string_props};
+use serde::Serialize;
 use std::backtrace::Backtrace;
 use std::{
     error::Error as StdError,
@@ -10,6 +11,7 @@ use std::{
 //===========================
 // region:      --- PropsError
 
+#[derive(Serialize)]
 pub struct PropsError {
     pub(crate) msg: &'static str,
     pub(crate) props: Vec<(String, String)>,

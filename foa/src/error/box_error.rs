@@ -209,26 +209,38 @@ impl JserBoxError {
         &self.0 as &dyn StdError
     }
 
-    pub fn downcast_opt<T: JserError>(mut self) -> Option<T> {
-        let x = &mut self.0;
-        let z = x.as_any_mut();
-        let dz = z.downcast_mut::<ErrorWithNull<T>>();
-        let Some(t_ref) = dz else {
-            return None;
-        };
-        let t = replace(t_ref, ErrorWithNull::Null);
-        t.real()
+    pub fn downcast_ref<T: JserError>(&self) -> Option<&T> {
+        let err_box_dyn = &self.0;
+        err_box_dyn
+            .as_any()
+            .downcast_ref::<ErrorWithNull<T>>()
+            .map(|w| match w {
+                ErrorWithNull::Null => unreachable!("invalid state"),
+                ErrorWithNull::Real(e) => e,
+            })
+    }
+
+    /// Not a very useful method
+    pub fn downcast_mut<T: JserError>(&mut self) -> Option<&mut T> {
+        let err_box_dyn = &mut self.0;
+        err_box_dyn
+            .as_any_mut()
+            .downcast_mut::<ErrorWithNull<T>>()
+            .map(|w| match w {
+                ErrorWithNull::Null => unreachable!("invalid state"),
+                ErrorWithNull::Real(e) => e,
+            })
     }
 
     pub fn downcast<T: JserError>(mut self) -> Result<T, Self> {
-        if self.0.as_any().is::<ErrorWithNull<T>>() {
-            let x = &mut self.0;
-            let z = x.as_any_mut();
-            let t_ref = z
+        let err_box_dyn = &mut self.0;
+        let err_dyn_any = err_box_dyn.as_any_mut();
+        if err_dyn_any.is::<ErrorWithNull<T>>() {
+            let err_with_null_r = err_dyn_any
                 .downcast_mut::<ErrorWithNull<T>>()
-                .expect("downcasting success previously confirmed");
-            let t = replace(t_ref, ErrorWithNull::Null);
-            Ok(t.real().unwrap())
+                .expect("downcast success previously confirmed");
+            let err_with_null_v = replace(err_with_null_r, ErrorWithNull::Null);
+            Ok(err_with_null_v.real().unwrap())
         } else {
             Err(self)
         }
@@ -333,15 +345,42 @@ impl Serialize for BoxError {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::error::TrivialError;
+    use crate::error::{PropsError, TrivialError};
 
     #[test]
-    fn test_downcast_opt() {
-        let e3 = TrivialError("e3");
+    fn test_downcast() {
+        let e = TrivialError("e");
+        let jsb_e = JserBoxError::new(e);
 
-        let jsb_e3 = JserBoxError::new(e3);
+        let jsb_e = jsb_e
+            .downcast::<PropsError>()
+            .expect_err("downcast should fail");
 
-        let e3a: TrivialError = jsb_e3.downcast_opt().unwrap();
-        assert_eq!(e3a.to_string(), "e3".to_owned());
+        let e_d: TrivialError = jsb_e.downcast().expect("downcast should succeed");
+        assert_eq!(e_d.to_string(), "e".to_owned());
+    }
+
+    #[test]
+    fn test_downcast_ref() {
+        let e = TrivialError("e");
+        let jsb_e = JserBoxError::new(e);
+
+        let e_d_opt = jsb_e.downcast_ref::<PropsError>();
+        assert!(e_d_opt.is_none(), "downcast should fail");
+
+        let e_d: TrivialError = jsb_e.downcast().expect("downcast should succeed");
+        assert_eq!(e_d.to_string(), "e".to_owned());
+    }
+
+    #[test]
+    fn test_downcast_mut() {
+        let e = TrivialError("e");
+        let mut jsb_e = JserBoxError::new(e);
+
+        let e_d_opt = jsb_e.downcast_mut::<PropsError>();
+        assert!(e_d_opt.is_none(), "downcast should fail");
+
+        let e_d: TrivialError = jsb_e.downcast().expect("downcast should succeed");
+        assert_eq!(e_d.to_string(), "e".to_owned());
     }
 }
