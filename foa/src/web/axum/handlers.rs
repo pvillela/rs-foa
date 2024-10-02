@@ -104,11 +104,19 @@ pub fn default_mapper(err: JserBoxError) -> (StatusCode, JserBoxError) {
     let process_error = || -> Result<JserBoxError, (StatusCode, JserBoxError)> {
         err.with_downcast::<Error, _>(|err| match err.tag() {
             Some(&VALIDATION_TAG) => {
+                println!("err={err:?}");
                 let status_code = StatusCode::BAD_REQUEST;
                 let err_exp_res: Result<ErrorExp<ValidationError>, Error> = err.into();
+                println!("err_exp_res={err_exp_res:?}");
                 match err_exp_res {
-                    Ok(ee) => (status_code, JserBoxError::new(ee)),
-                    Err(e) => (status_code, e.into()),
+                    Ok(ee) => {
+                        println!("Ok");
+                        (status_code, JserBoxError::new(ee))
+                    }
+                    Err(e) => {
+                        println!("Err");
+                        (status_code, e.into())
+                    }
                 }
             }
             _ => {

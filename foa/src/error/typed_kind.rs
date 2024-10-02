@@ -3,7 +3,7 @@
 
 use std::{backtrace::Backtrace, marker::PhantomData};
 
-use super::{BacktraceSpec, Error, ErrorTag, KindId, StdBoxError};
+use super::{BacktraceSpec, Error, ErrorTag, KindId};
 
 #[derive(Debug)]
 pub struct TypedErrorKind<T>
@@ -40,12 +40,7 @@ where
             _t: PhantomData,
         }
     }
-}
 
-impl<T> TypedErrorKind<T>
-where
-    T: std::error::Error + Send + Sync + 'static,
-{
     pub fn error(&'static self, payload: T) -> Error {
         let backtrace = match self.backtrace_spec {
             BacktraceSpec::Yes => Some(Backtrace::force_capture()),
@@ -53,12 +48,7 @@ where
             BacktraceSpec::Env => Some(Backtrace::capture()),
         };
 
-        Error::new(
-            self.kind_id(),
-            self.tag,
-            StdBoxError::new(payload),
-            backtrace,
-        )
+        Error::new(self.kind_id(), self.tag, payload, backtrace)
     }
 }
 

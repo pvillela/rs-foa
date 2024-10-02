@@ -167,6 +167,23 @@ impl Error {
         }
     }
 
+    pub fn into_errorexp<T: StdError + 'static>(self) -> Result<ErrorExp<T>> {
+        if self.payload.0.is::<T>() {
+            let res = extract_boxed_error::<T>(self.payload.0);
+            match res {
+                Ok(payload) => Ok(ErrorExp {
+                    kind_id: self.kind_id,
+                    tag: self.tag,
+                    payload,
+                    backtrace: self.backtrace,
+                }),
+                Err(_) => unreachable!("downcast previously confirmed"),
+            }
+        } else {
+            Err(self)
+        }
+    }
+
     /// If the payload is of type `T`, returns `Err(f(error_exp))` where `error_exp` is the
     /// [`ErrorExp`] instance obtained from `self`;
     /// otherwise, returns `Ok(err)` where `err` is identical to self.
@@ -188,7 +205,7 @@ impl Error {
         self,
         f: impl FnOnce(ErrorExp<T>) -> U,
     ) -> std::result::Result<Error, U> {
-        let res: Result<ErrorExp<T>> = self.into();
+        let res = self.into_errorexp::<T>();
         match res {
             Ok(error_exp) => Err(f(error_exp)),
             Err(err) => Ok(err),
@@ -249,20 +266,7 @@ impl<T: StdError> StdError for ErrorExp<T> {
 
 impl<T: StdError + 'static> From<Error> for Result<ErrorExp<T>> {
     fn from(value: Error) -> Self {
-        if value.payload.0.is::<T>() {
-            let res = extract_boxed_error::<T>(value.payload.0);
-            match res {
-                Ok(payload) => Ok(ErrorExp {
-                    kind_id: value.kind_id,
-                    tag: value.tag,
-                    payload,
-                    backtrace: value.backtrace,
-                }),
-                Err(_) => unreachable!("downcast previously confirmed"),
-            }
-        } else {
-            Err(value)
-        }
+        value.into_errorexp()
     }
 }
 
@@ -271,7 +275,11 @@ impl<T: StdError + 'static> From<Error> for Result<ErrorExp<T>> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::error::{PropsError, PropsErrorKind, TrivialError};
+    use crate::{
+        error::{PropsError, PropsErrorKind, TrivialError},
+        validation::validc::VALIDATION_ERROR,
+    };
+    use valid::{constraint::Bound, Validate, ValidationError};
 
     const FOO_ERROR: PropsErrorKind<1, false> = PropsErrorKind::with_prop_names(
         "FOO_ERROR",
@@ -290,7 +298,7 @@ mod test {
             }
         }
 
-        let err = Error::new(&FOO_ERROR.kind_id(), FOO_ERROR.tag(), make_payload(), None);
+        let err = Error::new(FOO_ERROR.kind_id(), FOO_ERROR.tag(), make_payload(), None);
 
         (make_payload(), err)
     }
@@ -345,5 +353,75 @@ mod test {
                 .with_errorexp::<TrivialError, _>(|_| unreachable!("again"))
         };
         assert!(run_assertions().is_err());
+    }
+
+    #[test]
+    fn test_into_errorexp_props() {
+        let err = FOO_ERROR.error_with_values(["hi there!".into()]);
+
+        assert!(err.has_kind(FOO_ERROR.kind_id()));
+        assert_eq!(err.to_string(), "foo message: hi there!");
+
+        let ee_res = err.into_errorexp::<PropsError>();
+        match ee_res {
+            Err(_) => unreachable!(),
+            Ok(ee) => assert_eq!(ee.kind_id, FOO_ERROR.kind_id()),
+        };
+    }
+
+    #[test]
+    fn test_into_errorexp_props_f() {
+        let err = FOO_ERROR.error_with_values(["hi there!".into()]);
+
+        assert!(err.has_kind(FOO_ERROR.kind_id()));
+        assert_eq!(err.to_string(), "foo message: hi there!");
+
+        let ee_res = err.into_errorexp::<PropsError>();
+        match ee_res {
+            Err(_) => unreachable!(),
+            Ok(ee) => {
+                let f = || assert_eq!(ee.kind_id, FOO_ERROR.kind_id());
+                f();
+            }
+        };
+    }
+
+    #[test]
+    fn test_with_errorexp_props() {
+        let err = FOO_ERROR.error_with_values(["hi there!".into()]);
+
+        assert!(err.has_kind(FOO_ERROR.kind_id()));
+        assert_eq!(err.to_string(), "foo message: hi there!");
+
+        let res = err.with_errorexp::<PropsError, _>(|ee| {
+            assert_eq!(ee.kind_id, FOO_ERROR.kind_id());
+        });
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn test_into_errorexp() {
+        let age_delta: i32 = -10;
+        let payload = age_delta
+            .validate(
+                "age_delta must be nonnegative",
+                &Bound::ClosedRange(0, i32::MAX),
+            )
+            .result()
+            .expect_err("validation designed to fail");
+        let err = VALIDATION_ERROR.error(payload);
+        assert!(err.has_kind(VALIDATION_ERROR.kind_id()));
+
+        let run_assertions = || -> std::result::Result<Error, ()> {
+            err.with_errorexp::<TrivialError, _>(|_| unreachable!())?
+                .with_errorexp::<ValidationError, _>(|ee| {
+                    assert_eq!(ee.kind_id, VALIDATION_ERROR.kind_id());
+                })?
+                .with_errorexp::<TrivialError, _>(|_| unreachable!("again"))
+        };
+        assert!(run_assertions().is_err());
+
+        // let err_exp = err.into_errorexp::<ValidationError>();
+        // assert!(err_exp.is_ok());
     }
 }
