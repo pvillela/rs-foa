@@ -1,4 +1,4 @@
-use crate::error::{ErrorExp, JserBoxError, VALIDATION_TAG};
+use crate::error::{ErrorExp, JserBoxError, StdBoxError, VALIDATION_TAG};
 use crate::fun::AsyncFn2;
 use crate::Error;
 use axum::extract::{FromRequest, FromRequestParts};
@@ -100,20 +100,30 @@ where
     }
 }
 
-pub fn default_mapper(err: Error) -> (StatusCode, JserBoxError) {
-    match err.tag() {
-        Some(&VALIDATION_TAG) => {
-            let status_code = StatusCode::BAD_REQUEST;
-            let err_exp_res: Result<ErrorExp<ValidationError>, Error> = err.into();
-            match err_exp_res {
-                Ok(ee) => (status_code, JserBoxError::new(ee)),
-                Err(e) => (status_code, e.into()),
+pub fn default_mapper(err: JserBoxError) -> (StatusCode, JserBoxError) {
+    let process_error = || -> Result<JserBoxError, (StatusCode, JserBoxError)> {
+        err.with_downcast::<Error, _>(|err| match err.tag() {
+            Some(&VALIDATION_TAG) => {
+                let status_code = StatusCode::BAD_REQUEST;
+                let err_exp_res: Result<ErrorExp<ValidationError>, Error> = err.into();
+                match err_exp_res {
+                    Ok(ee) => (status_code, JserBoxError::new(ee)),
+                    Err(e) => (status_code, e.into()),
+                }
             }
-        }
-        _ => {
-            err.backtrace()
-                .map(|b| log::error!("error={err:?}, backtrace={b}"));
-            (StatusCode::INTERNAL_SERVER_ERROR, err.into())
+            _ => {
+                err.backtrace()
+                    .map(|b| log::error!("error={err:?}, backtrace={b}"));
+                (StatusCode::INTERNAL_SERVER_ERROR, err.into())
+            }
+        })
+    };
+
+    match process_error() {
+        Err(res) => res,
+        Ok(err) => {
+            let mapped: JserBoxError = JserBoxError::new(StdBoxError::new(err));
+            (StatusCode::INTERNAL_SERVER_ERROR, mapped)
         }
     }
 }

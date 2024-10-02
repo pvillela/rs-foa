@@ -245,6 +245,14 @@ impl JserBoxError {
             Err(self)
         }
     }
+
+    pub fn with_downcast<T: JserError, U>(self, f: impl FnOnce(T) -> U) -> Result<Self, U> {
+        let res = self.downcast::<T>();
+        match res {
+            Ok(t) => Err(f(t)),
+            Err(err) => Ok(err),
+        }
+    }
 }
 
 impl Debug for JserBoxError {
