@@ -1,10 +1,11 @@
-use crate::error::{ErrorExp, JserBoxError, StdBoxError, VALIDATION_TAG};
+use crate::error::{swap_result, ErrorExp, JserBoxError, UNEXPECTED_ERROR, VALIDATION_ERROR_TAG};
 use crate::fun::AsyncFn2;
 use crate::Error;
 use axum::extract::{FromRequest, FromRequestParts};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
+use log::Level;
 use serde::Serialize;
 use std::future::Future;
 use std::marker::PhantomData;
@@ -100,38 +101,47 @@ where
     }
 }
 
-pub fn default_mapper(err: JserBoxError) -> (StatusCode, JserBoxError) {
-    let process_error = || -> Result<JserBoxError, (StatusCode, JserBoxError)> {
+pub fn default_jserbox_mapper(err: JserBoxError) -> (StatusCode, JserBoxError) {
+    let res = swap_result(|| -> Result<JserBoxError, (StatusCode, JserBoxError)> {
         err.with_downcast::<Error, _>(|err| match err.tag() {
-            Some(tag) if tag == &VALIDATION_TAG => {
-                println!("err={err:?}");
+            Some(tag) if tag == &VALIDATION_ERROR_TAG => {
                 let status_code = StatusCode::BAD_REQUEST;
                 let err_exp_res: Result<ErrorExp<ValidationError>, Error> = err.into();
-                println!("err_exp_res={err_exp_res:?}");
                 match err_exp_res {
-                    Ok(ee) => {
-                        println!("Ok");
-                        (status_code, JserBoxError::new(ee))
-                    }
-                    Err(e) => {
-                        println!("Err");
-                        (status_code, e.into())
-                    }
+                    Ok(ee) => (status_code, JserBoxError::new(ee)),
+                    Err(e) => (status_code, e.into()),
                 }
             }
             _ => {
-                err.backtrace()
-                    .map(|b| log::error!("error={err:?}, backtrace={b}"));
+                err.log(Level::Error, true, true);
                 (StatusCode::INTERNAL_SERVER_ERROR, err.into())
             }
         })
-    };
+    });
 
-    match process_error() {
-        Err(res) => res,
-        Ok(err) => {
-            let mapped: JserBoxError = JserBoxError::new(StdBoxError::new(err));
-            (StatusCode::INTERNAL_SERVER_ERROR, mapped)
+    match res {
+        Ok(res) => res,
+        Err(err0) => {
+            let err = UNEXPECTED_ERROR.error(err0);
+            err.log(Level::Error, true, true);
+            (StatusCode::INTERNAL_SERVER_ERROR, err.into())
+        }
+    }
+}
+
+pub fn default_mapper(err: Error) -> (StatusCode, JserBoxError) {
+    match err.tag() {
+        Some(tag) if tag == &VALIDATION_ERROR_TAG => {
+            let status_code = StatusCode::BAD_REQUEST;
+            let err_exp_res: Result<ErrorExp<ValidationError>, Error> = err.into();
+            match err_exp_res {
+                Ok(ee) => (status_code, JserBoxError::new(ee)),
+                Err(e) => (status_code, e.into()),
+            }
+        }
+        _ => {
+            err.log(Level::Error, true, true);
+            (StatusCode::INTERNAL_SERVER_ERROR, err.into())
         }
     }
 }

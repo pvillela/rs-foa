@@ -1,5 +1,5 @@
 use crate::{
-    error::{BacktraceSpec, Error, PropsErrorKind, RUNTIME_TAG},
+    error::{BacktraceSpec, Error, PropsErrorKind, RUNTIME_ERROR_TAG},
     fun::{AsyncFn, AsyncFn2},
     tokio::task_local::{invoke_tl_scoped, tl_scoped, TaskLocal},
 };
@@ -26,7 +26,7 @@ pub static DB_ERROR: PropsErrorKind<0, true> = PropsErrorKind::with_prop_names(
     Some("database error"),
     [],
     BacktraceSpec::Env,
-    Some(&RUNTIME_TAG),
+    Some(&RUNTIME_ERROR_TAG),
 );
 
 impl From<sqlx::Error> for Error {

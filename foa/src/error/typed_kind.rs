@@ -1,9 +1,5 @@
-//===========================
-// region:      --- TypedErrorKind
-
-use std::{backtrace::Backtrace, marker::PhantomData};
-
 use super::{BacktraceSpec, Error, ErrorTag, KindId};
+use std::{backtrace::Backtrace, marker::PhantomData};
 
 #[derive(Debug)]
 pub struct TypedErrorKind<T>
@@ -51,8 +47,6 @@ where
         Error::new(self.kind_id(), self.tag, payload, backtrace)
     }
 }
-
-// endregion:   --- TypedErrorKind
 
 #[cfg(test)]
 mod test {

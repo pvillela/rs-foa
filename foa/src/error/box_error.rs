@@ -246,6 +246,8 @@ impl JserBoxError {
         }
     }
 
+    /// If the boxed value is of type `T`, returns `Err(f(value))`; otherwise, returns `Ok(self)`.
+    /// This unusual signature facilitates chaining of calls of this method with different types.
     pub fn with_downcast<T: JserError, U>(self, f: impl FnOnce(T) -> U) -> Result<Self, U> {
         let res = self.downcast::<T>();
         match res {

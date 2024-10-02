@@ -1,4 +1,5 @@
 use super::{extract_boxed_error, JserBoxError, JserError, StdBoxError};
+use log::Level;
 use serde::Serialize;
 use std::{
     backtrace::Backtrace,
@@ -116,10 +117,10 @@ impl Error {
         self.payload.0.downcast_ref::<T>()
     }
 
-    /// Returns `self`'s typed payload.
+    /// If the payload is of type `T`, returns `Ok(payload)` , otherwise returns `Err(self)`.
     ///
     /// As this method consumes `self`, if you also need access to other [`Error`] fields then convert
-    /// to an [`ErrorExp`] using `self.into()` instead.
+    /// to an [`ErrorExp`] using [`Self::into_errorexp`] instead.
     pub fn typed_payload<T: StdError + 'static>(self) -> Result<T> {
         if self.payload.0.is::<T>() {
             let res = extract_boxed_error::<T>(self.payload.0);
@@ -132,8 +133,7 @@ impl Error {
         }
     }
 
-    /// If the payload is of type `T`, returns `Err(f(payload))`;
-    /// otherwise, returns `Ok(err)` where `err` is identical to self.
+    /// If the payload is of type `T`, returns `Err(f(payload))`; otherwise, returns `Ok(self)`
     /// This unusual signature facilitates chaining of calls of this method with different types.
     ///
     /// As this method consumes `self`, if you also need access to other [`Error`] fields then convert
@@ -171,6 +171,8 @@ impl Error {
         }
     }
 
+    /// If the payload is of type `T`, returns `Ok(error_exp)`, where `error_exp` is the
+    /// [`ErrorExp`] instance obtained from `self`; otherwise returns `Err(self)`.
     pub fn into_errorexp<T: StdError + 'static>(self) -> Result<ErrorExp<T>> {
         if self.payload.0.is::<T>() {
             let res = extract_boxed_error::<T>(self.payload.0);
@@ -189,8 +191,7 @@ impl Error {
     }
 
     /// If the payload is of type `T`, returns `Err(f(error_exp))` where `error_exp` is the
-    /// [`ErrorExp`] instance obtained from `self`;
-    /// otherwise, returns `Ok(err)` where `err` is identical to self.
+    /// [`ErrorExp`] instance obtained from `self`; otherwise, returns `Ok(self)`.
     /// This unusual signature facilitates chaining of calls of this method with different types.
     ///
     /// # Example
@@ -216,6 +217,16 @@ impl Error {
             Ok(error_exp) => Err(f(error_exp)),
             Err(err) => Ok(err),
         }
+    }
+
+    pub fn log(&self, level: Level, include_source: bool, include_backtrace: bool) {
+        log::log!(
+            level,
+            "error={:?}, source(include={include_source})={:?}, backtrace(include={include_backtrace})={:?}",
+            self,
+            if include_source {self.source()} else{None},
+            if include_backtrace{self.backtrace()}else{None}
+        );
     }
 }
 

@@ -1,11 +1,14 @@
 use crate::{
-    error::{BacktraceSpec, TypedErrorKind, VALIDATION_TAG},
+    error::{BacktraceSpec, TypedErrorKind, VALIDATION_ERROR_TAG},
     Error,
 };
 use valid::ValidationError;
 
-pub static VALIDATION_ERROR: TypedErrorKind<ValidationError> =
-    TypedErrorKind::new("VALIDATION_ERROR", BacktraceSpec::No, Some(&VALIDATION_TAG));
+pub static VALIDATION_ERROR: TypedErrorKind<ValidationError> = TypedErrorKind::new(
+    "VALIDATION_ERROR",
+    BacktraceSpec::No,
+    Some(&VALIDATION_ERROR_TAG),
+);
 
 impl From<ValidationError> for Error {
     fn from(value: ValidationError) -> Self {
