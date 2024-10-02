@@ -79,6 +79,8 @@ pub struct Error {
 
 pub type Result<T> = std::result::Result<T, Error>;
 
+pub type ReverseResult<T> = std::result::Result<Error, T>;
+
 impl Error {
     pub fn new(
         kind_id: &'static KindId,
@@ -139,20 +141,22 @@ impl Error {
     ///
     /// # Example
     /// ```
-    /// use foa::Error;
+    /// use foa::{Error, Result, ReverseResult, error::swap_result};
     /// use std::fmt::Debug;
     ///
     /// fn process_error<T1: std::error::Error + 'static + Debug, T2: std::error::Error + 'static + Debug>(
     ///     err: Error,
-    /// ) -> std::result::Result<Error, ()> {
-    ///     err.with_typed_payload::<T1, ()>(|pld| println!("payload type was `T1`: {pld:?}"))?
-    ///         .with_typed_payload::<T2, ()>(|pld| println!("payload type was `T2: {pld:?}`"))
+    /// ) -> Result<()> {
+    ///     swap_result(|| -> ReverseResult<()> {
+    ///         err.with_typed_payload::<T1, ()>(|pld| println!("payload type was `T1`: {pld:?}"))?
+    ///             .with_typed_payload::<T2, ()>(|pld| println!("payload type was `T2: {pld:?}`"))
+    ///     })
     /// }
     /// ```
     pub fn with_typed_payload<T: StdError + 'static, U>(
         self,
         f: impl FnOnce(T) -> U,
-    ) -> std::result::Result<Error, U> {
+    ) -> ReverseResult<U> {
         let res = self.typed_payload::<T>();
         match res {
             Ok(payload) => Err(f(payload)),
@@ -191,20 +195,22 @@ impl Error {
     ///
     /// # Example
     /// ```
-    /// use foa::Error;
+    /// use foa::{Error, Result, ReverseResult, error::swap_result};
     /// use std::fmt::Debug;
     ///
     /// fn process_error<T1: std::error::Error + 'static + Debug, T2: std::error::Error + 'static + Debug>(
     ///     err: Error,
-    /// ) -> std::result::Result<Error, ()> {
-    ///     err.with_errorexp::<T1, ()>(|ee| println!("payload type was `T1`: {ee:?}"))?
-    ///         .with_errorexp::<T2, ()>(|ee| println!("payload type was `T2`: {ee:?}"))
+    /// ) -> Result<()> {
+    ///     swap_result(|| -> ReverseResult<()> {
+    ///         err.with_errorexp::<T1, ()>(|ee| println!("payload type was `T1`: {ee:?}"))?
+    ///             .with_errorexp::<T2, ()>(|ee| println!("payload type was `T2`: {ee:?}"))
+    ///     })
     /// }
     /// ```
     pub fn with_errorexp<T: StdError + 'static, U>(
         self,
         f: impl FnOnce(ErrorExp<T>) -> U,
-    ) -> std::result::Result<Error, U> {
+    ) -> ReverseResult<U> {
         let res = self.into_errorexp::<T>();
         match res {
             Ok(error_exp) => Err(f(error_exp)),
@@ -276,12 +282,12 @@ impl<T: StdError + 'static> From<Error> for Result<ErrorExp<T>> {
 mod test {
     use super::*;
     use crate::{
-        error::{PropsError, PropsErrorKind, TrivialError},
+        error::{swap_result, PropsError, PropsErrorKind, ReverseResult, TrivialError},
         validation::validc::VALIDATION_ERROR,
     };
     use valid::{constraint::Bound, Validate, ValidationError};
 
-    const FOO_ERROR: PropsErrorKind<1, false> = PropsErrorKind::with_prop_names(
+    static FOO_ERROR: PropsErrorKind<1, false> = PropsErrorKind::with_prop_names(
         "FOO_ERROR",
         Some("foo message: {xyz}"),
         ["xyz"],
@@ -323,15 +329,15 @@ mod test {
         assert!(err.has_kind(FOO_ERROR.kind_id()));
         assert_eq!(err.to_string(), "foo message: hi there!");
 
-        let run_assertions = || -> std::result::Result<Error, ()> {
+        let res = swap_result(|| -> ReverseResult<()> {
             err.with_typed_payload::<TrivialError, _>(|_| unreachable!())?
                 .with_typed_payload::<PropsError, _>(|payload_ext| {
                     assert_eq!(payload.msg, payload_ext.msg);
                     assert_eq!(payload.props, payload_ext.props);
                 })?
                 .with_typed_payload::<TrivialError, _>(|_| unreachable!("again"))
-        };
-        assert!(run_assertions().is_err());
+        });
+        assert!(res.is_ok());
     }
 
     #[test]
@@ -342,7 +348,7 @@ mod test {
         assert!(err.has_kind(FOO_ERROR.kind_id()));
         assert_eq!(err.to_string(), "foo message: hi there!");
 
-        let run_assertions = || -> std::result::Result<Error, ()> {
+        let res = swap_result(|| -> std::result::Result<Error, ()> {
             err.with_errorexp::<TrivialError, _>(|_| unreachable!())?
                 .with_errorexp::<PropsError, _>(|ee| {
                     assert_eq!(payload.msg, ee.payload.msg);
@@ -351,8 +357,8 @@ mod test {
                     assert_eq!(err1.tag(), ee.tag);
                 })?
                 .with_errorexp::<TrivialError, _>(|_| unreachable!("again"))
-        };
-        assert!(run_assertions().is_err());
+        });
+        assert!(res.is_ok());
     }
 
     #[test]
@@ -362,45 +368,15 @@ mod test {
         assert!(err.has_kind(FOO_ERROR.kind_id()));
         assert_eq!(err.to_string(), "foo message: hi there!");
 
-        let ee_res = err.into_errorexp::<PropsError>();
-        match ee_res {
-            Err(_) => unreachable!(),
+        let res = err.into_errorexp::<PropsError>();
+        match res {
             Ok(ee) => assert_eq!(ee.kind_id, FOO_ERROR.kind_id()),
-        };
-    }
-
-    #[test]
-    fn test_into_errorexp_props_f() {
-        let err = FOO_ERROR.error_with_values(["hi there!".into()]);
-
-        assert!(err.has_kind(FOO_ERROR.kind_id()));
-        assert_eq!(err.to_string(), "foo message: hi there!");
-
-        let ee_res = err.into_errorexp::<PropsError>();
-        match ee_res {
             Err(_) => unreachable!(),
-            Ok(ee) => {
-                let f = || assert_eq!(ee.kind_id, FOO_ERROR.kind_id());
-                f();
-            }
         };
     }
 
     #[test]
-    fn test_with_errorexp_props() {
-        let err = FOO_ERROR.error_with_values(["hi there!".into()]);
-
-        assert!(err.has_kind(FOO_ERROR.kind_id()));
-        assert_eq!(err.to_string(), "foo message: hi there!");
-
-        let res = err.with_errorexp::<PropsError, _>(|ee| {
-            assert_eq!(ee.kind_id, FOO_ERROR.kind_id());
-        });
-        assert!(res.is_ok());
-    }
-
-    #[test]
-    fn test_into_errorexp() {
+    fn test_with_errorexp_validation() {
         let age_delta: i32 = -10;
         let payload = age_delta
             .validate(
@@ -412,16 +388,13 @@ mod test {
         let err = VALIDATION_ERROR.error(payload);
         assert!(err.has_kind(VALIDATION_ERROR.kind_id()));
 
-        let run_assertions = || -> std::result::Result<Error, ()> {
+        let res = swap_result(|| -> ReverseResult<()> {
             err.with_errorexp::<TrivialError, _>(|_| unreachable!())?
                 .with_errorexp::<ValidationError, _>(|ee| {
                     assert_eq!(ee.kind_id, VALIDATION_ERROR.kind_id());
                 })?
                 .with_errorexp::<TrivialError, _>(|_| unreachable!("again"))
-        };
-        assert!(run_assertions().is_err());
-
-        // let err_exp = err.into_errorexp::<ValidationError>();
-        // assert!(err_exp.is_ok());
+        });
+        assert!(res.is_ok());
     }
 }

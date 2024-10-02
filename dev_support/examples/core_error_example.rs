@@ -21,12 +21,12 @@ static ERROR_DISPLAY_MAP: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
     ])
 });
 
-const ERROR_KIND_0: &str = "err_kind_0";
-const ERROR_KIND_1: &str = "err_kind_1";
-const ERROR_KIND_2: &str = "err_kind_2";
+static ERROR_KIND_0: &str = "err_kind_0";
+static ERROR_KIND_1: &str = "err_kind_1";
+static ERROR_KIND_2: &str = "err_kind_2";
 
 static LOCALE_SELECTOR: AtomicUsize = AtomicUsize::new(0);
-const LOCALES: [&str; 3] = ["en-CA", "pt-BR", "es-ES"];
+static LOCALES: [&str; 3] = ["en-CA", "pt-BR", "es-ES"];
 
 #[derive(Debug, Clone)]
 struct Ctx1;

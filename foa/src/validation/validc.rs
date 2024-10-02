@@ -4,7 +4,7 @@ use crate::{
 };
 use valid::ValidationError;
 
-pub const VALIDATION_ERROR: TypedErrorKind<ValidationError> =
+pub static VALIDATION_ERROR: TypedErrorKind<ValidationError> =
     TypedErrorKind::new("VALIDATION_ERROR", BacktraceSpec::No, Some(&VALIDATION_TAG));
 
 impl From<ValidationError> for Error {

@@ -226,7 +226,7 @@ mod test_props_error {
     use super::PropsErrorKind;
     use crate::error::BacktraceSpec;
 
-    const FOO_ERROR: PropsErrorKind<1, false> = PropsErrorKind::with_prop_names(
+    static FOO_ERROR: PropsErrorKind<1, false> = PropsErrorKind::with_prop_names(
         "FOO_ERROR",
         Some("foo message: {xyz}"),
         ["xyz"],
@@ -247,7 +247,7 @@ mod test_basic_error {
     use super::BasicErrorKind;
     use crate::error::BacktraceSpec;
 
-    const FOO_ERROR: BasicErrorKind<false> =
+    static FOO_ERROR: BasicErrorKind<false> =
         BasicErrorKind::new("FOO_ERROR", None, BacktraceSpec::Env, None);
 
     #[test]

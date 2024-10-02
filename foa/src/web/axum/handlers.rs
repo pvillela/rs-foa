@@ -103,7 +103,7 @@ where
 pub fn default_mapper(err: JserBoxError) -> (StatusCode, JserBoxError) {
     let process_error = || -> Result<JserBoxError, (StatusCode, JserBoxError)> {
         err.with_downcast::<Error, _>(|err| match err.tag() {
-            Some(&VALIDATION_TAG) => {
+            Some(tag) if tag == &VALIDATION_TAG => {
                 println!("err={err:?}");
                 let status_code = StatusCode::BAD_REQUEST;
                 let err_exp_res: Result<ErrorExp<ValidationError>, Error> = err.into();

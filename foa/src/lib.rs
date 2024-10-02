@@ -13,4 +13,4 @@ pub mod validation;
 pub mod web;
 pub mod wrapper;
 
-pub use error::{Error, Result};
+pub use error::{Error, Result, ReverseResult};

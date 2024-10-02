@@ -2,8 +2,8 @@
 
 use super::ErrorTag;
 
-pub const INTERNAL_TAG: ErrorTag = ErrorTag("INTERNAL");
+pub static INTERNAL_TAG: ErrorTag = ErrorTag("INTERNAL");
 
-pub const RUNTIME_TAG: ErrorTag = ErrorTag("RUNTIME");
+pub static RUNTIME_TAG: ErrorTag = ErrorTag("RUNTIME");
 
-pub const VALIDATION_TAG: ErrorTag = ErrorTag("VALIDATION");
+pub static VALIDATION_TAG: ErrorTag = ErrorTag("VALIDATION");

@@ -59,7 +59,7 @@ mod test {
     use super::TypedErrorKind;
     use crate::error::{BacktraceSpec, TrivialError};
 
-    const FOO_ERROR: TypedErrorKind<TrivialError> =
+    static FOO_ERROR: TypedErrorKind<TrivialError> =
         TypedErrorKind::new("FOO_ERROR", BacktraceSpec::Env, None);
 
     #[test]

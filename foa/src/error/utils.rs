@@ -7,3 +7,10 @@ pub fn extract_boxed_error<T: StdError + 'static>(
     let err: T = *err_box;
     Ok(err)
 }
+
+pub fn swap_result<T, E>(f: impl FnOnce() -> std::result::Result<E, T>) -> Result<T, E> {
+    match f() {
+        Ok(e) => Err(e),
+        Err(t) => Ok(t),
+    }
+}
