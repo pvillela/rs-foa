@@ -1,6 +1,7 @@
+use foa::error::{
+    BacktraceSpec, BasicErrorKind, Error, PropsErrorKind, TrivialError, UNEXPECTED_ERROR,
+};
 use std::error::Error as _;
-
-use foa::error::{BacktraceSpec, BasicErrorKind, Error, PropsErrorKind};
 
 static ERROR0: PropsErrorKind<0, false> = BasicErrorKind::new(
     "ERROR0",
@@ -35,7 +36,11 @@ fn error2() -> Error {
     ERROR2.error_with_values([&99.to_string(), "2nd arg"], error1())
 }
 
-fn print_error(err: Error) {
+fn error_unexpected() -> Error {
+    UNEXPECTED_ERROR.error(TrivialError("trivial"))
+}
+
+fn print_error(err: &Error) {
     println!("display: {err}");
     println!("debug: {err:?}");
     println!("JSON: {}", serde_json::to_string(&err).unwrap());
@@ -48,24 +53,30 @@ fn main() {
     {
         println!("error0");
         let err = error0();
-        print_error(err);
+        print_error(&err);
     }
 
     println!();
 
     {
-        println!("error1_std");
+        println!("error1");
         let err = error1();
-        print_error(err);
+        print_error(&err);
     }
 
     println!();
 
+    {
+        println!("error2");
+        let err = error2();
+        print_error(&err);
+    }
+
     println!();
 
     {
-        println!("error2_std");
-        let err = error2();
-        print_error(err);
+        println!("error_unexpected");
+        let err = error_unexpected();
+        print_error(&err);
     }
 }

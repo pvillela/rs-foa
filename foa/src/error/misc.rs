@@ -1,4 +1,4 @@
-use super::{Error, ErrorTag, KindId, UNEXPECTED_ERROR_TAG};
+use super::{BacktraceSpec, BasicErrorKind, Error, ErrorTag, KindId, UNEXPECTED_ERROR_TAG};
 use serde::Serialize;
 use std::{
     backtrace::Backtrace,
@@ -41,8 +41,12 @@ impl UnexpectedErrorKind {
 
     pub fn error<T: StdError + Send + Sync + 'static>(&'static self, payload: T) -> Error {
         let backtrace = Some(Backtrace::force_capture());
-        Error::new(self.kind_id(), self.tag(), payload, backtrace)
+        let internal_payload = UNEXPECTED_ERROR_PAYLOAD.error(payload);
+        Error::new(self.kind_id(), self.tag(), internal_payload, backtrace)
     }
 }
+
+static UNEXPECTED_ERROR_PAYLOAD: BasicErrorKind<true> =
+    BasicErrorKind::new("UNEXPECTED_ERROR", None, BacktraceSpec::No, None);
 
 pub static UNEXPECTED_ERROR: UnexpectedErrorKind = UnexpectedErrorKind::new("UNEXPECTED_ERROR");

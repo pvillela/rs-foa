@@ -1,3 +1,4 @@
+use crate::error::utils;
 use serde::Serialize;
 use serde_json::Value;
 use std::{
@@ -6,50 +7,6 @@ use std::{
     fmt::{Debug, Display},
     mem::replace,
 };
-
-// region:      --- utils
-
-pub fn error_chain(err: &(dyn StdError)) -> Vec<&(dyn StdError)> {
-    let mut vec = Vec::new();
-    vec.push(err);
-
-    let mut source = err.source();
-
-    while let Some(cause) = source {
-        vec.push(cause);
-        source = cause.source();
-    }
-
-    vec
-}
-
-pub fn error_recursive_msg(err: &(dyn StdError)) -> String {
-    let chain = error_chain(err);
-    let mut chain_iter = chain.iter();
-    let mut buf = String::new();
-
-    let first = chain_iter
-        .next()
-        .expect("error chain always has a first element");
-    buf.push_str(&first.to_string());
-
-    for item in chain_iter {
-        buf.push_str(", source_msg=[");
-        buf.push_str(&item.to_string());
-    }
-
-    // Push the appropriate number of closing braces to the result string.
-    // It would have been easier and maybe faster to just use a loop.
-    let mut bracket = [0; 1];
-    ']'.encode_utf8(&mut bracket);
-    let closing_vec = vec![bracket[0]; chain.len() - 1];
-    let closing_str = String::from_utf8(closing_vec).expect("vec should be utf8 by construction");
-    buf.push_str(&closing_str);
-
-    buf
-}
-
-// endregion    --- utils
 
 // region:      --- JserError
 
@@ -114,7 +71,7 @@ impl Serialize for StdBoxError {
     {
         let mut text = String::new();
         text.push_str("recursive_msg(");
-        text.push_str(&error_recursive_msg(self));
+        text.push_str(&utils::error_recursive_msg(self));
         text.push(')');
         serializer.serialize_str(&text)
     }

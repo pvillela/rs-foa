@@ -20,7 +20,7 @@ pub struct PropsError {
 
 #[derive(Debug)]
 #[allow(unused)]
-struct PropsErrorDevProxy<'a> {
+struct PropsErrorDev<'a> {
     msg: &'static str,
     props: &'a Vec<(String, String)>,
     source: &'a Option<StdBoxError>,
@@ -28,9 +28,10 @@ struct PropsErrorDevProxy<'a> {
 
 #[derive(Debug)]
 #[allow(unused)]
-struct PropsErrorProdProxy {
+struct PropsErrorProd<'a> {
     msg: &'static str,
     props: Vec<(String, String)>,
+    source: &'a Option<StdBoxError>,
 }
 
 impl PropsError {
@@ -45,15 +46,15 @@ impl PropsError {
             .map(|p| p.1.as_str())
     }
 
-    fn dev_proxy(&self) -> PropsErrorDevProxy {
-        PropsErrorDevProxy {
+    fn dev_proxy(&self) -> PropsErrorDev {
+        PropsErrorDev {
             msg: self.msg,
             props: &self.props,
             source: &self.source,
         }
     }
 
-    fn prod_proxy(&self) -> PropsErrorProdProxy {
+    fn prod_proxy(&self) -> PropsErrorProd {
         let props = self
             .props
             .iter()
@@ -63,9 +64,10 @@ impl PropsError {
                 (name.to_owned(), vb64)
             })
             .collect::<Vec<_>>();
-        PropsErrorProdProxy {
+        PropsErrorProd {
             msg: self.msg,
             props,
+            source: &self.source,
         }
     }
 }
