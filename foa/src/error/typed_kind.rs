@@ -39,9 +39,9 @@ where
 
     pub fn error(&'static self, payload: T) -> Error {
         let backtrace = match self.backtrace_spec {
-            BacktraceSpec::Yes => Some(Backtrace::force_capture()),
-            BacktraceSpec::No => None,
-            BacktraceSpec::Env => Some(Backtrace::capture()),
+            BacktraceSpec::Yes => Backtrace::force_capture(),
+            BacktraceSpec::No => Backtrace::disabled(),
+            BacktraceSpec::Env => Backtrace::capture(),
         };
 
         Error::new(self.kind_id(), self.tag, payload, backtrace)

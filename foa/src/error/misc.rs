@@ -40,7 +40,7 @@ impl UnexpectedErrorKind {
     }
 
     pub fn error<T: StdError + Send + Sync + 'static>(&'static self, payload: T) -> Error {
-        let backtrace = Some(Backtrace::force_capture());
+        let backtrace = Backtrace::force_capture();
         let internal_payload = UNEXPECTED_ERROR_PAYLOAD.error(payload);
         Error::new(self.kind_id(), self.tag(), internal_payload, backtrace)
     }

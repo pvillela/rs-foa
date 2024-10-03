@@ -1,7 +1,6 @@
 use foa::error::{
     BacktraceSpec, BasicErrorKind, Error, PropsErrorKind, TrivialError, UNEXPECTED_ERROR,
 };
-use std::error::Error as _;
 
 static ERROR0: PropsErrorKind<0, false> = BasicErrorKind::new(
     "ERROR0",
@@ -43,8 +42,8 @@ fn error_unexpected() -> Error {
 fn print_error(err: &Error) {
     println!("display: {err}");
     println!("debug: {err:?}");
+    println!("{}", err.log_string(true, true, true));
     println!("JSON: {}", serde_json::to_string(&err).unwrap());
-    println!("source: {:?}", err.source());
 }
 
 fn main() {

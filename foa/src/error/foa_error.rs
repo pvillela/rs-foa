@@ -1,5 +1,5 @@
 use super::{extract_boxed_error, JserBoxError, JserError, StdBoxError};
-use log::Level;
+use crate::{error::error_recursive_msg, nodebug::NoDebug};
 use serde::Serialize;
 use std::{
     backtrace::Backtrace,
@@ -75,7 +75,7 @@ pub struct Error {
     tag: Option<&'static ErrorTag>,
     payload: StdBoxError,
     #[serde(skip_serializing)]
-    backtrace: Option<Backtrace>,
+    backtrace: NoDebug<Backtrace>,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -87,13 +87,13 @@ impl Error {
         kind_id: &'static KindId,
         tag: Option<&'static ErrorTag>,
         payload: impl StdError + Send + Sync + 'static,
-        backtrace: Option<Backtrace>,
+        backtrace: Backtrace,
     ) -> Self {
         Self {
             kind_id,
             tag,
             payload: StdBoxError::new(payload),
-            backtrace,
+            backtrace: NoDebug(backtrace),
         }
     }
 
@@ -164,11 +164,8 @@ impl Error {
         }
     }
 
-    pub fn backtrace(&self) -> Option<&Backtrace> {
-        match &self.backtrace {
-            Some(backtrace) => Some(backtrace),
-            None => None,
-        }
+    pub fn backtrace(&self) -> &Backtrace {
+        &self.backtrace
     }
 
     /// If the payload is of type `T`, returns `Ok(error_exp)`, where `error_exp` is the
@@ -219,14 +216,31 @@ impl Error {
         }
     }
 
-    pub fn log(&self, level: Level, include_source: bool, include_backtrace: bool) {
-        log::log!(
-            level,
-            "error={:?}, source(include={include_source})={:?}, backtrace(include={include_backtrace})={:?}",
-            self,
-            if include_source {self.source()} else{None},
-            if include_backtrace{self.backtrace()}else{None}
-        );
+    pub fn log_string(
+        &self,
+        include_recursive_msg: bool,
+        include_source: bool,
+        include_backtrace: bool,
+    ) -> String {
+        let recursive_msg_str = if include_recursive_msg {
+            format!(", recursive_msg=({})", error_recursive_msg(self))
+        } else {
+            "".to_owned()
+        };
+
+        let source_str = if include_source {
+            format!(", source={:?}", self.source())
+        } else {
+            "".to_owned()
+        };
+
+        let backtrace_str = if include_backtrace {
+            format!(", backtrace=\n{}", self.backtrace())
+        } else {
+            "".to_owned()
+        };
+
+        format!("{self:?}") + &recursive_msg_str + &source_str + &backtrace_str
     }
 }
 
@@ -266,7 +280,7 @@ pub struct ErrorExp<T> {
     pub tag: Option<&'static ErrorTag>,
     pub payload: T,
     #[serde(skip_serializing)]
-    pub backtrace: Option<Backtrace>,
+    pub backtrace: NoDebug<Backtrace>,
 }
 
 impl<T: StdError> Display for ErrorExp<T> {
@@ -315,7 +329,12 @@ mod test {
             }
         }
 
-        let err = Error::new(FOO_ERROR.kind_id(), FOO_ERROR.tag(), make_payload(), None);
+        let err = Error::new(
+            FOO_ERROR.kind_id(),
+            FOO_ERROR.tag(),
+            make_payload(),
+            Backtrace::disabled(),
+        );
 
         (make_payload(), err)
     }

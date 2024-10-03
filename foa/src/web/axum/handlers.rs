@@ -5,7 +5,7 @@ use axum::extract::{FromRequest, FromRequestParts};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
-use log::Level;
+use log::{log, Level};
 use serde::Serialize;
 use std::future::Future;
 use std::marker::PhantomData;
@@ -113,7 +113,7 @@ pub fn default_jserbox_mapper(err: JserBoxError) -> (StatusCode, JserBoxError) {
                 }
             }
             _ => {
-                err.log(Level::Error, true, true);
+                log!(Level::Error, "{}", err.log_string(true, true, true));
                 (StatusCode::INTERNAL_SERVER_ERROR, err.into())
             }
         })
@@ -123,7 +123,7 @@ pub fn default_jserbox_mapper(err: JserBoxError) -> (StatusCode, JserBoxError) {
         Ok(res) => res,
         Err(err0) => {
             let err = UNEXPECTED_ERROR.error(err0);
-            err.log(Level::Error, true, true);
+            log!(Level::Error, "{}", err.log_string(true, true, true));
             (StatusCode::INTERNAL_SERVER_ERROR, err.into())
         }
     }
@@ -140,7 +140,7 @@ pub fn default_mapper(err: Error) -> (StatusCode, JserBoxError) {
             }
         }
         _ => {
-            err.log(Level::Error, true, true);
+            log!(Level::Error, "{}", err.log_string(true, true, true));
             (StatusCode::INTERNAL_SERVER_ERROR, err.into())
         }
     }
