@@ -1,10 +1,10 @@
 use crate::{
-    error::{BacktraceSpec, TypedErrorKind, VALIDATION_ERROR_TAG},
+    error::{BacktraceSpec, TypedKind, VALIDATION_ERROR_TAG},
     Error,
 };
 use valid::ValidationError;
 
-pub static VALIDATION_ERROR: TypedErrorKind<ValidationError> = TypedErrorKind::new(
+pub static VALIDATION_ERROR: TypedKind<ValidationError> = TypedKind::new(
     "VALIDATION_ERROR",
     BacktraceSpec::No,
     Some(&VALIDATION_ERROR_TAG),

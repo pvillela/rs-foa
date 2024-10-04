@@ -1,5 +1,5 @@
-use super::{extract_boxed_error, JserBoxError, JserError, StdBoxError};
-use crate::{error::error_recursive_msg, nodebug::NoDebug};
+use super::{extract_boxed, JserBoxError, JserError, StdBoxError};
+use crate::{error::recursive_msg, nodebug::NoDebug, string};
 use serde::Serialize;
 use std::{
     backtrace::Backtrace,
@@ -123,7 +123,7 @@ impl Error {
     /// to an [`ErrorExp`] using [`Self::into_errorexp`] instead.
     pub fn typed_payload<T: StdError + 'static>(self) -> Result<T> {
         if self.payload.0.is::<T>() {
-            let res = extract_boxed_error::<T>(self.payload.0);
+            let res = extract_boxed::<T>(self.payload.0);
             match res {
                 Ok(payload) => Ok(payload),
                 Err(_) => unreachable!("downcast previously confirmed"),
@@ -172,7 +172,7 @@ impl Error {
     /// [`ErrorExp`] instance obtained from `self`; otherwise returns `Err(self)`.
     pub fn into_errorexp<T: StdError + 'static>(self) -> Result<ErrorExp<T>> {
         if self.payload.0.is::<T>() {
-            let res = extract_boxed_error::<T>(self.payload.0);
+            let res = extract_boxed::<T>(self.payload.0);
             match res {
                 Ok(payload) => Ok(ErrorExp {
                     kind_id: self.kind_id,
@@ -216,31 +216,56 @@ impl Error {
         }
     }
 
-    pub fn log_string(
-        &self,
-        include_recursive_msg: bool,
-        include_source: bool,
-        include_backtrace: bool,
-    ) -> String {
-        let recursive_msg_str = if include_recursive_msg {
-            format!(", recursive_msg=({})", error_recursive_msg(self))
-        } else {
-            "".to_owned()
-        };
+    pub fn dbg_string(&self) -> String {
+        format!("{:?}", self)
+    }
 
-        let source_str = if include_source {
-            format!(", source={:?}", self.source())
-        } else {
-            "".to_owned()
-        };
+    pub fn recursive_msg(&self) -> String {
+        recursive_msg(self)
+    }
 
-        let backtrace_str = if include_backtrace {
-            format!(", backtrace=\n{}", self.backtrace())
-        } else {
-            "".to_owned()
-        };
+    pub fn source_dbg_string(&self) -> String {
+        format!("{:?}", self.source())
+    }
 
-        format!("{self:?}") + &recursive_msg_str + &source_str + &backtrace_str
+    pub fn backtrace_string(&self) -> String {
+        format!("{}", self.backtrace())
+    }
+
+    pub fn backtrace_dbg_string(&self) -> String {
+        format!("{:?}", self.backtrace())
+    }
+
+    pub fn speced_string(&self, str_spec: &StringSpec) -> String {
+        match str_spec {
+            StringSpec::Dbg => self.dbg_string(),
+            StringSpec::Recursive => self.recursive_msg(),
+            StringSpec::SourceDbg => self.source_dbg_string(),
+            StringSpec::Backtrace => self.backtrace_string(),
+            StringSpec::BacktraceDbg => self.backtrace_dbg_string(),
+            StringSpec::Decor(&ref spec, prefix, around) => {
+                string::decorated(&self.speced_string(spec), *prefix, *around)
+            }
+        }
+    }
+
+    pub fn multi_speced_string<const N: usize>(&self, str_specs: [StringSpec; N]) -> String {
+        let txt = str_specs
+            .into_iter()
+            .map(|spec| self.speced_string(&spec))
+            .collect::<Vec<_>>();
+        txt.join(", ")
+    }
+
+    pub fn formatted_string(&self, fmt: &str) -> String {
+        let props: Vec<(&'static str, fn(&Error) -> String)> = vec![
+            ("dbg_string", Self::dbg_string),
+            ("recursive_msg", Self::recursive_msg),
+            ("source_dbg_string", Self::source_dbg_string),
+            ("backtrace_string", Self::backtrace_string),
+            ("backtrace_dbg_string", Self::backtrace_dbg_string),
+        ];
+        string::interpolated_props_lazy(fmt, props.into_iter(), self)
     }
 }
 
@@ -303,16 +328,30 @@ impl<T: StdError + 'static> From<Error> for Result<ErrorExp<T>> {
 
 // endregion:   --- ErrorExp
 
+// region:      --- StringSpec
+
+#[non_exhaustive]
+pub enum StringSpec<'a> {
+    Dbg,
+    Recursive,
+    SourceDbg,
+    Backtrace,
+    BacktraceDbg,
+    Decor(&'a Self, Option<&'a str>, Option<[char; 2]>),
+}
+
+// endregion:   --- StringSpec
+
 #[cfg(test)]
 mod test {
     use super::*;
     use crate::{
-        error::{swap_result, PropsError, PropsErrorKind, ReverseResult, TrivialError},
+        error::{swap_result, PropsError, PropsKind, ReverseResult, TrivialError},
         validation::validc::VALIDATION_ERROR,
     };
     use valid::{constraint::Bound, Validate, ValidationError};
 
-    static FOO_ERROR: PropsErrorKind<1, false> = PropsErrorKind::with_prop_names(
+    static FOO_ERROR: PropsKind<1, false> = PropsKind::with_prop_names(
         "FOO_ERROR",
         Some("foo message: {xyz}"),
         ["xyz"],
@@ -426,5 +465,13 @@ mod test {
                 .with_errorexp::<TrivialError, _>(|_| unreachable!("again"))
         });
         assert!(res.is_ok());
+    }
+
+    fn out_formatted_string(err: &Error) -> String {
+        let mut fmt = "{dbg_string}".to_owned();
+        fmt.push_str(", recursive_msg=({recursive_msg})");
+        fmt.push_str(", source={source_dbg_string}");
+        fmt.push_str(", backtrace=\n{backtrace_string}");
+        err.formatted_string(&fmt)
     }
 }

@@ -2,7 +2,7 @@ use super::{BacktraceSpec, Error, ErrorTag, KindId};
 use std::{backtrace::Backtrace, marker::PhantomData};
 
 #[derive(Debug)]
-pub struct TypedErrorKind<T>
+pub struct TypedKind<T>
 where
     T: std::error::Error + Send + Sync + 'static,
 {
@@ -12,7 +12,7 @@ where
     _t: PhantomData<T>,
 }
 
-impl<T> TypedErrorKind<T>
+impl<T> TypedKind<T>
 where
     T: std::error::Error + Send + Sync + 'static,
 {
@@ -50,11 +50,11 @@ where
 
 #[cfg(test)]
 mod test {
-    use super::TypedErrorKind;
+    use super::TypedKind;
     use crate::error::{BacktraceSpec, TrivialError};
 
-    static FOO_ERROR: TypedErrorKind<TrivialError> =
-        TypedErrorKind::new("FOO_ERROR", BacktraceSpec::Env, None);
+    static FOO_ERROR: TypedKind<TrivialError> =
+        TypedKind::new("FOO_ERROR", BacktraceSpec::Env, None);
 
     #[test]
     fn test() {

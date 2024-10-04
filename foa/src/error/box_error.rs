@@ -71,7 +71,7 @@ impl Serialize for StdBoxError {
     {
         let mut text = String::new();
         text.push_str("recursive_msg(");
-        text.push_str(&utils::error_recursive_msg(self));
+        text.push_str(&utils::recursive_msg(self));
         text.push(')');
         serializer.serialize_str(&text)
     }

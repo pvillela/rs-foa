@@ -1,6 +1,6 @@
 use std::error::Error as StdError;
 
-pub fn extract_boxed_error<T: StdError + 'static>(
+pub fn extract_boxed<T: StdError + 'static>(
     boxed: Box<dyn StdError + Send + Sync>,
 ) -> Result<T, Box<dyn StdError + Send + Sync + 'static>> {
     let err_box = boxed.downcast::<T>()?;
@@ -34,14 +34,14 @@ impl<'a> Iterator for It<'a> {
     }
 }
 
-pub fn error_chain(err: &dyn StdError) -> impl Iterator<Item = &dyn StdError> {
+pub fn source_chain(err: &dyn StdError) -> impl Iterator<Item = &dyn StdError> {
     It {
         curr_source: Some(err),
     }
 }
 
-pub fn error_recursive_msg(err: &(dyn StdError)) -> String {
-    let mut chain_iter = error_chain(err);
+pub fn recursive_msg(err: &(dyn StdError)) -> String {
+    let mut chain_iter = source_chain(err);
     let mut buf = String::new();
     let mut closing_buf = String::new();
 

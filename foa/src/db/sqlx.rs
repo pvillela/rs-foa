@@ -1,5 +1,5 @@
 use crate::{
-    error::{BacktraceSpec, Error, PropsErrorKind, RUNTIME_ERROR_TAG},
+    error::{BacktraceSpec, Error, PropsKind, RUNTIME_ERROR_TAG},
     fun::{AsyncFn, AsyncFn2},
     tokio::task_local::{invoke_tl_scoped, tl_scoped, TaskLocal},
 };
@@ -21,7 +21,7 @@ pub trait Db {
 pub trait PgDbCtx: DbCtx<Db: Db<Database = Postgres>> {}
 impl<T> PgDbCtx for T where T: DbCtx<Db: Db<Database = Postgres>> {}
 
-pub static DB_ERROR: PropsErrorKind<0, true> = PropsErrorKind::with_prop_names(
+pub static DB_ERROR: PropsKind<0, true> = PropsKind::with_prop_names(
     "DB_ERROR",
     Some("database error"),
     [],

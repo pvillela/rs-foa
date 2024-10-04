@@ -1,4 +1,4 @@
-use super::{BacktraceSpec, BasicErrorKind, Error, ErrorTag, KindId, UNEXPECTED_ERROR_TAG};
+use super::{BacktraceSpec, BasicKind, Error, ErrorTag, KindId, UNEXPECTED_ERROR_TAG};
 use serde::Serialize;
 use std::{
     backtrace::Backtrace,
@@ -20,11 +20,11 @@ impl Display for TrivialError {
 impl std::error::Error for TrivialError {}
 
 #[derive(Debug)]
-pub struct UnexpectedErrorKind {
+pub struct UnexpectedKind {
     kind_id: KindId,
 }
 
-impl UnexpectedErrorKind {
+impl UnexpectedKind {
     pub const fn kind_id(&self) -> &KindId {
         &self.kind_id
     }
@@ -46,7 +46,7 @@ impl UnexpectedErrorKind {
     }
 }
 
-static UNEXPECTED_ERROR_PAYLOAD: BasicErrorKind<true> =
-    BasicErrorKind::new("UNEXPECTED_ERROR", None, BacktraceSpec::No, None);
+static UNEXPECTED_ERROR_PAYLOAD: BasicKind<true> =
+    BasicKind::new("UNEXPECTED_ERROR", None, BacktraceSpec::No, None);
 
-pub static UNEXPECTED_ERROR: UnexpectedErrorKind = UnexpectedErrorKind::new("UNEXPECTED_ERROR");
+pub static UNEXPECTED_ERROR: UnexpectedKind = UnexpectedKind::new("UNEXPECTED_ERROR");

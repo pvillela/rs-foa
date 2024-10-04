@@ -1,6 +1,7 @@
-use crate::error::{swap_result, ErrorExp, JserBoxError, UNEXPECTED_ERROR, VALIDATION_ERROR_TAG};
+use crate::error::{
+    self, swap_result, Error, ErrorExp, JserBoxError, UNEXPECTED_ERROR, VALIDATION_ERROR_TAG,
+};
 use crate::fun::AsyncFn2;
-use crate::Error;
 use axum::extract::{FromRequest, FromRequestParts};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
@@ -101,6 +102,19 @@ where
     }
 }
 
+fn error_string_error_level(err: &Error) -> String {
+    err.multi_speced_string([
+        error::StringSpec::Dbg,
+        error::StringSpec::Decor(
+            &error::StringSpec::Recursive,
+            Some("recursive_msg="),
+            Some(['(', ')']),
+        ),
+        error::StringSpec::Decor(&error::StringSpec::SourceDbg, Some("source="), None),
+        error::StringSpec::Decor(&error::StringSpec::Backtrace, Some("backtrace=\n"), None),
+    ])
+}
+
 pub fn default_jserbox_mapper(err: JserBoxError) -> (StatusCode, JserBoxError) {
     let res = swap_result(|| -> Result<JserBoxError, (StatusCode, JserBoxError)> {
         err.with_downcast::<Error, _>(|err| match err.tag() {
@@ -113,7 +127,7 @@ pub fn default_jserbox_mapper(err: JserBoxError) -> (StatusCode, JserBoxError) {
                 }
             }
             _ => {
-                log!(Level::Error, "{}", err.log_string(true, true, true));
+                log!(Level::Error, "{}", error_string_error_level(&err));
                 (StatusCode::INTERNAL_SERVER_ERROR, err.into())
             }
         })
@@ -123,7 +137,7 @@ pub fn default_jserbox_mapper(err: JserBoxError) -> (StatusCode, JserBoxError) {
         Ok(res) => res,
         Err(err0) => {
             let err = UNEXPECTED_ERROR.error(err0);
-            log!(Level::Error, "{}", err.log_string(true, true, true));
+            log!(Level::Error, "{}", error_string_error_level(&err));
             (StatusCode::INTERNAL_SERVER_ERROR, err.into())
         }
     }
@@ -140,7 +154,7 @@ pub fn default_mapper(err: Error) -> (StatusCode, JserBoxError) {
             }
         }
         _ => {
-            log!(Level::Error, "{}", err.log_string(true, true, true));
+            log!(Level::Error, "{}", error_string_error_level(&err));
             (StatusCode::INTERNAL_SERVER_ERROR, err.into())
         }
     }

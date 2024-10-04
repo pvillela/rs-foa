@@ -2,7 +2,7 @@ use crate::context::{ErrCtx, Locale, LocalizedMsg};
 use base64ct::{Base64, Encoding};
 
 /// Interpolates a string with a list of arguments.
-pub fn interpolated_string_vec<S>(mut raw_msg: &str, args: &[S]) -> String
+pub fn interpolated_vec<S>(mut raw_msg: &str, args: &[S]) -> String
 where
     S: AsRef<str>,
 {
@@ -28,19 +28,19 @@ where
 }
 
 /// Interpolates a localized message with a list of arguments.
-pub fn interpolated_localized_msg_vec<CTX, S>(kind: &str, args: &[S]) -> String
+pub fn interpolated_localized_vec<CTX, S>(kind: &str, args: &[S]) -> String
 where
     CTX: ErrCtx,
     S: AsRef<str>,
 {
-    let Some(raw_msg) = localized_msg::<CTX>(kind) else {
+    let Some(raw_msg) = localized::<CTX>(kind) else {
         return "invalid message key".to_owned();
     };
-    interpolated_string_vec(raw_msg, args)
+    interpolated_vec(raw_msg, args)
 }
 
 /// Interpolates a string with properties (list of name-value pairs).
-pub fn interpolated_string_props<'a, P, S1, S2>(raw_msg: &'a str, props: P) -> String
+pub fn interpolated_props<'a, P, S1, S2>(raw_msg: &'a str, props: P) -> String
 where
     S1: AsRef<str>,
     S2: AsRef<str>,
@@ -56,21 +56,40 @@ where
     msg
 }
 
+/// Lazily interpolates a string with properties (list of name-value pairs),
+/// where the values are returned by functions from a common input.
+pub fn interpolated_props_lazy<'a, P, S1, S2, T>(raw_msg: &'a str, props: P, input: &T) -> String
+where
+    S1: AsRef<str>,
+    S2: AsRef<str>,
+    P: Iterator<Item = (S1, fn(&T) -> S2)>,
+{
+    let mut msg = raw_msg.to_owned();
+    for (name, value) in props {
+        let name = name.as_ref();
+        let value = value(input);
+        let value = value.as_ref();
+        let placeholder = format!("{{{name}}}");
+        msg = msg.replace(&placeholder, &value);
+    }
+    msg
+}
+
 /// Interpolates a localized message with properties (list of name-value pairs).
-pub fn interpolated_localized_msg_props<'a, CTX, P, S1, S2>(kind: &str, props: P) -> String
+pub fn interpolated_localized_props<'a, CTX, P, S1, S2>(kind: &str, props: P) -> String
 where
     CTX: ErrCtx,
     S1: AsRef<str>,
     S2: AsRef<str>,
     P: Iterator<Item = (S1, S2)>,
 {
-    let Some(raw_msg) = localized_msg::<CTX>(kind) else {
+    let Some(raw_msg) = localized::<CTX>(kind) else {
         return "invalid message key".to_owned();
     };
-    interpolated_string_props(raw_msg, props)
+    interpolated_props(raw_msg, props)
 }
 
-pub fn localized_msg<CTX>(kind: &str) -> Option<&str>
+pub fn localized<CTX>(kind: &str) -> Option<&str>
 where
     CTX: ErrCtx,
 {
@@ -78,7 +97,7 @@ where
 }
 
 /// Encodes a byte array as a lower hex string.
-pub fn hex_lower_str_of_u8_arr(arr: &[u8]) -> String {
+pub fn hex_lower_of_u8_arr(arr: &[u8]) -> String {
     arr.iter().map(|b| format!("{:02x}", b)).collect::<String>()
 }
 
@@ -88,4 +107,17 @@ pub fn hex_lower_str_of_u8_arr(arr: &[u8]) -> String {
 pub fn base64_encode_trunc_of_u8_arr(arr: &[u8], max_size: usize) -> String {
     let trunc = arr.len().min(max_size);
     Base64::encode_string(&arr[0..trunc])
+}
+
+/// Decorates a string with with optional characters around it (usually brackets) and an
+/// optional prefix.
+pub fn decorated(txt: &str, prefix: Option<&str>, around: Option<[char; 2]>) -> String {
+    let body = match around {
+        Some([ch1, ch2]) => ch1.to_string() + txt + &ch2.to_string(),
+        None => txt.to_owned(),
+    };
+    match prefix {
+        Some(prefix) => prefix.to_owned() + &body,
+        None => body,
+    }
 }

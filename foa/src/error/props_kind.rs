@@ -1,6 +1,5 @@
 use super::{BacktraceSpec, Error, ErrorTag, KindId, StdBoxError, TRUNC};
-use crate::string::base64_encode_trunc_of_u8_arr;
-use crate::{hash::hash_sha256_of_str_arr, string::interpolated_string_props};
+use crate::{hash::hash_sha256_of_str_arr, string};
 use serde::Serialize;
 use std::backtrace::Backtrace;
 use std::{
@@ -60,7 +59,7 @@ impl PropsError {
             .iter()
             .map(|(name, value)| {
                 let vhash = hash_sha256_of_str_arr(&[value]);
-                let vb64 = base64_encode_trunc_of_u8_arr(&vhash, TRUNC);
+                let vb64 = string::base64_encode_trunc_of_u8_arr(&vhash, TRUNC);
                 (name.to_owned(), vb64)
             })
             .collect::<Vec<_>>();
@@ -85,16 +84,16 @@ impl Debug for PropsError {
 impl Display for PropsError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if cfg!(debug_assertions) {
-            let msg = interpolated_string_props(self.msg, self.props.iter().map(|p| (&p.0, &p.1)));
+            let msg = string::interpolated_props(self.msg, self.props.iter().map(|p| (&p.0, &p.1)));
             f.write_str(&msg)
         } else {
             let props = self.props.iter().map(|p| {
                 let (name, value) = (&p.0, &p.1);
                 let vhash = hash_sha256_of_str_arr(&[value]);
-                let vb64 = base64_encode_trunc_of_u8_arr(&vhash, TRUNC);
+                let vb64 = string::base64_encode_trunc_of_u8_arr(&vhash, TRUNC);
                 (name, vb64)
             });
-            let msg = interpolated_string_props(self.msg, props);
+            let msg = string::interpolated_props(self.msg, props);
             f.write_str(&msg)
         }
     }
@@ -112,10 +111,10 @@ impl std::error::Error for PropsError {
 // endregion:   --- PropsError
 
 //===========================
-// region:      --- PropsErrorKind
+// region:      --- PropsKind
 
 #[derive(Debug)]
-pub struct PropsErrorKind<const ARITY: usize, const HASCAUSE: bool> {
+pub struct PropsKind<const ARITY: usize, const HASCAUSE: bool> {
     pub(super) kind_id: KindId,
     pub(super) msg: Option<&'static str>,
     pub(super) prop_names: [&'static str; ARITY],
@@ -123,9 +122,9 @@ pub struct PropsErrorKind<const ARITY: usize, const HASCAUSE: bool> {
     pub(super) tag: Option<&'static ErrorTag>,
 }
 
-pub type BasicErrorKind<const HASCAUSE: bool> = PropsErrorKind<0, HASCAUSE>;
+pub type BasicKind<const HASCAUSE: bool> = PropsKind<0, HASCAUSE>;
 
-impl<const ARITY: usize, const HASCAUSE: bool> PropsErrorKind<ARITY, HASCAUSE> {
+impl<const ARITY: usize, const HASCAUSE: bool> PropsKind<ARITY, HASCAUSE> {
     pub const fn kind_id(&self) -> &KindId {
         &self.kind_id
     }
@@ -176,7 +175,7 @@ impl<const ARITY: usize, const HASCAUSE: bool> PropsErrorKind<ARITY, HASCAUSE> {
     }
 }
 
-impl<const HASCAUSE: bool> BasicErrorKind<HASCAUSE> {
+impl<const HASCAUSE: bool> BasicKind<HASCAUSE> {
     pub const fn new(
         name: &'static str,
         msg: Option<&'static str>,
@@ -193,25 +192,25 @@ impl<const HASCAUSE: bool> BasicErrorKind<HASCAUSE> {
     }
 }
 
-impl BasicErrorKind<false> {
+impl BasicKind<false> {
     pub fn error(&'static self) -> Error {
         self.error_priv([], None)
     }
 }
 
-impl BasicErrorKind<true> {
+impl BasicKind<true> {
     pub fn error(&'static self, cause: impl StdError + Send + Sync + 'static) -> Error {
         self.error_priv([], Some(StdBoxError::new(cause)))
     }
 }
 
-impl<const ARITY: usize> PropsErrorKind<ARITY, false> {
+impl<const ARITY: usize> PropsKind<ARITY, false> {
     pub fn error_with_values(&'static self, values: [&str; ARITY]) -> Error {
         self.error_priv(values, None)
     }
 }
 
-impl<const ARITY: usize> PropsErrorKind<ARITY, true> {
+impl<const ARITY: usize> PropsKind<ARITY, true> {
     pub fn error_with_values(
         &'static self,
         values: [&str; ARITY],
@@ -221,14 +220,14 @@ impl<const ARITY: usize> PropsErrorKind<ARITY, true> {
     }
 }
 
-// endregion:   --- PropsErrorKind
+// endregion:   --- PropsKind
 
 #[cfg(test)]
 mod test_props_error {
-    use super::PropsErrorKind;
+    use super::PropsKind;
     use crate::error::BacktraceSpec;
 
-    static FOO_ERROR: PropsErrorKind<1, false> = PropsErrorKind::with_prop_names(
+    static FOO_ERROR: PropsKind<1, false> = PropsKind::with_prop_names(
         "FOO_ERROR",
         Some("foo message: {xyz}"),
         ["xyz"],
@@ -246,11 +245,11 @@ mod test_props_error {
 
 #[cfg(test)]
 mod test_basic_error {
-    use super::BasicErrorKind;
+    use super::BasicKind;
     use crate::error::BacktraceSpec;
 
-    static FOO_ERROR: BasicErrorKind<false> =
-        BasicErrorKind::new("FOO_ERROR", None, BacktraceSpec::Env, None);
+    static FOO_ERROR: BasicKind<false> =
+        BasicKind::new("FOO_ERROR", None, BacktraceSpec::Env, None);
 
     #[test]
     fn test() {
