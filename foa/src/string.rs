@@ -111,13 +111,13 @@ pub fn base64_encode_trunc_of_u8_arr(arr: &[u8], max_size: usize) -> String {
 
 /// Decorates a string with with optional characters around it (usually brackets) and an
 /// optional prefix.
-pub fn decorated(txt: &str, prefix: Option<&str>, around: Option<[char; 2]>) -> String {
-    let body = match around {
-        Some([ch1, ch2]) => ch1.to_string() + txt + &ch2.to_string(),
+pub fn decorated(txt: &str, pre: Option<&str>, post: Option<&str>) -> String {
+    let body = match post {
+        Some(post) => txt.to_owned() + post,
         None => txt.to_owned(),
     };
-    match prefix {
-        Some(prefix) => prefix.to_owned() + &body,
+    match pre {
+        Some(pre) => pre.to_owned() + &body,
         None => body,
     }
 }

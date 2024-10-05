@@ -107,8 +107,8 @@ fn error_string_error_level(err: &Error) -> String {
         error::StringSpec::Dbg,
         error::StringSpec::Decor(
             &error::StringSpec::Recursive,
-            Some("recursive_msg="),
-            Some(['(', ')']),
+            Some("recursive_msg=("),
+            Some(")"),
         ),
         error::StringSpec::Decor(&error::StringSpec::SourceDbg, Some("source="), None),
         error::StringSpec::Decor(&error::StringSpec::Backtrace, Some("backtrace=\n"), None),

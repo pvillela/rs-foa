@@ -243,8 +243,8 @@ impl Error {
             StringSpec::SourceDbg => self.source_dbg_string(),
             StringSpec::Backtrace => self.backtrace_string(),
             StringSpec::BacktraceDbg => self.backtrace_dbg_string(),
-            StringSpec::Decor(&ref spec, prefix, around) => {
-                string::decorated(&self.speced_string(spec), *prefix, *around)
+            StringSpec::Decor(&ref spec, pre, post) => {
+                string::decorated(&self.speced_string(spec), *pre, *post)
             }
         }
     }
@@ -337,7 +337,7 @@ pub enum StringSpec<'a> {
     SourceDbg,
     Backtrace,
     BacktraceDbg,
-    Decor(&'a Self, Option<&'a str>, Option<[char; 2]>),
+    Decor(&'a Self, Option<&'a str>, Option<&'a str>),
 }
 
 // endregion:   --- StringSpec
