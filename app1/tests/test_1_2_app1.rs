@@ -1,10 +1,10 @@
-mod common_test_artctpg;
+mod common_test_app1;
 
+use app1::{run::ctx::new_db_pool, svc::FooOut};
 use axum::http::{request, request::Parts, Method, Uri, Version};
-use common_test_artctpg::{
+use common_test_app1::{
     common_test, BarBfCfgTestInput, CfgTestInput, FooSflCfgTestInput, InitDafCfgTestinput,
 };
-use dev_support::artctpg::{run::ctx::new_db_pool, svc::FooOut};
 use foa::{
     context::{Cfg, ErrCtx, Locale, LocaleCtx, NullSubCtx},
     db::sqlx::{Db, DbCtx},

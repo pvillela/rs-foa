@@ -1,11 +1,34 @@
-use crate::artctpg::{
+use crate::{
     run::ctx::Ctx,
-    svc::{FooIn, FooSflI},
+    svc::{FooIn, FooOut, FooSflI},
 };
-use foa::db::sqlx::invoke_in_tx;
+use axum::http::{request, Method, Uri, Version};
+use foa::{
+    db::sqlx::AsyncTxFn,
+    error::Result,
+    fun::AsyncFn2,
+    tokio::task_local::{TaskLocal, TaskLocalCtx},
+};
 use futures::future::join_all;
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
+
+pub struct FooSflIC;
+
+type CtxTl = <Ctx as TaskLocalCtx>::TaskLocal;
+type CtxTlValue = <CtxTl as TaskLocal>::Value;
+
+impl AsyncFn2 for FooSflIC {
+    type In1 = CtxTlValue;
+    type In2 = FooIn;
+    type Out = Result<FooOut>;
+
+    async fn invoke(&self, input1: Self::In1, input2: Self::In2) -> Self::Out {
+        FooSflI(Ctx)
+            .invoke_in_tx_tl_scoped::<CtxTl>(input1, input2)
+            .await
+    }
+}
 
 pub struct RunIn {
     pub unit_time_millis: u64,
@@ -36,6 +59,17 @@ pub async fn run(input: RunIn) {
     let start_time = Instant::now();
     println!("Started at {:?}", start_time);
 
+    let (parts, _) = {
+        let req = request::Builder::new()
+            .header("Accept-Language", "pt-BR")
+            .method(Method::PUT)
+            .uri(Uri::from_static("foo.com"))
+            .version(Version::HTTP_2)
+            .body(())
+            .unwrap();
+        req.into_parts()
+    };
+
     // AppCfgInfo::refresh_app_configuration();
 
     let handle_r = tokio::spawn(async move {
@@ -60,11 +94,12 @@ pub async fn run(input: RunIn) {
 
     let run_concurrent = {
         |i: usize| {
+            let parts = parts.clone();
             tokio::spawn(async move {
-                let foo_sfl = FooSflI(Ctx);
+                let foo_sfl = FooSflIC;
                 let mut res: usize = 0;
                 for j in 0..repeats {
-                    let out = invoke_in_tx(&foo_sfl, FooIn { age_delta: 11 }).await;
+                    let out = foo_sfl.invoke(parts.clone(), FooIn { age_delta: 11 }).await;
                     res = format!("{:?}", out).len();
                     if i == 0 && j % increment_to_print == 0 {
                         println!(

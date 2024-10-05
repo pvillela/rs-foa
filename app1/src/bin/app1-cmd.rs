@@ -1,11 +1,11 @@
-use dev_support::artctpg::run::{
+use app1::run::{
     ctx::Ctx,
     tokio_run::{run, RunIn},
 };
 
 #[tokio::main]
 async fn main() {
-    println!("===== cda_run_foo_bar_artctps_tokio =====");
+    println!("===== app1-cmd =====");
 
     Ctx::init().await; // initialize context
 

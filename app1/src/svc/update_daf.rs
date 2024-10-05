@@ -1,48 +1,51 @@
-use crate::artctpg::svc::common::AppCfgInfoArc;
+use crate::svc::common::AppCfgInfoArc;
 use foa::{context::Cfg, refinto::RefInto, Result};
 use sqlx::{Postgres, Transaction};
 use tracing::instrument;
 
 // region:      --- Stereotype signature
 
-pub trait ReadDaf<CTX> {
+pub trait UpdateDaf<CTX> {
     #[allow(async_fn_in_trait)]
-    async fn read_daf(tx: &mut Transaction<'_, Postgres>) -> Result<i32>;
+    async fn update_daf(age: i32, tx: &mut Transaction<'_, Postgres>) -> Result<()>;
 }
 
 // endregion:   --- Stereotype signature
 
 // region:      --- Stereotype implementation with dependencies' signatures only
 
-pub struct ReadDafCfgInfo<'a> {
+pub struct UpdateDafCfgInfo<'a> {
     pub name: &'a str,
 }
 
 /// Trait alias
-pub trait ReadDafCtx: Cfg<CfgInfo: for<'a> RefInto<'a, ReadDafCfgInfo<'a>>> {}
-impl<CTX> ReadDafCtx for CTX
+pub trait UpdateDafCtx: Cfg<CfgInfo: for<'a> RefInto<'a, UpdateDafCfgInfo<'a>>> {}
+impl<CTX> UpdateDafCtx for CTX
 where
     CTX: Cfg,
-    CTX::CfgInfo: for<'a> RefInto<'a, ReadDafCfgInfo<'a>>,
+    CTX::CfgInfo: for<'a> RefInto<'a, UpdateDafCfgInfo<'a>>,
 {
 }
 
-impl<CTX, T> ReadDaf<CTX> for T
+impl<CTX, T> UpdateDaf<CTX> for T
 where
-    CTX: ReadDafCtx,
+    CTX: UpdateDafCtx,
 {
     #[instrument(level = "trace", skip_all)]
     #[allow(async_fn_in_trait)]
-    async fn read_daf(tx: &mut Transaction<'_, Postgres>) -> Result<i32> {
+    async fn update_daf(age: i32, tx: &mut Transaction<'_, Postgres>) -> Result<()> {
         let app_cfg_info = CTX::cfg();
         let cfg = app_cfg_info.ref_into();
 
-        let age: i32 = sqlx::query_scalar("select age from users where name=$1;")
+        let res = sqlx::query("update users set age=$2 where name=$1;")
             .bind(cfg.name)
-            .fetch_one(&mut **tx)
+            .bind(age)
+            .execute(&mut **tx)
             .await?;
 
-        Ok(age)
+        assert_eq!(res.rows_affected(), 1, "update_daf_boot");
+
+        Ok(())
     }
 }
 
@@ -62,9 +65,9 @@ where
 
 // region:      --- Depends on application configuration implementation
 
-impl<'a> RefInto<'a, ReadDafCfgInfo<'a>> for AppCfgInfoArc {
-    fn ref_into(&'a self) -> ReadDafCfgInfo {
-        ReadDafCfgInfo { name: &self.x }
+impl<'a> RefInto<'a, UpdateDafCfgInfo<'a>> for AppCfgInfoArc {
+    fn ref_into(&'a self) -> UpdateDafCfgInfo {
+        UpdateDafCfgInfo { name: &self.x }
     }
 }
 

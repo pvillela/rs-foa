@@ -1,20 +1,20 @@
 [package]
-name = "dev_support"
+name = "app1"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+arc-swap = "1.6"
 axum = "0.7"
-derive_more = { version = "1", features = ["display", "error"] }
+dev_support = { path = "../dev_support" }
 foa = { path = "../foa" }
 futures = "0.3"
-once_cell = "1.19"
-regex = "1.10"
+latency_trace = { version = "0.5", features = ["tokio"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sqlx = { version = "0.8", features = ["postgres", "runtime-tokio-native-tls"] }
-thiserror = "1.0"
 tokio = { version = "1.40", features = ["full"] }
-# valid = { version = "0.3", features = ["serde1"] }
+tracing = "0.1"
+valid = { version = "0.3", features = ["serde1"] }

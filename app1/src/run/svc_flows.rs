@@ -1,5 +1,5 @@
 use super::ctx::Ctx;
-use crate::artctpg::svc::{FooIn, FooOut, FooSflI};
+use crate::svc::{FooIn, FooOut, FooSflI};
 use foa::{
     db::sqlx::AsyncTxFn,
     fun::AsyncFn2,

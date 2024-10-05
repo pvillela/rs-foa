@@ -1,5 +1,5 @@
-use crate::artctpg::svc::common::{AppCfgInfo, AppCfgInfoArc};
-use crate::artctpg::svc::InitDafI;
+use crate::svc::common::{AppCfgInfo, AppCfgInfoArc};
+use crate::svc::InitDafI;
 use arc_swap::ArcSwap;
 use axum::http::request::Parts;
 use foa::context::ErrCtx;

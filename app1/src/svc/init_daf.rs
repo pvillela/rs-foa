@@ -1,4 +1,4 @@
-use crate::artctpg::svc::common::AppCfgInfoArc;
+use crate::svc::common::AppCfgInfoArc;
 use foa::{
     context::Cfg,
     db::sqlx::{AsyncTxFn, PgDbCtx},
