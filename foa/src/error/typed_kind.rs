@@ -1,4 +1,4 @@
-use super::{BacktraceSpec, Error, ErrorTag, KindId};
+use super::{BacktraceSpec, Error, KindId, Tag};
 use std::{backtrace::Backtrace, marker::PhantomData};
 
 #[derive(Debug)]
@@ -8,7 +8,7 @@ where
 {
     kind_id: KindId,
     backtrace_spec: BacktraceSpec,
-    tag: Option<&'static ErrorTag>,
+    tag: Option<&'static Tag>,
     _t: PhantomData<T>,
 }
 
@@ -20,14 +20,14 @@ where
         &self.kind_id
     }
 
-    pub const fn tag(&self) -> Option<&'static ErrorTag> {
+    pub const fn tag(&self) -> Option<&'static Tag> {
         self.tag
     }
 
     pub const fn new(
         name: &'static str,
         backtrace_spec: BacktraceSpec,
-        tag: Option<&'static ErrorTag>,
+        tag: Option<&'static Tag>,
     ) -> Self {
         Self {
             kind_id: KindId(name),

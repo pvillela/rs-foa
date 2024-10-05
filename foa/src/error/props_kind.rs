@@ -1,4 +1,4 @@
-use super::{BacktraceSpec, Error, ErrorTag, KindId, StdBoxError, TRUNC};
+use super::{BacktraceSpec, Error, Tag, KindId, StdBoxError, TRUNC};
 use crate::{hash::hash_sha256_of_str_arr, string};
 use serde::Serialize;
 use std::backtrace::Backtrace;
@@ -119,7 +119,7 @@ pub struct PropsKind<const ARITY: usize, const HASCAUSE: bool> {
     pub(super) msg: Option<&'static str>,
     pub(super) prop_names: [&'static str; ARITY],
     pub(super) backtrace_spec: BacktraceSpec,
-    pub(super) tag: Option<&'static ErrorTag>,
+    pub(super) tag: Option<&'static Tag>,
 }
 
 pub type BasicKind<const HASCAUSE: bool> = PropsKind<0, HASCAUSE>;
@@ -129,7 +129,7 @@ impl<const ARITY: usize, const HASCAUSE: bool> PropsKind<ARITY, HASCAUSE> {
         &self.kind_id
     }
 
-    pub const fn tag(&self) -> Option<&'static ErrorTag> {
+    pub const fn tag(&self) -> Option<&'static Tag> {
         self.tag
     }
 
@@ -138,7 +138,7 @@ impl<const ARITY: usize, const HASCAUSE: bool> PropsKind<ARITY, HASCAUSE> {
         msg: Option<&'static str>,
         prop_names: [&'static str; ARITY],
         backtrace_spec: BacktraceSpec,
-        tag: Option<&'static ErrorTag>,
+        tag: Option<&'static Tag>,
     ) -> Self {
         Self {
             kind_id: KindId(name),
@@ -180,7 +180,7 @@ impl<const HASCAUSE: bool> BasicKind<HASCAUSE> {
         name: &'static str,
         msg: Option<&'static str>,
         backtrace_spec: BacktraceSpec,
-        tag: Option<&'static ErrorTag>,
+        tag: Option<&'static Tag>,
     ) -> Self {
         Self {
             kind_id: KindId(name),

@@ -13,7 +13,7 @@ pub const TRUNC: usize = 8;
 // region:      --- ErrorTag
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
-pub struct ErrorTag(pub &'static str);
+pub struct Tag(pub &'static str);
 
 // endregion:   --- ErrorTag
 
@@ -72,7 +72,7 @@ impl Eq for KindId {}
 #[derive(Debug, Serialize)]
 pub struct Error {
     kind_id: &'static KindId,
-    tag: Option<&'static ErrorTag>,
+    tag: Option<&'static Tag>,
     payload: StdBoxError,
     #[serde(skip_serializing)]
     backtrace: NoDebug<Backtrace>,
@@ -85,7 +85,7 @@ pub type ReverseResult<T> = std::result::Result<Error, T>;
 impl Error {
     pub fn new(
         kind_id: &'static KindId,
-        tag: Option<&'static ErrorTag>,
+        tag: Option<&'static Tag>,
         payload: impl StdError + Send + Sync + 'static,
         backtrace: Backtrace,
     ) -> Self {
@@ -105,7 +105,7 @@ impl Error {
         self.kind_id
     }
 
-    pub fn tag(&self) -> Option<&'static ErrorTag> {
+    pub fn tag(&self) -> Option<&'static Tag> {
         self.tag
     }
 
@@ -302,7 +302,7 @@ impl From<Error> for JserBoxError {
 #[derive(Debug, Serialize)]
 pub struct ErrorExp<T> {
     pub kind_id: &'static KindId,
-    pub tag: Option<&'static ErrorTag>,
+    pub tag: Option<&'static Tag>,
     pub payload: T,
     #[serde(skip_serializing)]
     pub backtrace: NoDebug<Backtrace>,

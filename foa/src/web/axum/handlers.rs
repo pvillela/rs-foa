@@ -1,5 +1,5 @@
 use crate::error::{
-    self, swap_result, Error, ErrorExp, JserBoxError, UNEXPECTED_ERROR, VALIDATION_ERROR_TAG,
+    self, swap_result, Error, ErrorExp, JserBoxError, UNEXPECTED_ERROR, VALIDATION_TAG,
 };
 use crate::fun::AsyncFn2;
 use axum::extract::{FromRequest, FromRequestParts};
@@ -118,7 +118,7 @@ fn error_string_error_level(err: &Error) -> String {
 pub fn default_jserbox_mapper(err: JserBoxError) -> (StatusCode, JserBoxError) {
     let res = swap_result(|| -> Result<JserBoxError, (StatusCode, JserBoxError)> {
         err.with_downcast::<Error, _>(|err| match err.tag() {
-            Some(tag) if tag == &VALIDATION_ERROR_TAG => {
+            Some(tag) if tag == &VALIDATION_TAG => {
                 let status_code = StatusCode::BAD_REQUEST;
                 let err_exp_res: Result<ErrorExp<ValidationError>, Error> = err.into();
                 match err_exp_res {
@@ -145,7 +145,7 @@ pub fn default_jserbox_mapper(err: JserBoxError) -> (StatusCode, JserBoxError) {
 
 pub fn default_mapper(err: Error) -> (StatusCode, JserBoxError) {
     match err.tag() {
-        Some(tag) if tag == &VALIDATION_ERROR_TAG => {
+        Some(tag) if tag == &VALIDATION_TAG => {
             let status_code = StatusCode::BAD_REQUEST;
             let err_exp_res: Result<ErrorExp<ValidationError>, Error> = err.into();
             match err_exp_res {

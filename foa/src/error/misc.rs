@@ -1,4 +1,4 @@
-use super::{BacktraceSpec, BasicKind, Error, ErrorTag, KindId, UNEXPECTED_ERROR_TAG};
+use super::{BacktraceSpec, BasicKind, Error, KindId, Tag, UNEXPECTED_TAG};
 use serde::Serialize;
 use std::{
     backtrace::Backtrace,
@@ -29,8 +29,8 @@ impl UnexpectedKind {
         &self.kind_id
     }
 
-    pub fn tag(&self) -> Option<&'static ErrorTag> {
-        Some(&UNEXPECTED_ERROR_TAG)
+    pub fn tag(&self) -> Option<&'static Tag> {
+        Some(&UNEXPECTED_TAG)
     }
 
     pub const fn new(name: &'static str) -> Self {

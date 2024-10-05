@@ -1,11 +1,11 @@
 //! [`ErrorTag`] instances that are commonly used.
 
-use super::ErrorTag;
+use super::Tag;
 
-pub static INTERNAL_ERROR_TAG: ErrorTag = ErrorTag("INTERNAL");
+pub static INTERNAL_TAG: Tag = Tag("INTERNAL");
 
-pub static RUNTIME_ERROR_TAG: ErrorTag = ErrorTag("RUNTIME");
+pub static RUNTIME_TAG: Tag = Tag("RUNTIME");
 
-pub static VALIDATION_ERROR_TAG: ErrorTag = ErrorTag("VALIDATION");
+pub static VALIDATION_TAG: Tag = Tag("VALIDATION");
 
-pub static UNEXPECTED_ERROR_TAG: ErrorTag = ErrorTag("UNEXPECTED");
+pub static UNEXPECTED_TAG: Tag = Tag("UNEXPECTED");
