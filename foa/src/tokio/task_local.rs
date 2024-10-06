@@ -1,6 +1,17 @@
-use crate::fun::{AsyncFn, AsyncFn2};
+use crate::{
+    error::{BacktraceSpec, BasicKind, INTERNAL_TAG},
+    fun::{AsyncFn, AsyncFn2},
+    Error,
+};
 use std::marker::PhantomData;
 use tokio::task::LocalKey;
+
+pub static TASK_LOCAL_ERROR: BasicKind<true> = BasicKind::new(
+    "TASK_LOCAL_ERROR",
+    None,
+    BacktraceSpec::Yes,
+    Some(&INTERNAL_TAG),
+);
 
 pub trait TaskLocalCtx {
     type TaskLocal: TaskLocal;
@@ -15,9 +26,14 @@ pub trait TaskLocal {
 
     fn local_key() -> &'static LocalKey<Self::Value>;
 
-    fn with<U>(f: impl FnOnce(&Self::Value) -> U) -> U {
+    fn try_with<U>(f: impl FnOnce(&Self::Value) -> U) -> Result<U, Error> {
         let lk = Self::local_key();
-        lk.with(|v| f(v))
+        lk.try_with(|v| f(v))
+            .map_err(|err| TASK_LOCAL_ERROR.error(err))
+    }
+
+    fn with<U>(f: impl FnOnce(&Self::Value) -> U) -> U {
+        Self::try_with(f).expect("task-local value not set")
     }
 
     fn cloned_value() -> Self::Value
@@ -128,7 +144,8 @@ mod test {
             let tlc = TlWithLocale {
                 locale: "en-CA".into(),
             };
-            invoke_tl_scoped::<_, <Ctx as TaskLocalCtx>::TaskLocal>(&FooI(Ctx), tlc, ()).await
+            // invoke_tl_scoped::<_, <Ctx as TaskLocalCtx>::TaskLocal>(&FooI(Ctx), tlc, ()).await
+            FooI(Ctx).invoke(()).await
         });
         let foo_out = h.await.unwrap();
         assert_eq!(

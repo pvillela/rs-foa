@@ -96,10 +96,11 @@ pub async fn run(input: RunIn) {
         |i: usize| {
             let parts = parts.clone();
             tokio::spawn(async move {
-                let foo_sfl = FooSflIC;
                 let mut res: usize = 0;
                 for j in 0..repeats {
-                    let out = foo_sfl.invoke(parts.clone(), FooIn { age_delta: 11 }).await;
+                    let out = FooSflIC
+                        .invoke(parts.clone(), FooIn { age_delta: 11 })
+                        .await;
                     res = format!("{:?}", out).len();
                     if i == 0 && j % increment_to_print == 0 {
                         println!(
