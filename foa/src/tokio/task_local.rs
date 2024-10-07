@@ -45,13 +45,7 @@ pub trait TaskLocal {
 }
 
 #[derive(Clone)]
-pub struct TlScoped<F, TL>(F, PhantomData<TL>);
-
-impl<F, TL> TlScoped<F, TL> {
-    pub fn new(f: F) -> Self {
-        TlScoped(f, PhantomData)
-    }
-}
+struct TlScoped<F, TL>(F, PhantomData<TL>);
 
 impl<F, TL> AsyncFn2 for TlScoped<F, TL>
 where
@@ -144,8 +138,7 @@ mod test {
             let tlc = TlWithLocale {
                 locale: "en-CA".into(),
             };
-            // invoke_tl_scoped::<_, <Ctx as TaskLocalCtx>::TaskLocal>(&FooI(Ctx), tlc, ()).await
-            FooI(Ctx).invoke(()).await
+            invoke_tl_scoped::<_, <Ctx as TaskLocalCtx>::TaskLocal>(&FooI(Ctx), tlc, ()).await
         });
         let foo_out = h.await.unwrap();
         assert_eq!(

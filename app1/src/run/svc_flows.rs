@@ -3,7 +3,7 @@ use crate::svc::{FooIn, FooOut, FooSflI};
 use foa::{
     db::sqlx::AsyncTxFn,
     fun::AsyncFn2,
-    tokio::task_local::{TaskLocal, TaskLocalCtx},
+    tokio::task_local::{invoke_tl_scoped, tl_scoped, TaskLocal, TaskLocalCtx},
     Result,
 };
 use std::{future::Future, pin::Pin};
@@ -19,9 +19,7 @@ impl AsyncFn2 for FooSflIC {
     type Out = Result<FooOut>;
 
     async fn invoke(&self, input1: Self::In1, input2: Self::In2) -> Self::Out {
-        FooSflI(Ctx)
-            .invoke_in_tx_tl_scoped::<CtxTl>(input1, input2)
-            .await
+        invoke_tl_scoped::<_, CtxTl>(&FooSflI(Ctx).in_tx(), input1, input2).await
     }
 }
 
@@ -32,7 +30,5 @@ pub fn make_foo_sfl(
        + Sync // optional, results from Self: Sync
        + Clone
        + 'static {
-    FooSflI(Ctx)
-        .in_tx_tl_scoped::<CtxTl>()
-        .into_fnonce_with_arc()
+    tl_scoped::<_, CtxTl>(FooSflI(Ctx).in_tx()).into_fnonce_with_arc()
 }

@@ -32,6 +32,14 @@ pub trait SecCtx {
     // TBD
 }
 
+pub trait Source<T> {
+    fn source() -> T;
+}
+
+pub trait SourceCtx<T> {
+    type Source: Source<T>;
+}
+
 // endregion:   --- Context traits
 
 // region:      --- impls for NullCtx

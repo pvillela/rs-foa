@@ -3,9 +3,9 @@ use axum::extract::FromRequestParts;
 use axum::http::request::Parts;
 use axum::http::StatusCode;
 use axum::Json;
+use foa::context::Source;
 use foa::db::sqlx::{in_tx, AsyncTxFn};
 use foa::tokio::task_local::{invoke_tl_scoped, TaskLocal};
-use foa::trait_utils::Make;
 use foa::web::axum::handler_asyncfn2r;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -138,9 +138,9 @@ where
     F::In: DeserializeOwned,
     F::Out: Serialize,
     F::E: Serialize,
-    MF: Make<F> + 'static,
+    MF: Source<F> + 'static,
 {
-    let f = MF::make();
+    let f = MF::source();
     let f_in_tx = in_tx(&f);
     let output = invoke_tl_scoped::<_, TL>(&f_in_tx, parts, input).await?;
     Ok(Json(output))
@@ -155,7 +155,7 @@ where
     F::In: DeserializeOwned,
     F::Out: Serialize,
     F::E: Serialize,
-    MF: Make<F> + 'static,
+    MF: Source<F> + 'static,
 {
     _axum_handler_type_checker_2_args_generic::<_, Json<F::In>, _, _, ()>(
         &handler_tx_headers_old::<F, MF, TL>,

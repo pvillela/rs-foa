@@ -5,7 +5,7 @@ use app1::{
 use axum::Router;
 use foa::{
     db::sqlx::{AsyncTxFn, DbCtx},
-    tokio::task_local::{TaskLocal, TaskLocalCtx},
+    tokio::task_local::{tl_scoped, TaskLocal, TaskLocalCtx},
     web::axum::handler_asyncfn2r_arc,
     Error,
 };
@@ -57,7 +57,7 @@ async fn main() {
         }
     });
 
-    let f = F.in_tx_tl_scoped::<<Ctx as TaskLocalCtx>::TaskLocal>();
+    let f = tl_scoped::<_, <Ctx as TaskLocalCtx>::TaskLocal>(F.in_tx());
 
     let app = Router::new().route(
         "/",

@@ -7,7 +7,7 @@ use foa::{
     db::sqlx::AsyncTxFn,
     error::Result,
     fun::AsyncFn2,
-    tokio::task_local::{TaskLocal, TaskLocalCtx},
+    tokio::task_local::{invoke_tl_scoped, TaskLocal, TaskLocalCtx},
 };
 use futures::future::join_all;
 use std::time::{Duration, Instant};
@@ -24,9 +24,7 @@ impl AsyncFn2 for FooSflIC {
     type Out = Result<FooOut>;
 
     async fn invoke(&self, input1: Self::In1, input2: Self::In2) -> Self::Out {
-        FooSflI(Ctx)
-            .invoke_in_tx_tl_scoped::<CtxTl>(input1, input2)
-            .await
+        invoke_tl_scoped::<_, CtxTl>(&FooSflI(Ctx).in_tx(), input1, input2).await
     }
 }
 

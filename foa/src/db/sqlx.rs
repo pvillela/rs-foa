@@ -1,7 +1,6 @@
 use crate::{
     error::{BacktraceSpec, Error, PropsKind, RUNTIME_TAG},
-    fun::{AsyncFn, AsyncFn2},
-    tokio::task_local::{invoke_tl_scoped, tl_scoped, TaskLocal},
+    fun::AsyncFn,
 };
 
 use sqlx::{Database, Pool, Postgres, Transaction};
@@ -63,34 +62,6 @@ pub trait AsyncTxFn {
     {
         invoke_in_tx(self, input).await
     }
-
-    fn in_tx_tl_scoped<'a, TL>(
-        self,
-    ) -> impl AsyncFn2<In1 = TL::Value, In2 = Self::In, Out = Result<Self::Out, Self::E>>
-           + Send
-           + Sync
-           + 'a
-    where
-        Self: Send + Sync + Sized + 'a,
-        TL: TaskLocal + Sync + Send + 'static,
-        TL::Value: Send,
-    {
-        in_tx_tl_scoped::<_, TL>(self)
-    }
-
-    #[allow(async_fn_in_trait)]
-    async fn invoke_in_tx_tl_scoped<TL>(
-        &self,
-        in1: TL::Value,
-        in2: Self::In,
-    ) -> Result<Self::Out, Self::E>
-    where
-        Self: Sync + Sized,
-        TL: TaskLocal + Sync + 'static,
-        TL::Value: Send,
-    {
-        invoke_in_tx_tl_scoped::<_, TL>(self, in1, in2).await
-    }
 }
 
 impl<F: AsyncTxFn> AsyncTxFn for &F {
@@ -138,30 +109,4 @@ where
     F: AsyncTxFn + Sync,
 {
     f.in_tx().invoke(input).await
-}
-
-pub fn in_tx_tl_scoped<'a, F, TL>(
-    f: F,
-) -> impl AsyncFn2<In1 = TL::Value, In2 = F::In, Out = Result<F::Out, F::E>> + 'a
-where
-    TL: TaskLocal + Sync + 'static,
-    TL::Value: Send,
-    F: AsyncTxFn + Sync + Send + 'a,
-{
-    let wf1 = f.in_tx();
-    tl_scoped::<_, TL>(wf1)
-}
-
-pub async fn invoke_in_tx_tl_scoped<F, TL>(
-    f: &F,
-    in1: TL::Value,
-    in2: F::In,
-) -> Result<F::Out, F::E>
-where
-    TL: TaskLocal + Sync + 'static,
-    TL::Value: Send,
-    F: AsyncTxFn + Sync,
-{
-    let wf1 = f.in_tx();
-    invoke_tl_scoped::<_, TL>(&wf1, in1, in2).await
 }
