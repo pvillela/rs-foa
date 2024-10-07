@@ -105,52 +105,52 @@ impl StdError for Box<dyn JserErrorPriv> {
     }
 }
 
-enum ErrorWithNull<T: JserError> {
-    Null,
-    Real(T),
+enum MaybeJserError<T: JserError> {
+    Nothing,
+    Just(T),
 }
 
-impl<T: JserError> ErrorWithNull<T> {
-    fn real(self) -> Option<T> {
+impl<T: JserError> MaybeJserError<T> {
+    fn just(self) -> Option<T> {
         match self {
-            Self::Null => None,
-            Self::Real(e) => Some(e),
+            Self::Nothing => None,
+            Self::Just(e) => Some(e),
         }
     }
 }
 
-impl<T: JserError> Debug for ErrorWithNull<T> {
+impl<T: JserError> Debug for MaybeJserError<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Null => f.write_str(""),
-            Self::Real(e) => Debug::fmt(e, f),
+            Self::Nothing => f.write_str(""),
+            Self::Just(e) => Debug::fmt(e, f),
         }
     }
 }
 
-impl<T: JserError> Display for ErrorWithNull<T> {
+impl<T: JserError> Display for MaybeJserError<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Null => f.write_str(""),
-            Self::Real(e) => Display::fmt(e, f),
+            Self::Nothing => f.write_str(""),
+            Self::Just(e) => Display::fmt(e, f),
         }
     }
 }
 
-impl<T: JserError> StdError for ErrorWithNull<T> {
+impl<T: JserError> StdError for MaybeJserError<T> {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match self {
-            Self::Null => None,
-            Self::Real(e) => e.source(),
+            Self::Nothing => None,
+            Self::Just(e) => e.source(),
         }
     }
 }
 
-impl<T: JserError> JserError for ErrorWithNull<T> {
+impl<T: JserError> JserError for MaybeJserError<T> {
     fn to_json(&self) -> Value {
         match self {
-            Self::Null => Value::Null,
-            Self::Real(e) => e.to_json(),
+            Self::Nothing => Value::Null,
+            Self::Just(e) => e.to_json(),
         }
     }
 }
@@ -159,7 +159,7 @@ pub struct JserBoxError(Box<dyn JserErrorPriv>);
 
 impl JserBoxError {
     pub fn new(inner: impl JserError) -> Self {
-        Self(Box::new(ErrorWithNull::Real(inner)))
+        Self(Box::new(MaybeJserError::Just(inner)))
     }
 
     fn as_dyn_std_error(&self) -> &(dyn StdError + 'static) {
@@ -170,10 +170,10 @@ impl JserBoxError {
         let err_box_dyn = &self.0;
         err_box_dyn
             .as_any()
-            .downcast_ref::<ErrorWithNull<T>>()
+            .downcast_ref::<MaybeJserError<T>>()
             .map(|w| match w {
-                ErrorWithNull::Null => unreachable!("invalid state"),
-                ErrorWithNull::Real(e) => e,
+                MaybeJserError::Nothing => unreachable!("invalid state"),
+                MaybeJserError::Just(e) => e,
             })
     }
 
@@ -182,22 +182,22 @@ impl JserBoxError {
         let err_box_dyn = &mut self.0;
         err_box_dyn
             .as_any_mut()
-            .downcast_mut::<ErrorWithNull<T>>()
+            .downcast_mut::<MaybeJserError<T>>()
             .map(|w| match w {
-                ErrorWithNull::Null => unreachable!("invalid state"),
-                ErrorWithNull::Real(e) => e,
+                MaybeJserError::Nothing => unreachable!("invalid state"),
+                MaybeJserError::Just(e) => e,
             })
     }
 
     pub fn downcast<T: JserError>(mut self) -> Result<T, Self> {
         let err_box_dyn = &mut self.0;
         let err_dyn_any = err_box_dyn.as_any_mut();
-        if err_dyn_any.is::<ErrorWithNull<T>>() {
+        if err_dyn_any.is::<MaybeJserError<T>>() {
             let err_with_null_r = err_dyn_any
-                .downcast_mut::<ErrorWithNull<T>>()
+                .downcast_mut::<MaybeJserError<T>>()
                 .expect("downcast success previously confirmed");
-            let err_with_null_v = replace(err_with_null_r, ErrorWithNull::Null);
-            Ok(err_with_null_v.real().unwrap())
+            let err_with_null_v = replace(err_with_null_r, MaybeJserError::Nothing);
+            Ok(err_with_null_v.just().unwrap())
         } else {
             Err(self)
         }

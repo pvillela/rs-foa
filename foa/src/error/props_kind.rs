@@ -1,4 +1,4 @@
-use super::{BacktraceSpec, Error, Tag, KindId, StdBoxError, TRUNC};
+use super::{BacktraceSpec, Error, KindId, StdBoxError, Tag, TRUNC};
 use crate::{hash::hash_sha256_of_str_arr, string};
 use serde::Serialize;
 use std::backtrace::Backtrace;
