@@ -92,43 +92,36 @@ mod test {
     }
 
     tokio::task_local! {
-        static CTX_TL: TlWithLocale;
+        static MY_TL: TlWithLocale;
     }
 
-    async fn foo_sfl<CTX: TaskLocalCtx>() -> (
-        <CTX::TaskLocal as TaskLocal>::Value,
-        <CTX::TaskLocal as TaskLocal>::Value,
-    )
+    async fn foo_sfl<TL: TaskLocal>() -> (TL::Value, TL::Value)
     where
-        <CTX::TaskLocal as TaskLocal>::Value: Clone,
+        TL::Value: Clone,
     {
-        let v1 = CTX::TaskLocal::cloned_value();
-        let v2 = CTX::TaskLocal::with(|v| v.clone());
+        let v1 = TL::cloned_value();
+        let v2 = TL::with(|v| v.clone());
         (v1, v2)
     }
 
-    struct Ctx<const K: u8 = 0>;
+    struct TlI;
 
-    impl TaskLocal for Ctx<1> {
+    impl TaskLocal for TlI {
         type Value = TlWithLocale;
 
         fn local_key() -> &'static LocalKey<Self::Value> {
-            &CTX_TL
+            &MY_TL
         }
     }
 
-    impl TaskLocalCtx for Ctx {
-        type TaskLocal = Ctx<1>;
-    }
+    struct FooI;
 
-    struct FooI<CTX>(CTX);
-
-    impl AsyncFn for FooI<Ctx> {
+    impl AsyncFn for FooI {
         type In = ();
         type Out = Result<(TlWithLocale, TlWithLocale), ()>;
 
         async fn invoke(&self, _input: Self::In) -> Self::Out {
-            Ok(foo_sfl::<Ctx>().await)
+            Ok(foo_sfl::<TlI>().await)
         }
     }
 
@@ -138,7 +131,7 @@ mod test {
             let tlc = TlWithLocale {
                 locale: "en-CA".into(),
             };
-            invoke_tl_scoped::<_, <Ctx as TaskLocalCtx>::TaskLocal>(&FooI(Ctx), tlc, ()).await
+            invoke_tl_scoped::<_, TlI>(&FooI, tlc, ()).await
         });
         let foo_out = h.await.unwrap();
         assert_eq!(

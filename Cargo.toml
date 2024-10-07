@@ -1,4 +1,4 @@
 [workspace]
-members = ["*"]
+members = ["foa", "dev_support", "app1"]
 exclude = ["target", ".git", ".idea", "out"]
 resolver = "2"

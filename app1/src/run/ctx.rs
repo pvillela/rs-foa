@@ -3,14 +3,12 @@ use crate::svc::InitDafI;
 use arc_swap::ArcSwap;
 use axum::http::request::Parts;
 use foa::context::ErrCtx;
+use foa::tokio::task_local::TaskLocalCtx;
 use foa::{
-    context::{Cfg, Locale, LocaleCtx},
+    context::{Cfg, Locale, LocaleCtx, Source, SourceCtx},
     db::sqlx::{invoke_in_tx, Db, DbCtx},
     static_state::StaticStateMut,
-    tokio::{
-        task_local::{TaskLocal, TaskLocalCtx},
-        task_local_ext::locale_from_task_local,
-    },
+    tokio::{task_local::TaskLocal, task_local_ext::locale_from_task_local},
     Error,
 };
 use sqlx::{Pool, Postgres};
@@ -135,6 +133,12 @@ impl TaskLocal for SubCtx {
     }
 }
 
+impl Source<Parts> for SubCtx {
+    fn source() -> Parts {
+        Self::cloned_value()
+    }
+}
+
 impl Locale for SubCtx {
     fn locale() -> impl std::ops::Deref<Target = str> {
         locale_from_task_local::<Self>("en-CA")
@@ -143,6 +147,10 @@ impl Locale for SubCtx {
 
 impl TaskLocalCtx for Ctx {
     type TaskLocal = SubCtx;
+}
+
+impl SourceCtx<Parts> for Ctx {
+    type Source = SubCtx;
 }
 
 impl LocaleCtx for Ctx {

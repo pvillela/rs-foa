@@ -4,7 +4,7 @@ use app1::svc::{
 };
 use axum::http::request::Parts;
 use foa::{
-    context::{Cfg, LocaleCtx},
+    context::Cfg,
     db::sqlx::{AsyncTxFn, PgDbCtx},
     refinto::RefInto,
     tokio::task_local::{invoke_tl_scoped, TaskLocal, TaskLocalCtx},
@@ -75,7 +75,7 @@ struct TestFooSflI<CTX>(pub PhantomData<CTX>);
 
 impl<CTX> AsyncTxFn for TestFooSflI<CTX>
 where
-    CTX: FooCtx + LocaleCtx + InitDafCtx + PgDbCtx + Sync + Send,
+    CTX: FooCtx + InitDafCtx + PgDbCtx + Sync + Send,
     CTX::CfgInfo: Send,
 {
     type In = FooIn;
@@ -91,14 +91,9 @@ where
 
 pub async fn common_test<CTX>(parts: Parts) -> Result<FooOut>
 where
-    CTX: Cfg<CfgInfo = CfgTestInput>
-        + LocaleCtx
-        + TaskLocalCtx<TaskLocal: TaskLocal<Value = Parts> + Sync + Send>
-        + PgDbCtx
-        + 'static
-        + Send
-        + Sync
-        + Debug,
+    CTX: FooCtx + InitDafCtx + PgDbCtx + Sync + Send,
+    CTX: Cfg<CfgInfo = CfgTestInput>,
+    CTX: TaskLocalCtx<TaskLocal: TaskLocal<Value = Parts> + Sync + Send> + 'static + Debug,
 {
     let handle = tokio::spawn(async move {
         invoke_tl_scoped::<_, <CTX as TaskLocalCtx>::TaskLocal>(

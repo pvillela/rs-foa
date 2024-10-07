@@ -1,17 +1,15 @@
-use std::i32;
-
 use super::{common::AppCfgInfoArc, BarBf, BarCtx, ReadDaf, ReadDafCtx, UpdateDaf, UpdateDafCtx};
 use axum::http::request::Parts;
 use foa::{
-    context::{Cfg, Locale, LocaleCtx},
+    context::{Cfg, Locale, LocaleCtx, Source, SourceCtx},
     db::sqlx::{AsyncTxFn, PgDbCtx},
     error::Error,
     refinto::RefInto,
-    tokio::task_local::{TaskLocal, TaskLocalCtx},
     Result,
 };
 use serde::{Deserialize, Serialize};
 use sqlx::{Postgres, Transaction};
+use std::i32;
 use tracing::instrument;
 use valid::{constraint::Bound, Validate};
 
@@ -59,7 +57,7 @@ where
 
 impl<CTX, T> FooSfl<CTX> for T
 where
-    CTX: FooOnlyCtx + LocaleCtx + TaskLocalCtx<TaskLocal: TaskLocal<Value = Parts>>,
+    CTX: FooOnlyCtx + LocaleCtx + SourceCtx<Parts>,
     T: BarBf<CTX> + ReadDaf<CTX> + UpdateDaf<CTX>,
 {
     #[instrument(level = "trace", skip_all)]
@@ -78,7 +76,7 @@ where
         let stored_age = Self::read_daf(tx).await?;
         let new_age = Self::bar_bf(stored_age, age_delta);
         let locale = CTX::Locale::locale();
-        let parts = CTX::TaskLocal::cloned_value();
+        let parts = CTX::Source::source();
         Self::update_daf(new_age, tx).await?;
         Ok(FooOut {
             name: cfg.name.into(),
@@ -99,22 +97,12 @@ where
 
 /// Trait alias
 pub trait FooCtx:
-    FooOnlyCtx
-    + LocaleCtx
-    + TaskLocalCtx<TaskLocal: TaskLocal<Value = Parts>>
-    + BarCtx
-    + ReadDafCtx
-    + UpdateDafCtx
+    FooOnlyCtx + LocaleCtx + SourceCtx<Parts> + BarCtx + ReadDafCtx + UpdateDafCtx
 {
 }
 impl<CTX> FooCtx for CTX where
-    CTX: FooOnlyCtx
-        + FooOnlyCtx
-        + LocaleCtx
-        + TaskLocalCtx<TaskLocal: TaskLocal<Value = Parts>>
-        + BarCtx
-        + ReadDafCtx
-        + UpdateDafCtx
+    CTX:
+        FooOnlyCtx + FooOnlyCtx + LocaleCtx + SourceCtx<Parts> + BarCtx + ReadDafCtx + UpdateDafCtx
 {
 }
 
@@ -134,10 +122,10 @@ mod type_checking {
     trait FooSflAlias<CTX>: FooSfl<CTX> {}
     impl<CTX, T> FooSflAlias<CTX> for T where CTX: FooCtx {}
 
-    fn foo<CTX: FooCtx>(_f: impl FooSfl<CTX>) {}
+    fn accepts_foo_sfl<CTX: FooCtx>(_f: impl FooSfl<CTX>) {}
 
-    fn bar<CTX: FooCtx>(ctx: CTX) {
-        foo::<CTX>(FooSflI::<CTX>(ctx))
+    fn ctx_implements_fooctx<CTX: FooCtx>(ctx: CTX) {
+        accepts_foo_sfl::<CTX>(FooSflI::<CTX>(ctx))
     }
 }
 

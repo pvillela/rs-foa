@@ -6,7 +6,7 @@ use common_test_app1::{
     common_test, BarBfCfgTestInput, CfgTestInput, FooSflCfgTestInput, InitDafCfgTestinput,
 };
 use foa::{
-    context::{Cfg, ErrCtx, Locale, LocaleCtx, NullSubCtx},
+    context::{Cfg, ErrCtx, Locale, LocaleCtx, NullSubCtx, Source, SourceCtx},
     db::sqlx::{Db, DbCtx},
     tokio::{
         task_local::{TaskLocal, TaskLocalCtx},
@@ -36,6 +36,12 @@ impl<const K: u8> DbCtx for Ctx<K> {
     type Db = SubCtx<K>;
 }
 
+impl<const K: u8> Locale for SubCtx<K> {
+    fn locale() -> impl std::ops::Deref<Target = str> + Send {
+        locale_from_task_local::<Self>("en-CA")
+    }
+}
+
 impl<const K: u8> LocaleCtx for Ctx<K> {
     type Locale = SubCtx<K>;
 }
@@ -56,10 +62,14 @@ impl<const K: u8> TaskLocalCtx for Ctx<K> {
     type TaskLocal = SubCtx<K>;
 }
 
-impl<const K: u8> Locale for SubCtx<K> {
-    fn locale() -> impl std::ops::Deref<Target = str> + Send {
-        locale_from_task_local::<Self>("en-CA")
+impl<const K: u8> Source<Parts> for SubCtx<K> {
+    fn source() -> Parts {
+        Self::cloned_value()
     }
+}
+
+impl<const K: u8> SourceCtx<Parts> for Ctx<K> {
+    type Source = SubCtx<K>;
 }
 
 mod t1 {
