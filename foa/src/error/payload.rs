@@ -43,7 +43,7 @@ impl<T: Payload> Debug for MaybePayload<T> {
 //===========================
 // region:      --- BoxPayload
 
-trait PayloadPriv: Payload {
+pub(crate) trait PayloadPriv: Payload {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
@@ -61,7 +61,7 @@ where
     }
 }
 
-pub struct BoxPayload(Box<dyn PayloadPriv>);
+pub struct BoxPayload(pub(crate) Box<dyn PayloadPriv>);
 
 impl BoxPayload {
     pub fn new(inner: impl Payload) -> Self {
@@ -119,6 +119,12 @@ impl BoxPayload {
 impl Debug for BoxPayload {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         Debug::fmt(&self.0, f)
+    }
+}
+
+impl AsRef<dyn Payload> for BoxPayload {
+    fn as_ref(&self) -> &dyn Payload {
+        &self.0 as &dyn Payload
     }
 }
 

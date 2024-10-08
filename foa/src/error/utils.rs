@@ -1,4 +1,6 @@
-use std::error::Error as StdError;
+use std::{backtrace::Backtrace, error::Error as StdError};
+
+use crate::string;
 
 pub fn extract_boxed<T: StdError + 'static>(
     boxed: Box<dyn StdError + Send + Sync>,
@@ -59,4 +61,89 @@ pub fn recursive_msg(err: &(dyn StdError)) -> String {
     buf.push_str(&closing_buf);
 
     buf
+}
+
+// region:      --- StringSpec
+
+#[non_exhaustive]
+pub enum StringSpec<'a> {
+    Dbg,
+    Recursive,
+    SourceDbg,
+    Backtrace,
+    BacktraceDbg,
+    Decor(&'a Self, Option<&'a str>, Option<&'a str>),
+}
+
+// endregion:   --- StringSpec
+
+pub trait WithBacktrace {
+    fn backtrace(&self) -> &Backtrace;
+}
+
+pub struct Fmt<'a, T: StdError + WithBacktrace>(pub &'a T);
+
+impl<'a, T: StdError + WithBacktrace> Fmt<'a, T> {
+    pub fn dbg_string(&self) -> String {
+        format!("{:?}", self.0)
+    }
+
+    pub fn recursive_msg(&self) -> String {
+        recursive_msg(&self.0)
+    }
+
+    pub fn source_dbg_string(&self) -> String {
+        format!("{:?}", self.0.source())
+    }
+
+    pub fn backtrace_string(&self) -> String {
+        format!("{}", self.0.backtrace())
+    }
+
+    pub fn backtrace_dbg_string(&self) -> String {
+        format!("{:?}", self.0.backtrace())
+    }
+
+    pub fn speced_string(&self, str_spec: &StringSpec) -> String {
+        match str_spec {
+            StringSpec::Dbg => self.dbg_string(),
+            StringSpec::Recursive => self.recursive_msg(),
+            StringSpec::SourceDbg => self.source_dbg_string(),
+            StringSpec::Backtrace => self.backtrace_string(),
+            StringSpec::BacktraceDbg => self.backtrace_dbg_string(),
+            StringSpec::Decor(&ref spec, pre, post) => {
+                string::decorated(&self.speced_string(spec), *pre, *post)
+            }
+        }
+    }
+
+    pub fn multi_speced_string<const N: usize>(&self, str_specs: [StringSpec; N]) -> String {
+        let txt = str_specs
+            .into_iter()
+            .map(|spec| self.speced_string(&spec))
+            .collect::<Vec<_>>();
+        txt.join(", ")
+    }
+
+    pub fn formatted_string(&self, fmt: &str) -> String {
+        let props: Vec<(&'static str, fn(&Self) -> String)> = vec![
+            ("dbg_string", Self::dbg_string),
+            ("recursive_msg", Self::recursive_msg),
+            ("source_dbg_string", Self::source_dbg_string),
+            ("backtrace_string", Self::backtrace_string),
+            ("backtrace_dbg_string", Self::backtrace_dbg_string),
+        ];
+        string::interpolated_props_lazy(fmt, props.into_iter(), self)
+    }
+
+    pub fn speced_string_tuple(&self, str_spec: &StringSpec) -> (&'static str, String) {
+        match str_spec {
+            StringSpec::Dbg => ("dbg_string", self.dbg_string()),
+            StringSpec::Recursive => ("recursive_msg", self.recursive_msg()),
+            StringSpec::SourceDbg => ("source_dbg_string", self.source_dbg_string()),
+            StringSpec::Backtrace => ("backtrace_string", self.backtrace_string()),
+            StringSpec::BacktraceDbg => ("backtrace_dbg_string", self.backtrace_dbg_string()),
+            StringSpec::Decor(&ref spec, _, _) => self.speced_string_tuple(spec),
+        }
+    }
 }

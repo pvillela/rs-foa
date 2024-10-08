@@ -1,8 +1,14 @@
-use super::{extract_boxed, JserBoxError, JserError, StdBoxError};
-use crate::{error::recursive_msg, nodebug::NoDebug, string};
+use super::{BoxPayload, Fmt, Payload, StdBoxError, WithBacktrace};
+use crate::error::utils::StringSpec;
+use crate::{
+    error::{recursive_msg, PayloadPriv},
+    nodebug::NoDebug,
+    string,
+};
 use serde::Serialize;
 use std::{
     backtrace::Backtrace,
+    collections::BTreeMap,
     error::Error as StdError,
     fmt::{Debug, Display},
 };
@@ -69,12 +75,13 @@ impl Eq for KindId {}
 //===========================
 // region:      --- Error
 
-#[derive(Debug, Serialize)]
+#[derive(Debug)]
 pub struct Error {
     kind_id: &'static KindId,
+    msg: &'static str,
     tag: Option<&'static Tag>,
-    payload: StdBoxError,
-    #[serde(skip_serializing)]
+    payload: BoxPayload,
+    source: Option<StdBoxError>,
     backtrace: NoDebug<Backtrace>,
 }
 
@@ -83,16 +90,24 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub type ReverseResult<T> = std::result::Result<Error, T>;
 
 impl Error {
-    pub fn new(
+    pub fn new<S: StdError + Send + Sync + 'static>(
         kind_id: &'static KindId,
+        msg: &'static str,
         tag: Option<&'static Tag>,
-        payload: impl StdError + Send + Sync + 'static,
+        payload: impl Payload,
+        source: Option<S>,
         backtrace: Backtrace,
     ) -> Self {
+        let source = match source {
+            Some(e) => Some(StdBoxError::new(e)),
+            None => None,
+        };
         Self {
             kind_id,
+            msg,
             tag,
-            payload: StdBoxError::new(payload),
+            payload: BoxPayload::new(payload),
+            source,
             backtrace: NoDebug(backtrace),
         }
     }
@@ -109,21 +124,21 @@ impl Error {
         self.tag
     }
 
-    pub fn payload_ref(&self) -> &Box<(dyn std::error::Error + Send + Sync + 'static)> {
-        &self.payload.0
+    pub fn payload_ref(&self) -> &dyn Payload {
+        self.payload.as_ref()
     }
 
-    pub fn typed_payload_ref<T: StdError + 'static>(&self) -> Option<&T> {
-        self.payload.0.downcast_ref::<T>()
+    pub fn typed_payload_ref<T: Payload>(&self) -> Option<&T> {
+        self.payload.downcast_ref::<T>()
     }
 
     /// If the payload is of type `T`, returns `Ok(payload)` , otherwise returns `Err(self)`.
     ///
     /// As this method consumes `self`, if you also need access to other [`Error`] fields then convert
     /// to an [`ErrorExp`] using [`Self::into_errorexp`] instead.
-    pub fn typed_payload<T: StdError + 'static>(self) -> Result<T> {
-        if self.payload.0.is::<T>() {
-            let res = extract_boxed::<T>(self.payload.0);
+    pub fn typed_payload<T: Payload>(self) -> Result<T> {
+        if self.payload.as_any().is::<T>() {
+            let res = self.payload.downcast::<T>();
             match res {
                 Ok(payload) => Ok(payload),
                 Err(_) => unreachable!("downcast previously confirmed"),
@@ -153,10 +168,7 @@ impl Error {
     ///     })
     /// }
     /// ```
-    pub fn with_typed_payload<T: StdError + 'static, U>(
-        self,
-        f: impl FnOnce(T) -> U,
-    ) -> ReverseResult<U> {
+    pub fn with_typed_payload<T: Payload, U>(self, f: impl FnOnce(T) -> U) -> ReverseResult<U> {
         let res = self.typed_payload::<T>();
         match res {
             Ok(payload) => Err(f(payload)),
@@ -170,14 +182,16 @@ impl Error {
 
     /// If the payload is of type `T`, returns `Ok(error_exp)`, where `error_exp` is the
     /// [`ErrorExp`] instance obtained from `self`; otherwise returns `Err(self)`.
-    pub fn into_errorexp<T: StdError + 'static>(self) -> Result<ErrorExp<T>> {
-        if self.payload.0.is::<T>() {
-            let res = extract_boxed::<T>(self.payload.0);
+    pub fn into_errorexp<T: Payload>(self) -> Result<ErrorExp<T>> {
+        if self.payload.as_any().is::<T>() {
+            let res = self.payload.downcast::<T>();
             match res {
                 Ok(payload) => Ok(ErrorExp {
                     kind_id: self.kind_id,
+                    msg: self.msg,
                     tag: self.tag,
                     payload,
+                    source: self.source,
                     backtrace: self.backtrace,
                 }),
                 Err(_) => unreachable!("downcast previously confirmed"),
@@ -205,7 +219,7 @@ impl Error {
     ///     })
     /// }
     /// ```
-    pub fn with_errorexp<T: StdError + 'static, U>(
+    pub fn with_errorexp<T: Payload, U>(
         self,
         f: impl FnOnce(ErrorExp<T>) -> U,
     ) -> ReverseResult<U> {
@@ -216,80 +230,39 @@ impl Error {
         }
     }
 
-    pub fn dbg_string(&self) -> String {
-        format!("{:?}", self)
-    }
-
-    pub fn recursive_msg(&self) -> String {
-        recursive_msg(self)
-    }
-
-    pub fn source_dbg_string(&self) -> String {
-        format!("{:?}", self.source())
-    }
-
-    pub fn backtrace_string(&self) -> String {
-        format!("{}", self.backtrace())
-    }
-
-    pub fn backtrace_dbg_string(&self) -> String {
-        format!("{:?}", self.backtrace())
-    }
-
-    pub fn speced_string(&self, str_spec: &StringSpec) -> String {
-        match str_spec {
-            StringSpec::Dbg => self.dbg_string(),
-            StringSpec::Recursive => self.recursive_msg(),
-            StringSpec::SourceDbg => self.source_dbg_string(),
-            StringSpec::Backtrace => self.backtrace_string(),
-            StringSpec::BacktraceDbg => self.backtrace_dbg_string(),
-            StringSpec::Decor(&ref spec, pre, post) => {
-                string::decorated(&self.speced_string(spec), *pre, *post)
-            }
-        }
-    }
-
-    pub fn multi_speced_string<const N: usize>(&self, str_specs: [StringSpec; N]) -> String {
-        let txt = str_specs
+    pub fn to_sererror<const N: usize>(&self, str_specs: [StringSpec; N]) -> SerError {
+        let fmt = Fmt(self);
+        let other = str_specs
             .into_iter()
-            .map(|spec| self.speced_string(&spec))
-            .collect::<Vec<_>>();
-        txt.join(", ")
-    }
-
-    pub fn formatted_string(&self, fmt: &str) -> String {
-        let props: Vec<(&'static str, fn(&Error) -> String)> = vec![
-            ("dbg_string", Self::dbg_string),
-            ("recursive_msg", Self::recursive_msg),
-            ("source_dbg_string", Self::source_dbg_string),
-            ("backtrace_string", Self::backtrace_string),
-            ("backtrace_dbg_string", Self::backtrace_dbg_string),
-        ];
-        string::interpolated_props_lazy(fmt, props.into_iter(), self)
+            .map(|spec| fmt.speced_string_tuple(&spec))
+            .collect::<BTreeMap<&'static str, String>>();
+        SerError {
+            kind_id: self.kind_id,
+            msg: self.msg,
+            tag: self.tag,
+            other,
+        }
     }
 }
 
 impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Display::fmt(&self.payload, f)
+        f.write_str(&self.msg)
     }
 }
 
 impl StdError for Error {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
-        self.payload.source()
+        match &self.source {
+            Some(e) => Some(e.as_dyn_std_error()),
+            None => None,
+        }
     }
 }
 
-impl From<Error> for Box<dyn JserError> {
-    fn from(value: Error) -> Self {
-        Box::new(value)
-    }
-}
-
-impl From<Error> for JserBoxError {
-    fn from(value: Error) -> Self {
-        JserBoxError::new(value)
+impl WithBacktrace for Error {
+    fn backtrace(&self) -> &Backtrace {
+        Self::backtrace(&self)
     }
 }
 
@@ -299,28 +272,55 @@ impl From<Error> for JserBoxError {
 // region:      --- ErrorExp
 
 /// Struct with the same fields as [`Error`] but where the payload is a type `T` rather than a boxed error.
-#[derive(Debug, Serialize)]
+#[derive(Debug)]
 pub struct ErrorExp<T> {
     pub kind_id: &'static KindId,
+    pub msg: &'static str,
     pub tag: Option<&'static Tag>,
     pub payload: T,
-    #[serde(skip_serializing)]
+    source: Option<StdBoxError>,
     pub backtrace: NoDebug<Backtrace>,
 }
 
-impl<T: StdError> Display for ErrorExp<T> {
+impl<T: Payload + Serialize> ErrorExp<T> {
+    pub fn into_sererrorexp<const N: usize>(self, str_specs: [StringSpec; N]) -> SerErrorExp<T> {
+        let fmt = Fmt(&self);
+        let other = str_specs
+            .into_iter()
+            .map(|spec| fmt.speced_string_tuple(&spec))
+            .collect::<BTreeMap<&'static str, String>>();
+        SerErrorExp {
+            kind_id: self.kind_id,
+            msg: self.msg,
+            tag: self.tag,
+            payload: self.payload,
+            other,
+        }
+    }
+}
+
+impl<T: Payload> Display for ErrorExp<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Display::fmt(&self.payload, f)
+        f.write_str(&self.msg)
     }
 }
 
-impl<T: StdError> StdError for ErrorExp<T> {
+impl<T: Payload> StdError for ErrorExp<T> {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
-        self.payload.source()
+        match &self.source {
+            Some(e) => Some(e.as_dyn_std_error()),
+            None => None,
+        }
     }
 }
 
-impl<T: StdError + 'static> From<Error> for Result<ErrorExp<T>> {
+impl<T> WithBacktrace for ErrorExp<T> {
+    fn backtrace(&self) -> &Backtrace {
+        &self.backtrace
+    }
+}
+
+impl<T: Payload> From<Error> for Result<ErrorExp<T>> {
     fn from(value: Error) -> Self {
         value.into_errorexp()
     }
@@ -328,19 +328,27 @@ impl<T: StdError + 'static> From<Error> for Result<ErrorExp<T>> {
 
 // endregion:   --- ErrorExp
 
-// region:      --- StringSpec
+//===========================
+// region:      --- SerError, SerErrorExp
 
-#[non_exhaustive]
-pub enum StringSpec<'a> {
-    Dbg,
-    Recursive,
-    SourceDbg,
-    Backtrace,
-    BacktraceDbg,
-    Decor(&'a Self, Option<&'a str>, Option<&'a str>),
+#[derive(Serialize)]
+pub struct SerError {
+    kind_id: &'static KindId,
+    msg: &'static str,
+    tag: Option<&'static Tag>,
+    other: BTreeMap<&'static str, String>,
 }
 
-// endregion:   --- StringSpec
+#[derive(Serialize)]
+pub struct SerErrorExp<T: Payload> {
+    kind_id: &'static KindId,
+    msg: &'static str,
+    tag: Option<&'static Tag>,
+    payload: T,
+    other: BTreeMap<&'static str, String>,
+}
+
+// endregion:   --- SerError, SerErrorExp
 
 #[cfg(test)]
 mod test {
@@ -370,8 +378,10 @@ mod test {
 
         let err = Error::new(
             FOO_ERROR.kind_id(),
+            FOO_ERROR.msg,
             FOO_ERROR.tag(),
             make_payload(),
+            None,
             Backtrace::disabled(),
         );
 
