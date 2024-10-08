@@ -4,8 +4,8 @@ use crate::{
 };
 use valid::ValidationError;
 
-pub static VALIDATION_ERROR: TypedKind<ValidationError> =
-    TypedKind::new("VALIDATION_ERROR", BacktraceSpec::No, Some(&VALIDATION_TAG));
+pub static VALIDATION_ERROR: TypedKind<ValidationError, false> =
+    TypedKind::new("VALIDATION_ERROR", None, BacktraceSpec::No, &VALIDATION_TAG);
 
 impl From<ValidationError> for Error {
     fn from(value: ValidationError) -> Self {

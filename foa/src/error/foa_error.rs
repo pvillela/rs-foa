@@ -1,10 +1,6 @@
-use super::{BoxPayload, Fmt, Payload, StdBoxError, WithBacktrace};
+use super::{BoxPayload, Fmt, JserBoxError, Payload, StdBoxError, WithBacktrace};
 use crate::error::utils::StringSpec;
-use crate::{
-    error::{recursive_msg, PayloadPriv},
-    nodebug::NoDebug,
-    string,
-};
+use crate::{error::PayloadPriv, nodebug::NoDebug};
 use serde::Serialize;
 use std::{
     backtrace::Backtrace,
@@ -77,12 +73,12 @@ impl Eq for KindId {}
 
 #[derive(Debug)]
 pub struct Error {
-    kind_id: &'static KindId,
-    msg: &'static str,
-    tag: Option<&'static Tag>,
-    payload: BoxPayload,
-    source: Option<StdBoxError>,
-    backtrace: NoDebug<Backtrace>,
+    pub(crate) kind_id: &'static KindId,
+    pub(crate) msg: &'static str,
+    pub(crate) tag: &'static Tag,
+    pub(crate) payload: BoxPayload,
+    pub(crate) source: Option<StdBoxError>,
+    pub(crate) backtrace: NoDebug<Backtrace>,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -90,12 +86,12 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub type ReverseResult<T> = std::result::Result<Error, T>;
 
 impl Error {
-    pub fn new<S: StdError + Send + Sync + 'static>(
+    pub fn new(
         kind_id: &'static KindId,
         msg: &'static str,
-        tag: Option<&'static Tag>,
+        tag: &'static Tag,
         payload: impl Payload,
-        source: Option<S>,
+        source: Option<StdBoxError>,
         backtrace: Backtrace,
     ) -> Self {
         let source = match source {
@@ -120,7 +116,7 @@ impl Error {
         self.kind_id
     }
 
-    pub fn tag(&self) -> Option<&'static Tag> {
+    pub fn tag(&self) -> &'static Tag {
         self.tag
     }
 
@@ -243,6 +239,10 @@ impl Error {
             other,
         }
     }
+
+    pub fn as_fmt(&self) -> Fmt<'_, Self> {
+        Fmt(self)
+    }
 }
 
 impl Display for Error {
@@ -276,10 +276,16 @@ impl WithBacktrace for Error {
 pub struct ErrorExp<T> {
     pub kind_id: &'static KindId,
     pub msg: &'static str,
-    pub tag: Option<&'static Tag>,
+    pub tag: &'static Tag,
     pub payload: T,
     source: Option<StdBoxError>,
     pub backtrace: NoDebug<Backtrace>,
+}
+
+impl<T: Payload> ErrorExp<T> {
+    pub fn as_fmt(&self) -> Fmt<'_, Self> {
+        Fmt(self)
+    }
 }
 
 impl<T: Payload + Serialize> ErrorExp<T> {
@@ -331,21 +337,49 @@ impl<T: Payload> From<Error> for Result<ErrorExp<T>> {
 //===========================
 // region:      --- SerError, SerErrorExp
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct SerError {
     kind_id: &'static KindId,
     msg: &'static str,
-    tag: Option<&'static Tag>,
+    tag: &'static Tag,
     other: BTreeMap<&'static str, String>,
 }
 
-#[derive(Serialize)]
+impl Display for SerError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.msg)
+    }
+}
+
+impl StdError for SerError {}
+
+impl From<SerError> for JserBoxError {
+    fn from(value: SerError) -> Self {
+        Self::new(value)
+    }
+}
+
+#[derive(Debug, Serialize)]
 pub struct SerErrorExp<T: Payload> {
     kind_id: &'static KindId,
     msg: &'static str,
-    tag: Option<&'static Tag>,
+    tag: &'static Tag,
     payload: T,
     other: BTreeMap<&'static str, String>,
+}
+
+impl<T: Payload> Display for SerErrorExp<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.msg)
+    }
+}
+
+impl<T: Payload> StdError for SerErrorExp<T> {}
+
+impl<T: Payload + Serialize> From<SerErrorExp<T>> for JserBoxError {
+    fn from(value: SerErrorExp<T>) -> Self {
+        Self::new(value)
+    }
 }
 
 // endregion:   --- SerError, SerErrorExp
@@ -354,31 +388,29 @@ pub struct SerErrorExp<T: Payload> {
 mod test {
     use super::*;
     use crate::{
-        error::{swap_result, PropsError, PropsKind, ReverseResult, TrivialError},
+        error::{swap_result, Props, PropsKind, ReverseResult, TrivialError},
         validation::validc::VALIDATION_ERROR,
     };
     use valid::{constraint::Bound, Validate, ValidationError};
+
+    static FOO_TAG: Tag = Tag("FOO");
 
     static FOO_ERROR: PropsKind<1, false> = PropsKind::with_prop_names(
         "FOO_ERROR",
         Some("foo message: {xyz}"),
         ["xyz"],
         BacktraceSpec::Env,
-        None,
+        &FOO_TAG,
     );
 
-    fn make_payload_error_pair() -> (PropsError, Error) {
-        fn make_payload() -> PropsError {
-            PropsError {
-                msg: FOO_ERROR.msg.unwrap(),
-                props: vec![(FOO_ERROR.prop_names[0].into(), "hi there!".into())],
-                source: None,
-            }
+    fn make_payload_error_pair() -> (Props, Error) {
+        fn make_payload() -> Props {
+            Props(vec![(FOO_ERROR.prop_names[0].into(), "hi there!".into())])
         }
 
         let err = Error::new(
             FOO_ERROR.kind_id(),
-            FOO_ERROR.msg,
+            FOO_ERROR.msg(),
             FOO_ERROR.tag(),
             make_payload(),
             None,
@@ -395,10 +427,9 @@ mod test {
         assert!(err.has_kind(FOO_ERROR.kind_id()));
         assert_eq!(err.to_string(), "foo message: hi there!");
 
-        let payload_ext: PropsError = err.typed_payload().unwrap();
+        let payload_ext: Props = err.typed_payload().unwrap();
 
-        assert_eq!(payload.msg, payload_ext.msg);
-        assert_eq!(payload.props, payload_ext.props);
+        assert_eq!(payload.0, payload_ext.0);
     }
 
     #[test]
@@ -410,9 +441,8 @@ mod test {
 
         let res = swap_result(|| -> ReverseResult<()> {
             err.with_typed_payload::<TrivialError, _>(|_| unreachable!())?
-                .with_typed_payload::<PropsError, _>(|payload_ext| {
-                    assert_eq!(payload.msg, payload_ext.msg);
-                    assert_eq!(payload.props, payload_ext.props);
+                .with_typed_payload::<Props, _>(|payload_ext| {
+                    assert_eq!(payload.0, payload_ext.0);
                 })?
                 .with_typed_payload::<TrivialError, _>(|_| unreachable!("again"))
         });
@@ -429,10 +459,10 @@ mod test {
 
         let res = swap_result(|| -> std::result::Result<Error, ()> {
             err.with_errorexp::<TrivialError, _>(|_| unreachable!())?
-                .with_errorexp::<PropsError, _>(|ee| {
-                    assert_eq!(payload.msg, ee.payload.msg);
-                    assert_eq!(payload.props, ee.payload.props);
+                .with_errorexp::<Props, _>(|ee| {
+                    assert_eq!(payload.0, ee.payload.0);
                     assert_eq!(err1.kind_id(), ee.kind_id);
+                    assert_eq!(err1.msg, ee.msg);
                     assert_eq!(err1.tag(), ee.tag);
                 })?
                 .with_errorexp::<TrivialError, _>(|_| unreachable!("again"))
@@ -447,7 +477,7 @@ mod test {
         assert!(err.has_kind(FOO_ERROR.kind_id()));
         assert_eq!(err.to_string(), "foo message: hi there!");
 
-        let res = err.into_errorexp::<PropsError>();
+        let res = err.into_errorexp::<Props>();
         match res {
             Ok(ee) => assert_eq!(ee.kind_id, FOO_ERROR.kind_id()),
             Err(_) => unreachable!(),
@@ -478,10 +508,10 @@ mod test {
     }
 
     fn out_formatted_string(err: &Error) -> String {
-        let mut fmt = "{dbg_string}".to_owned();
-        fmt.push_str(", recursive_msg=({recursive_msg})");
-        fmt.push_str(", source={source_dbg_string}");
-        fmt.push_str(", backtrace=\n{backtrace_string}");
-        err.formatted_string(&fmt)
+        let mut fmt_spec = "{dbg_string}".to_owned();
+        fmt_spec.push_str(", recursive_msg=({recursive_msg})");
+        fmt_spec.push_str(", source={source_dbg_string}");
+        fmt_spec.push_str(", backtrace=\n{backtrace_string}");
+        err.as_fmt().formatted_string(&fmt_spec)
     }
 }

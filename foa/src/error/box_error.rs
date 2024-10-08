@@ -312,7 +312,7 @@ impl Serialize for BoxError {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::error::{PropsError, TrivialError};
+    use crate::error::{SerError, TrivialError};
 
     #[test]
     fn test_downcast() {
@@ -320,7 +320,7 @@ mod test {
         let jsb_e = JserBoxError::new(e);
 
         let jsb_e = jsb_e
-            .downcast::<PropsError>()
+            .downcast::<SerError>()
             .expect_err("downcast should fail");
 
         let e_d: TrivialError = jsb_e.downcast().expect("downcast should succeed");
@@ -332,7 +332,7 @@ mod test {
         let e = TrivialError("e");
         let jsb_e = JserBoxError::new(e);
 
-        let e_d_opt = jsb_e.downcast_ref::<PropsError>();
+        let e_d_opt = jsb_e.downcast_ref::<SerError>();
         assert!(e_d_opt.is_none(), "downcast should fail");
 
         let e_d: TrivialError = jsb_e.downcast().expect("downcast should succeed");
@@ -344,7 +344,7 @@ mod test {
         let e = TrivialError("e");
         let mut jsb_e = JserBoxError::new(e);
 
-        let e_d_opt = jsb_e.downcast_mut::<PropsError>();
+        let e_d_opt = jsb_e.downcast_mut::<SerError>();
         assert!(e_d_opt.is_none(), "downcast should fail");
 
         let e_d: TrivialError = jsb_e.downcast().expect("downcast should succeed");
