@@ -1,16 +1,13 @@
-use app1::run::{
-    ctx::Ctx,
-    svc_flows::{make_foo_sfl, FooSflIC},
-};
+use app1::run::{ctx::Ctx, svc_flows::FooSflIC};
 use axum::{extract::FromRequestParts, handler::Handler, Router};
-use dev_support::foa_exp::web::axum::json_handlers_experiment::{direct, from_scratch};
+// use dev_support::foa_exp::web::axum::{
+//     json_handlers_experiment::{direct, from_scratch},
+//     json_handlers_old::{handler_asyncfn2r_arc, handler_fn2r},
+// };
 use foa::{
     context::ErrCtx,
     fun::AsyncFn2,
-    web::axum::{
-        default_mapper, handler_asyncfn2r_arc, handler_fn2r, HandlerAsyncFn2r, HandlerAsyncFn2rArc,
-        HandlerAsyncFn2rWithErrorMapper,
-    },
+    web::axum::{default_mapper, HandlerAsyncFn2rsWithErrorMapper},
     Error,
 };
 use serde::{de::DeserializeOwned, Serialize};
@@ -24,7 +21,7 @@ where
     O: Serialize + Send,
     S: Send + Sync + 'static,
 {
-    HandlerAsyncFn2rWithErrorMapper::new(f, default_mapper)
+    HandlerAsyncFn2rsWithErrorMapper::new(f, default_mapper)
 }
 
 #[tokio::main]
@@ -41,45 +38,46 @@ async fn main() {
     });
 
     let app = Router::new()
+        // .route(
+        //     "/",
+        //     axum::routing::post(HandlerAsyncFn2r(Arc::new(FooSflIC))),
+        // )
+        // .route(
+        //     "/arc",
+        //     axum::routing::post(HandlerAsyncFn2rArc::new(FooSflIC)),
+        // )
         .route(
             "/",
-            axum::routing::post(HandlerAsyncFn2r(Arc::new(FooSflIC))),
-        )
-        .route(
-            "/arc",
-            axum::routing::post(HandlerAsyncFn2rArc::new(FooSflIC)),
-        )
-        .route(
-            "/rs",
-            axum::routing::post(HandlerAsyncFn2rWithErrorMapper::new(
+            axum::routing::post(HandlerAsyncFn2rsWithErrorMapper::new(
                 Arc::new(FooSflIC),
                 default_mapper,
             )),
         )
         .route(
-            "/rs-fn",
+            "/fn",
             axum::routing::post(handler::<Ctx, _, _, _>(Arc::new(FooSflIC))),
         )
-        .route(
-            "/scratch",
-            axum::routing::post(from_scratch::HandlerAsyncFn2r(Arc::new(FooSflIC))),
-        )
-        .route(
-            "/scratch-arc",
-            axum::routing::post(from_scratch::HandlerAsyncFn2rArc::new(FooSflIC)),
-        )
-        .route(
-            "/direct",
-            axum::routing::post(direct::HandlerAsyncFn2r::<_>::new(Arc::new(FooSflIC)).handler()),
-        )
-        .route(
-            "/fn",
-            axum::routing::post(handler_asyncfn2r_arc::<_, _, _, ()>(FooSflIC)),
-        )
-        .route(
-            "/alt",
-            axum::routing::post(handler_fn2r::<_, _, _, _, _, ()>(make_foo_sfl())),
-        );
+        // .route(
+        //     "/scratch",
+        //     axum::routing::post(from_scratch::HandlerAsyncFn2r(Arc::new(FooSflIC))),
+        // )
+        // .route(
+        //     "/scratch-arc",
+        //     axum::routing::post(from_scratch::HandlerAsyncFn2rArc::new(FooSflIC)),
+        // )
+        // .route(
+        //     "/direct",
+        //     axum::routing::post(direct::HandlerAsyncFn2r::<_>::new(Arc::new(FooSflIC)).handler()),
+        // )
+        // .route(
+        //     "/fn",
+        //     axum::routing::post(handler_asyncfn2r_arc::<_, _, _, ()>(FooSflIC)),
+        // )
+        // .route(
+        //     "/alt",
+        //     axum::routing::post(handler_fn2r::<_, _, _, _, _, ()>(make_foo_sfl())),
+        // )
+        ;
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:8080")
         .await

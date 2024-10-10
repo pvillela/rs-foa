@@ -6,12 +6,12 @@ use axum::Router;
 use foa::{
     db::sqlx::{AsyncTxFn, DbCtx},
     tokio::task_local::{tl_scoped, TaskLocal, TaskLocalCtx},
-    web::axum::handler_asyncfn2r_arc,
+    web::axum::{default_mapper, HandlerAsyncFn2rsWithErrorMapper},
     Error,
 };
 use serde::Serialize;
 use sqlx::{Postgres, Transaction};
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 #[derive(Serialize)]
 struct FooOutExt {
@@ -61,7 +61,10 @@ async fn main() {
 
     let app = Router::new().route(
         "/",
-        axum::routing::post(handler_asyncfn2r_arc::<_, _, _, ()>(f)),
+        axum::routing::post(HandlerAsyncFn2rsWithErrorMapper::new(
+            Arc::new(f),
+            default_mapper,
+        )),
     );
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:8080")

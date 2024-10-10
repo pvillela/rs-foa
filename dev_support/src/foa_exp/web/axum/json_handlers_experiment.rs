@@ -1,3 +1,4 @@
+use super::json_handlers_old::handler_asyncfn2r;
 use axum::{
     extract::{FromRequest, FromRequestParts, Request},
     handler::Handler,
@@ -6,7 +7,6 @@ use axum::{
     Json,
 };
 use foa::fun::AsyncFn2;
-use foa::web::axum::handler_asyncfn2r;
 use serde::{de::DeserializeOwned, Serialize};
 use std::{future::Future, marker::PhantomData, pin::Pin, sync::Arc};
 
