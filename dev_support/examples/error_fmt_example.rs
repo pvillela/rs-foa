@@ -32,5 +32,5 @@ fn main() {
     let src = FOO_ERROR.error_with_values(["42"]);
     let err = BAR_ERROR.error(src);
     let out_string = out_formatted_string(&err);
-    print!("{out_string}");
+    println!("{out_string}");
 }

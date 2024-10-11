@@ -1,6 +1,9 @@
 use super::{BacktraceSpec, Error, KindId, Payload, StdBoxError, Tag};
 use std::{backtrace::Backtrace, error::Error as StdError, marker::PhantomData};
 
+//===========================
+// region:      --- TypedKind
+
 #[derive(Debug)]
 pub struct TypedKind<T, const HASCAUSE: bool> {
     kind_id: KindId,
@@ -74,6 +77,47 @@ impl<T: Payload> TypedKind<T, true> {
         self.error_priv(payload, Some(StdBoxError::new(source)))
     }
 }
+
+// endregion:   --- TypedKind
+
+//===========================
+// region:      --- GeneralKind
+
+#[derive(Debug)]
+pub struct GeneralKind {
+    kind_id: KindId,
+}
+
+impl GeneralKind {
+    pub const fn kind_id(&self) -> &KindId {
+        &self.kind_id
+    }
+
+    pub const fn new() -> Self {
+        Self {
+            kind_id: KindId("GENERAL_ERROR"),
+        }
+    }
+
+    pub fn error<T: Payload>(
+        &'static self,
+        msg: &'static str,
+        tag: &'static Tag,
+        payload: T,
+        source: Option<StdBoxError>,
+        backtrace_spec: BacktraceSpec,
+    ) -> Error {
+        let backtrace = match backtrace_spec {
+            BacktraceSpec::Yes => Backtrace::force_capture(),
+            BacktraceSpec::No => Backtrace::disabled(),
+            BacktraceSpec::Env => Backtrace::capture(),
+        };
+
+        Error::new(&self.kind_id, msg, tag, payload, source, backtrace)
+    }
+}
+
+// endregion:   --- GeneralKind
 
 #[cfg(test)]
 mod test {
