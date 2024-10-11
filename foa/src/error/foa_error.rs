@@ -74,7 +74,7 @@ impl Eq for KindId {}
 #[derive(Debug)]
 pub struct Error {
     pub(crate) kind_id: &'static KindId,
-    pub(crate) msg: &'static str,
+    pub(crate) msg: String,
     pub(crate) tag: &'static Tag,
     pub(crate) payload: BoxPayload,
     pub(crate) source: Option<StdBoxError>,
@@ -100,7 +100,7 @@ impl Error {
         };
         Self {
             kind_id,
-            msg,
+            msg: msg.into(),
             tag,
             payload: BoxPayload::new(payload),
             source,
@@ -184,7 +184,7 @@ impl Error {
             match res {
                 Ok(payload) => Ok(ErrorExp {
                     kind_id: self.kind_id,
-                    msg: self.msg,
+                    msg: self.msg.into(),
                     tag: self.tag,
                     payload,
                     source: self.source,
@@ -226,8 +226,8 @@ impl Error {
         }
     }
 
-    pub fn to_sererror<const N: usize>(&self, str_specs: [StringSpec; N]) -> SerError {
-        let fmt = Fmt(self);
+    pub fn into_sererror<const N: usize>(self, str_specs: [StringSpec; N]) -> SerError {
+        let fmt = Fmt(&self);
         let other = str_specs
             .into_iter()
             .map(|spec| fmt.speced_string_tuple(&spec))
@@ -275,7 +275,7 @@ impl WithBacktrace for Error {
 #[derive(Debug)]
 pub struct ErrorExp<T> {
     pub kind_id: &'static KindId,
-    pub msg: &'static str,
+    pub msg: String,
     pub tag: &'static Tag,
     pub payload: T,
     source: Option<StdBoxError>,
@@ -297,7 +297,7 @@ impl<T: Payload + Serialize> ErrorExp<T> {
             .collect::<BTreeMap<&'static str, String>>();
         SerErrorExp {
             kind_id: self.kind_id,
-            msg: self.msg,
+            msg: self.msg.clone(),
             tag: self.tag,
             payload: self.payload,
             other,
@@ -340,14 +340,14 @@ impl<T: Payload> From<Error> for Result<ErrorExp<T>> {
 #[derive(Debug, Serialize)]
 pub struct SerError {
     kind_id: &'static KindId,
-    msg: &'static str,
+    msg: String,
     tag: &'static Tag,
     other: BTreeMap<&'static str, String>,
 }
 
 impl Display for SerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.msg)
+        f.write_str(&self.msg)
     }
 }
 
@@ -362,7 +362,7 @@ impl From<SerError> for JserBoxError {
 #[derive(Debug, Serialize)]
 pub struct SerErrorExp<T: Payload> {
     kind_id: &'static KindId,
-    msg: &'static str,
+    msg: String,
     tag: &'static Tag,
     payload: T,
     other: BTreeMap<&'static str, String>,
@@ -370,7 +370,7 @@ pub struct SerErrorExp<T: Payload> {
 
 impl<T: Payload> Display for SerErrorExp<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.msg)
+        f.write_str(&self.msg)
     }
 }
 

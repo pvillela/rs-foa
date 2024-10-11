@@ -40,7 +40,7 @@ pub fn default_mapper(err: Error) -> (StatusCode, JserBoxError) {
                 Ok(ee) => (status_code, ee.into_sererrorexp([]).into()),
                 Err(e) => (
                     status_code,
-                    e.to_sererror([error::StringSpec::Dbg, error::StringSpec::Recursive])
+                    e.into_sererror([error::StringSpec::Dbg, error::StringSpec::Recursive])
                         .into(),
                 ),
             }
@@ -49,7 +49,7 @@ pub fn default_mapper(err: Error) -> (StatusCode, JserBoxError) {
             log!(Level::Error, "{}", error_string_error_level(&err));
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                err.to_sererror([error::StringSpec::Dbg, error::StringSpec::Recursive])
+                err.into_sererror([error::StringSpec::Dbg, error::StringSpec::Recursive])
                     .into(),
             )
         }

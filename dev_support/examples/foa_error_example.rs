@@ -54,14 +54,14 @@ fn error_string(err: &Error) -> String {
     ])
 }
 
-fn print_error(err: &Error) {
+fn print_error(err: Error) {
     println!("display: {err}");
     println!("debug: {err:?}");
     println!("{}", error_string(&err));
     println!(
         "JSON: {}",
         serde_json::to_string(
-            &err.to_sererror([error::StringSpec::Dbg, error::StringSpec::Recursive])
+            &err.into_sererror([error::StringSpec::Dbg, error::StringSpec::Recursive])
         )
         .unwrap()
     );
@@ -73,7 +73,7 @@ fn main() {
     {
         println!("error0");
         let err = error0();
-        print_error(&err);
+        print_error(err);
     }
 
     println!();
@@ -81,7 +81,7 @@ fn main() {
     {
         println!("error1");
         let err = error1();
-        print_error(&err);
+        print_error(err);
     }
 
     println!();
@@ -89,7 +89,7 @@ fn main() {
     {
         println!("error2");
         let err = error2();
-        print_error(&err);
+        print_error(err);
     }
 
     println!();
@@ -97,6 +97,6 @@ fn main() {
     {
         println!("error_unexpected");
         let err = error_unexpected();
-        print_error(&err);
+        print_error(err);
     }
 }

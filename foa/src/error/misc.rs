@@ -28,7 +28,7 @@ pub static UNEXPECTED_ERROR: BasicKind<true> = BasicKind::new(
 /// See [`Self::new`] and [`Self::transmute`].
 pub struct TransmuterKind {
     kind_id: KindId,
-    msg: Option<&'static str>,
+    msg: Option<String>,
     tag: &'static Tag,
 }
 
@@ -37,9 +37,9 @@ impl TransmuterKind {
         &self.kind_id
     }
 
-    pub const fn msg(&self) -> &'static str {
-        match self.msg {
-            Some(msg) => msg,
+    pub fn msg(&self) -> &str {
+        match &self.msg {
+            Some(msg) => &msg,
             None => self.kind_id.0,
         }
     }
@@ -48,7 +48,7 @@ impl TransmuterKind {
         self.tag
     }
 
-    pub const fn new(name: &'static str, msg: Option<&'static str>, tag: &'static Tag) -> Self {
+    pub const fn new(name: &'static str, msg: Option<String>, tag: &'static Tag) -> Self {
         Self {
             kind_id: KindId(name),
             msg,
@@ -57,9 +57,13 @@ impl TransmuterKind {
     }
 
     pub fn transmute(&'static self, err: Error) -> Error {
+        let msg = match &self.msg {
+            Some(msg) => msg.to_owned(),
+            None => self.kind_id().0.to_owned(),
+        };
         Error {
             kind_id: &self.kind_id,
-            msg: self.msg(),
+            msg,
             tag: self.tag,
             payload: err.payload,
             source: err.source,
