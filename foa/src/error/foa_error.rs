@@ -506,12 +506,4 @@ mod test {
         });
         assert!(res.is_ok());
     }
-
-    fn out_formatted_string(err: &Error) -> String {
-        let mut fmt_spec = "{dbg_string}".to_owned();
-        fmt_spec.push_str(", recursive_msg=({recursive_msg})");
-        fmt_spec.push_str(", source={source_dbg_string}");
-        fmt_spec.push_str(", backtrace=\n{backtrace_string}");
-        err.as_fmt().formatted_string(&fmt_spec)
-    }
 }
