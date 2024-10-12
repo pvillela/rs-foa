@@ -1,13 +1,13 @@
 use super::{BacktraceSpec, Error, KindId, StdBoxError, Tag, TRUNC};
 use crate::{hash::hash_sha256_of_str_arr, string};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::backtrace::Backtrace;
 use std::{error::Error as StdError, fmt::Debug};
 
 //===========================
 // region:      --- PropsError
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, PartialEq, Eq)]
 pub struct Props(pub(crate) Vec<(String, String)>);
 
 #[derive(Debug)]

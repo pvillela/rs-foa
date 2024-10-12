@@ -437,7 +437,7 @@ pub struct SerErrorExp<T: Payload> {
     kind_id: &'static KindId,
     msg: StaticStr,
     tag: &'static Tag,
-    payload: T,
+    pub(super) payload: T,
     other: BTreeMap<&'static str, String>,
 }
 
