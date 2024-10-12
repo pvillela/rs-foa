@@ -1,5 +1,6 @@
 use super::{BoxPayload, Fmt, JserBoxError, Payload, StdBoxError, WithBacktrace};
 use crate::error::utils::StringSpec;
+use crate::string::StaticStr;
 use crate::{error::PayloadPriv, nodebug::NoDebug};
 use serde::Serialize;
 use std::{
@@ -74,7 +75,7 @@ impl Eq for KindId {}
 #[derive(Debug)]
 pub struct Error {
     pub(crate) kind_id: &'static KindId,
-    pub(crate) msg: &'static str,
+    pub(crate) msg: StaticStr,
     pub(crate) tag: &'static Tag,
     pub(crate) payload: BoxPayload,
     pub(crate) source: Option<StdBoxError>,
@@ -88,7 +89,7 @@ pub type ReverseResult<T> = std::result::Result<Error, T>;
 impl Error {
     pub fn new(
         kind_id: &'static KindId,
-        msg: &'static str,
+        msg: StaticStr,
         tag: &'static Tag,
         payload: impl Payload,
         source: Option<StdBoxError>,
@@ -234,7 +235,7 @@ impl Error {
             .collect::<BTreeMap<&'static str, String>>();
         SerError {
             kind_id: self.kind_id,
-            msg: self.msg,
+            msg: self.msg.clone(),
             tag: self.tag,
             other,
         }
@@ -275,7 +276,7 @@ impl WithBacktrace for Error {
 #[derive(Debug)]
 pub struct ErrorExp<T> {
     pub kind_id: &'static KindId,
-    pub msg: &'static str,
+    pub msg: StaticStr,
     pub tag: &'static Tag,
     pub payload: T,
     source: Option<StdBoxError>,
@@ -340,14 +341,14 @@ impl<T: Payload> From<Error> for Result<ErrorExp<T>> {
 #[derive(Debug, Serialize)]
 pub struct SerError {
     kind_id: &'static KindId,
-    msg: &'static str,
+    msg: StaticStr,
     tag: &'static Tag,
     other: BTreeMap<&'static str, String>,
 }
 
 impl Display for SerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.msg)
+        f.write_str(&self.msg)
     }
 }
 
@@ -362,7 +363,7 @@ impl From<SerError> for JserBoxError {
 #[derive(Debug, Serialize)]
 pub struct SerErrorExp<T: Payload> {
     kind_id: &'static KindId,
-    msg: &'static str,
+    msg: StaticStr,
     tag: &'static Tag,
     payload: T,
     other: BTreeMap<&'static str, String>,
@@ -370,7 +371,7 @@ pub struct SerErrorExp<T: Payload> {
 
 impl<T: Payload> Display for SerErrorExp<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.msg)
+        f.write_str(&self.msg)
     }
 }
 
@@ -410,7 +411,7 @@ mod test {
 
         let err = Error::new(
             FOO_ERROR.kind_id(),
-            FOO_ERROR.msg(),
+            FOO_ERROR.msg().into(),
             FOO_ERROR.tag(),
             make_payload(),
             None,

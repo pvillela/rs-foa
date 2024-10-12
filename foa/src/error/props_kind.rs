@@ -139,7 +139,14 @@ impl<const ARITY: usize, const HASCAUSE: bool> PropsKind<ARITY, HASCAUSE> {
             BacktraceSpec::Env => Backtrace::capture(),
         };
 
-        Error::new(self.kind_id(), msg, self.tag, payload, source, backtrace)
+        Error::new(
+            self.kind_id(),
+            msg.into(),
+            self.tag,
+            payload,
+            source,
+            backtrace,
+        )
     }
 }
 

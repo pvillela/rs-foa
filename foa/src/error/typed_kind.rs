@@ -53,7 +53,7 @@ impl<T: Payload, const HASCAUSE: bool> TypedKind<T, HASCAUSE> {
 
         Error::new(
             &self.kind_id,
-            self.msg(),
+            self.msg().into(),
             self.tag,
             payload,
             source,
@@ -113,7 +113,7 @@ impl GeneralKind {
             BacktraceSpec::Env => Backtrace::capture(),
         };
 
-        Error::new(&self.kind_id, msg, tag, payload, source, backtrace)
+        Error::new(&self.kind_id, msg.into(), tag, payload, source, backtrace)
     }
 }
 

@@ -59,7 +59,7 @@ impl TransmuterKind {
     pub fn transmute(&'static self, err: Error) -> Error {
         Error {
             kind_id: &self.kind_id,
-            msg: self.msg(),
+            msg: self.msg().into(),
             tag: self.tag,
             payload: err.payload,
             source: err.source,

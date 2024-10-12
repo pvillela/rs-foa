@@ -5,6 +5,7 @@ use std::{
 
 use crate::context::{ErrCtx, Locale, LocalizedMsg};
 use base64ct::{Base64, Encoding};
+use serde::Serialize;
 
 /// Interpolates a string with a list of arguments.
 pub fn interpolated_vec<S>(mut raw_msg: &str, args: &[S]) -> String
@@ -130,6 +131,7 @@ pub fn decorated(txt: &str, pre: Option<&str>, post: Option<&str>) -> String {
 //===========================
 // region:      --- StaticStr
 
+#[derive(Serialize)]
 pub enum StaticStr {
     Ref(&'static str),
     Owned(String),
@@ -203,6 +205,18 @@ impl Display for StaticStr {
         Display::fmt(self.as_ref(), f)
     }
 }
+
+impl PartialEq for StaticStr {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Ref(myself), Self::Ref(other)) if myself == other => true,
+            (Self::Owned(myself), Self::Owned(other)) if myself == other => true,
+            _ => false,
+        }
+    }
+}
+
+impl Eq for StaticStr {}
 
 // endregion:   --- StaticStr
 
