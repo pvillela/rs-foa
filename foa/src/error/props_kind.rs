@@ -55,24 +55,6 @@ impl Debug for Props {
     }
 }
 
-// impl Display for Props {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         if cfg!(debug_assertions) {
-//             let msg = string::interpolated_props(self.msg, self.props.iter().map(|p| (&p.0, &p.1)));
-//             f.write_str(&msg)
-//         } else {
-//             let props = self.props.iter().map(|p| {
-//                 let (name, value) = (&p.0, &p.1);
-//                 let vhash = hash_sha256_of_str_arr(&[value]);
-//                 let vb64 = string::base64_encode_trunc_of_u8_arr(&vhash, TRUNC);
-//                 (name, vb64)
-//             });
-//             let msg = string::interpolated_props(self.msg, props);
-//             f.write_str(&msg)
-//         }
-//     }
-// }
-
 // endregion:   --- PropsError
 
 //===========================
@@ -216,7 +198,7 @@ mod test_props_error {
     fn test() {
         let err = FOO_ERROR.error_with_values(["hi there!"]);
         assert!(err.has_kind(FOO_ERROR.kind_id()));
-        assert_eq!(err.to_string(), "foo message: hi there!");
+        assert_eq!(err.to_string(), "foo message: {xyz}");
     }
 }
 

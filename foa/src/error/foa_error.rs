@@ -1,6 +1,6 @@
 use super::{BoxPayload, Fmt, JserBoxError, Payload, StdBoxError, WithBacktrace};
+use crate::error::static_str::StaticStr;
 use crate::error::utils::StringSpec;
-use crate::string::StaticStr;
 use crate::{error::PayloadPriv, nodebug::NoDebug};
 use serde::Serialize;
 use std::{
@@ -13,12 +13,12 @@ use std::{
 pub const TRUNC: usize = 8;
 
 //===========================
-// region:      --- ErrorTag
+// region:      --- Tag
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct Tag(pub &'static str);
 
-// endregion:   --- ErrorTag
+// endregion:   --- Tag
 
 //===========================
 // region:      --- Backtrace
@@ -75,7 +75,7 @@ impl Eq for KindId {}
 #[derive(Debug)]
 pub struct Error {
     pub(crate) kind_id: &'static KindId,
-    pub(crate) msg: StaticStr,
+    pub(super) msg: StaticStr,
     pub(crate) tag: &'static Tag,
     pub(crate) payload: BoxPayload,
     pub(crate) source: Option<StdBoxError>,
@@ -89,7 +89,7 @@ pub type ReverseResult<T> = std::result::Result<Error, T>;
 impl Error {
     pub fn new(
         kind_id: &'static KindId,
-        msg: StaticStr,
+        msg: &'static str,
         tag: &'static Tag,
         payload: impl Payload,
         source: Option<StdBoxError>,
@@ -101,7 +101,29 @@ impl Error {
         };
         Self {
             kind_id,
-            msg,
+            msg: msg.into(),
+            tag,
+            payload: BoxPayload::new(payload),
+            source,
+            backtrace: NoDebug(backtrace),
+        }
+    }
+
+    pub fn with_msg_string(
+        kind_id: &'static KindId,
+        msg: String,
+        tag: &'static Tag,
+        payload: impl Payload,
+        source: Option<StdBoxError>,
+        backtrace: Backtrace,
+    ) -> Self {
+        let source = match source {
+            Some(e) => Some(StdBoxError::new(e)),
+            None => None,
+        };
+        Self {
+            kind_id,
+            msg: msg.into(),
             tag,
             payload: BoxPayload::new(payload),
             source,
@@ -115,6 +137,10 @@ impl Error {
 
     pub fn kind_id(&self) -> &'static KindId {
         self.kind_id
+    }
+
+    pub fn msg(&self) -> &str {
+        &self.msg
     }
 
     pub fn tag(&self) -> &'static Tag {
@@ -153,10 +179,10 @@ impl Error {
     ///
     /// # Example
     /// ```
-    /// use foa::{Error, Result, ReverseResult, error::swap_result};
+    /// use foa::{Error, Result, ReverseResult, error::{Payload, swap_result}};
     /// use std::fmt::Debug;
     ///
-    /// fn process_error<T1: std::error::Error + 'static + Debug, T2: std::error::Error + 'static + Debug>(
+    /// fn process_error<T1: Payload, T2: Payload>(
     ///     err: Error,
     /// ) -> Result<()> {
     ///     swap_result(|| -> ReverseResult<()> {
@@ -204,10 +230,10 @@ impl Error {
     ///
     /// # Example
     /// ```
-    /// use foa::{Error, Result, ReverseResult, error::swap_result};
+    /// use foa::{Error, Result, ReverseResult, error::{Payload, swap_result}};
     /// use std::fmt::Debug;
     ///
-    /// fn process_error<T1: std::error::Error + 'static + Debug, T2: std::error::Error + 'static + Debug>(
+    /// fn process_error<T1: Payload, T2: Payload>(
     ///     err: Error,
     /// ) -> Result<()> {
     ///     swap_result(|| -> ReverseResult<()> {
@@ -275,15 +301,43 @@ impl WithBacktrace for Error {
 /// Struct with the same fields as [`Error`] but where the payload is a type `T` rather than a boxed error.
 #[derive(Debug)]
 pub struct ErrorExp<T> {
-    pub kind_id: &'static KindId,
-    pub msg: StaticStr,
-    pub tag: &'static Tag,
-    pub payload: T,
+    kind_id: &'static KindId,
+    msg: StaticStr,
+    tag: &'static Tag,
+    payload: T,
     source: Option<StdBoxError>,
-    pub backtrace: NoDebug<Backtrace>,
+    backtrace: NoDebug<Backtrace>,
 }
 
 impl<T: Payload> ErrorExp<T> {
+    pub fn has_kind(&self, kind: &'static KindId) -> bool {
+        self.kind_id == kind
+    }
+
+    pub fn kind_id(&self) -> &'static KindId {
+        self.kind_id
+    }
+
+    pub fn msg(&self) -> &str {
+        &self.msg
+    }
+
+    pub fn tag(&self) -> &'static Tag {
+        self.tag
+    }
+
+    pub fn payload_ref(&self) -> &T {
+        &self.payload
+    }
+
+    pub fn payload(self) -> T {
+        self.payload
+    }
+
+    pub fn backtrace(&self) -> &Backtrace {
+        &self.backtrace
+    }
+
     pub fn as_fmt(&self) -> Fmt<'_, Self> {
         Fmt(self)
     }
@@ -346,6 +400,24 @@ pub struct SerError {
     other: BTreeMap<&'static str, String>,
 }
 
+impl SerError {
+    pub fn kind_id(&self) -> &'static KindId {
+        self.kind_id
+    }
+
+    pub fn msg(&self) -> &str {
+        &self.msg
+    }
+
+    pub fn tag(&self) -> &'static Tag {
+        self.tag
+    }
+
+    pub fn other(&self) -> &BTreeMap<&'static str, String> {
+        &self.other
+    }
+}
+
 impl Display for SerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.msg)
@@ -367,6 +439,32 @@ pub struct SerErrorExp<T: Payload> {
     tag: &'static Tag,
     payload: T,
     other: BTreeMap<&'static str, String>,
+}
+
+impl<T: Payload> SerErrorExp<T> {
+    pub fn kind_id(&self) -> &'static KindId {
+        self.kind_id
+    }
+
+    pub fn msg(&self) -> &str {
+        &self.msg
+    }
+
+    pub fn tag(&self) -> &'static Tag {
+        self.tag
+    }
+
+    pub fn payload_ref(&self) -> &T {
+        &self.payload
+    }
+
+    pub fn payload(self) -> T {
+        self.payload
+    }
+
+    pub fn other(&self) -> &BTreeMap<&'static str, String> {
+        &self.other
+    }
 }
 
 impl<T: Payload> Display for SerErrorExp<T> {
@@ -426,7 +524,7 @@ mod test {
         let (payload, err) = make_payload_error_pair();
 
         assert!(err.has_kind(FOO_ERROR.kind_id()));
-        assert_eq!(err.to_string(), "foo message: hi there!");
+        assert_eq!(err.to_string(), "foo message: {xyz}");
 
         let payload_ext: Props = err.typed_payload().unwrap();
 
@@ -438,7 +536,7 @@ mod test {
         let (payload, err) = make_payload_error_pair();
 
         assert!(err.has_kind(FOO_ERROR.kind_id()));
-        assert_eq!(err.to_string(), "foo message: hi there!");
+        assert_eq!(err.to_string(), "foo message: {xyz}");
 
         let res = swap_result(|| -> ReverseResult<()> {
             err.with_typed_payload::<TrivialError, _>(|_| unreachable!())?
@@ -456,7 +554,7 @@ mod test {
         let (_, err1) = make_payload_error_pair();
 
         assert!(err.has_kind(FOO_ERROR.kind_id()));
-        assert_eq!(err.to_string(), "foo message: hi there!");
+        assert_eq!(err.to_string(), "foo message: {xyz}");
 
         let res = swap_result(|| -> std::result::Result<Error, ()> {
             err.with_errorexp::<TrivialError, _>(|_| unreachable!())?
@@ -476,7 +574,7 @@ mod test {
         let err = FOO_ERROR.error_with_values(["hi there!".into()]);
 
         assert!(err.has_kind(FOO_ERROR.kind_id()));
-        assert_eq!(err.to_string(), "foo message: hi there!");
+        assert_eq!(err.to_string(), "foo message: {xyz}");
 
         let res = err.into_errorexp::<Props>();
         match res {

@@ -133,6 +133,6 @@ mod test {
     fn test() {
         let err = FOO_ERROR.error("dummy payload".to_owned());
         assert!(err.has_kind(FOO_ERROR.kind_id()));
-        assert_eq!(err.to_string(), "".to_string());
+        assert_eq!(err.to_string(), "FOO_ERROR".to_string());
     }
 }
