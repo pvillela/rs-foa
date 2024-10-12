@@ -1,3 +1,8 @@
+use std::{
+    fmt::{Debug, Display},
+    ops::Deref,
+};
+
 use crate::context::{ErrCtx, Locale, LocalizedMsg};
 use base64ct::{Base64, Encoding};
 
@@ -119,5 +124,125 @@ pub fn decorated(txt: &str, pre: Option<&str>, post: Option<&str>) -> String {
     match pre {
         Some(pre) => pre.to_owned() + &body,
         None => body,
+    }
+}
+
+//===========================
+// region:      --- StaticStr
+
+pub enum StaticStr {
+    Ref(&'static str),
+    Owned(String),
+}
+
+impl StaticStr {
+    pub fn is_str(&self) -> bool {
+        match self {
+            Self::Ref(_) => true,
+            Self::Owned(_) => false,
+        }
+    }
+
+    pub fn is_string(&self) -> bool {
+        match self {
+            Self::Ref(_) => true,
+            Self::Owned(_) => false,
+        }
+    }
+}
+
+impl From<&'static str> for StaticStr {
+    fn from(value: &'static str) -> Self {
+        Self::Ref(value)
+    }
+}
+
+impl From<String> for StaticStr {
+    fn from(value: String) -> Self {
+        Self::Owned(value)
+    }
+}
+
+impl AsRef<str> for StaticStr {
+    fn as_ref(&self) -> &str {
+        match self {
+            Self::Ref(txt) => txt,
+            Self::Owned(txt) => txt,
+        }
+    }
+}
+
+impl Deref for StaticStr {
+    type Target = str;
+
+    fn deref(&self) -> &str {
+        match self {
+            Self::Ref(txt) => txt,
+            Self::Owned(txt) => txt,
+        }
+    }
+}
+
+impl Clone for StaticStr {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Ref(txt) => Self::Ref(txt),
+            Self::Owned(txt) => Self::Owned(txt.clone()),
+        }
+    }
+}
+
+impl Debug for StaticStr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(self.as_ref(), f)
+    }
+}
+
+impl Display for StaticStr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(self.as_ref(), f)
+    }
+}
+
+// endregion:   --- StaticStr
+
+#[cfg(test)]
+mod test {
+    use super::StaticStr;
+
+    #[test]
+    fn test_staticstr_str() {
+        let txt = "abc";
+
+        let exp_to_string = txt.to_owned();
+        let exp_display = format!("{txt}");
+        let exp_debug = format!("{txt:?}");
+
+        let statstr = StaticStr::from(txt);
+        let to_string = statstr.to_string();
+        let display = format!("{statstr}");
+        let debug = format!("{statstr:?}");
+
+        assert_eq!(to_string, exp_to_string);
+        assert_eq!(display, exp_display);
+        assert_eq!(debug, exp_debug);
+    }
+
+    #[test]
+    fn test_staticstr_sting() {
+        let txt = "def".to_owned();
+
+        let exp_to_string = txt.clone();
+        let exp_display = format!("{txt}");
+        let exp_debug = format!("{txt:?}");
+
+        let statstr = StaticStr::from(txt);
+        let to_string = statstr.to_string();
+        let display = format!("{statstr}");
+        let debug = format!("{statstr:?}");
+
+        assert_eq!(to_string, exp_to_string);
+        assert_eq!(display, exp_display);
+        assert_eq!(debug, exp_debug);
     }
 }
