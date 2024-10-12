@@ -80,7 +80,7 @@ mod test {
         let err = FOO_ERROR.error_with_values(["hi there!".into()]);
 
         assert!(err.has_kind(FOO_ERROR.kind_id()));
-        assert_eq!(err.to_string(), "foo message: hi there!");
+        assert_eq!(err.to_string(), "foo message: {xyz}");
 
         let res = err.into_errorexp::<Props>();
         match res {

@@ -1,7 +1,7 @@
 use super::{BoxPayload, Fmt, JserBoxError, Payload, StdBoxError, WithBacktrace};
 use crate::error::static_str::StaticStr;
 use crate::error::utils::StringSpec;
-use crate::{error::PayloadPriv, nodebug::NoDebug};
+use crate::nodebug::NoDebug;
 use serde::Serialize;
 use std::{
     backtrace::Backtrace,
@@ -160,7 +160,7 @@ impl Error {
     /// As this method consumes `self`, if you also need access to other [`Error`] fields then convert
     /// to an [`ErrorExp`] using [`Self::into_errorexp`] instead.
     pub fn typed_payload<T: Payload>(self) -> Result<T> {
-        if self.payload.as_any().is::<T>() {
+        if self.payload.is::<T>() {
             let res = self.payload.downcast::<T>();
             match res {
                 Ok(payload) => Ok(payload),
@@ -206,7 +206,7 @@ impl Error {
     /// If the payload is of type `T`, returns `Ok(error_exp)`, where `error_exp` is the
     /// [`ErrorExp`] instance obtained from `self`; otherwise returns `Err(self)`.
     pub fn into_errorexp<T: Payload>(self) -> Result<ErrorExp<T>> {
-        if self.payload.as_any().is::<T>() {
+        if self.payload.is::<T>() {
             let res = self.payload.downcast::<T>();
             match res {
                 Ok(payload) => Ok(ErrorExp {
@@ -526,8 +526,7 @@ mod test {
         assert!(err.has_kind(FOO_ERROR.kind_id()));
         assert_eq!(err.to_string(), "foo message: {xyz}");
 
-        let payload_ext: Props = err.typed_payload().unwrap();
-
+        let payload_ext: Props = err.typed_payload::<Props>().unwrap();
         assert_eq!(payload.0, payload_ext.0);
     }
 
