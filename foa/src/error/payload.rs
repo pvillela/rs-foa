@@ -3,6 +3,9 @@
 
 use std::any::Any;
 use std::fmt::Debug;
+
+/// For exploratory purposes only
+#[cfg(test)]
 use std::mem::replace;
 
 pub trait Payload: Debug + Send + Sync + 'static {}
@@ -45,10 +48,11 @@ impl<T: Payload> Debug for MaybePayload<T> {
 
 pub(crate) trait PayloadPriv: Payload {
     fn as_any(&self) -> &dyn Any;
-    fn as_any_mut(&mut self) -> &mut dyn Any;
 
     /// For exploratory purposes only
     #[cfg(test)]
+    fn as_any_mut(&mut self) -> &mut dyn Any;
+
     fn into_any(self: Box<Self>) -> Box<dyn Any>;
 }
 
@@ -60,12 +64,12 @@ where
         self
     }
 
+    /// For exploratory purposes only
+    #[cfg(test)]
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
 
-    /// For exploratory purposes only
-    #[cfg(test)]
     fn into_any(self: Box<Self>) -> Box<dyn Any> {
         self
     }
@@ -106,7 +110,9 @@ impl BoxPayload {
             })
     }
 
-    pub fn downcast<T: Payload>(mut self) -> Result<T, Self> {
+    /// For exploratory purposes only
+    #[cfg(test)]
+    pub fn downcast1<T: Payload>(mut self) -> Result<T, Self> {
         if self.is::<T>() {
             let pld_box_dyn = &mut self.0;
             let pld_dyn_mut = pld_box_dyn.as_mut();
@@ -121,16 +127,13 @@ impl BoxPayload {
         }
     }
 
-    /// For exploratory purposes only
-    #[cfg(test)]
-    pub fn downcast_with_into_any<T: Payload>(self) -> Result<T, Self> {
+    pub fn downcast<T: Payload>(self) -> Result<T, Self> {
         if self.is::<T>() {
             let pld_box_any = self.0.into_any();
-            let mut pld_box_maybe = pld_box_any
+            let pld_box_maybe = pld_box_any
                 .downcast::<MaybePayload<T>>()
                 .expect("downcast success previously confirmed");
-            let pld_maybe_r = pld_box_maybe.as_mut();
-            let pld_maybe_v = replace(pld_maybe_r, MaybePayload::Nothing);
+            let pld_maybe_v = *pld_box_maybe;
             Ok(pld_maybe_v.just().unwrap())
         } else {
             Err(self)
