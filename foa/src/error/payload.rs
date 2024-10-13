@@ -4,44 +4,11 @@
 use std::any::Any;
 use std::fmt::Debug;
 
-/// For exploratory purposes only
-#[cfg(test)]
-use std::mem::replace;
-
 pub trait Payload: Debug + Send + Sync + 'static {}
 
 impl<T> Payload for T where T: Debug + Send + Sync + 'static {}
 
 // endregion:   --- Payload
-
-//===========================
-// region:      --- MaybePayload
-
-/// Similar to [`Option`], named after Haskell equivalent.
-pub enum MaybePayload<T: Payload> {
-    Nothing,
-    Just(T),
-}
-
-impl<T: Payload> MaybePayload<T> {
-    fn just(self) -> Option<T> {
-        match self {
-            Self::Nothing => None,
-            Self::Just(e) => Some(e),
-        }
-    }
-}
-
-impl<T: Payload> Debug for MaybePayload<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Nothing => f.write_str(""),
-            Self::Just(e) => Debug::fmt(e, f),
-        }
-    }
-}
-
-// endregion:   --- MaybePayload
 
 //===========================
 // region:      --- BoxPayload
@@ -79,62 +46,30 @@ pub struct BoxPayload(pub(crate) Box<dyn PayloadPriv>);
 
 impl BoxPayload {
     pub fn new(inner: impl Payload) -> Self {
-        Self(Box::new(MaybePayload::Just(inner)))
+        Self(Box::new(inner))
     }
 
     pub fn is<T: Payload>(&self) -> bool {
-        self.0.as_ref().as_any().is::<MaybePayload<T>>()
+        self.0.as_ref().as_any().is::<T>()
     }
 
     pub fn downcast_ref<T: Payload>(&self) -> Option<&T> {
-        let pld_box_dyn = &self.0;
-        pld_box_dyn
-            .as_any()
-            .downcast_ref::<MaybePayload<T>>()
-            .map(|w| match w {
-                MaybePayload::Nothing => unreachable!("invalid state"),
-                MaybePayload::Just(e) => e,
-            })
+        self.0.as_ref().as_any().downcast_ref::<T>()
     }
 
     /// For exploratory purposes only
     #[cfg(test)]
     pub fn downcast_mut<T: Payload>(&mut self) -> Option<&mut T> {
-        let pld_box_dyn = &mut self.0;
-        pld_box_dyn
-            .as_any_mut()
-            .downcast_mut::<MaybePayload<T>>()
-            .map(|w| match w {
-                MaybePayload::Nothing => unreachable!("invalid state"),
-                MaybePayload::Just(e) => e,
-            })
-    }
-
-    /// For exploratory purposes only
-    #[cfg(test)]
-    pub fn downcast1<T: Payload>(mut self) -> Result<T, Self> {
-        if self.is::<T>() {
-            let pld_box_dyn = &mut self.0;
-            let pld_dyn_mut = pld_box_dyn.as_mut();
-            let pld_dyn_any = pld_dyn_mut.as_any_mut();
-            let pld_maybe_r = pld_dyn_any
-                .downcast_mut::<MaybePayload<T>>()
-                .expect("downcast success previously confirmed");
-            let pld_maybe_v = replace(pld_maybe_r, MaybePayload::Nothing);
-            Ok(pld_maybe_v.just().unwrap())
-        } else {
-            Err(self)
-        }
+        self.0.as_mut().as_any_mut().downcast_mut::<T>()
     }
 
     pub fn downcast<T: Payload>(self) -> Result<T, Self> {
         if self.is::<T>() {
             let pld_box_any = self.0.into_any();
-            let pld_box_maybe = pld_box_any
-                .downcast::<MaybePayload<T>>()
-                .expect("downcast success previously confirmed");
-            let pld_maybe_v = *pld_box_maybe;
-            Ok(pld_maybe_v.just().unwrap())
+            let pld_box = pld_box_any
+                .downcast::<T>()
+                .expect("downcast success previously ensured");
+            Ok(*pld_box)
         } else {
             Err(self)
         }
@@ -167,7 +102,7 @@ impl AsRef<dyn Payload> for BoxPayload {
 
 #[cfg(test)]
 mod test {
-    use crate::error::{BoxPayload, MaybePayload, PayloadPriv, Props};
+    use crate::error::{BoxPayload, PayloadPriv, Props};
     use std::any::TypeId;
 
     #[test]
@@ -193,10 +128,34 @@ mod test {
             let props1 = Props([].into());
             let props2 = Props([].into());
             let props3 = Props([].into());
-            let id = MaybePayload::Just(props1).as_any().type_id();
+            let id = props1.as_any().type_id();
 
             println!("props type_id={:?}, f type_id={:?}", id, f(props2));
             assert_eq!(id, f(props3));
+        }
+    }
+
+    #[test]
+    fn test_downcast_ref() {
+        {
+            let props1 = Props([].into());
+            let props2 = Props([].into());
+
+            let boxed = BoxPayload::new(props1);
+            let downcast_ref = boxed.downcast_ref::<Props>().unwrap();
+            assert_eq!(downcast_ref, &props2);
+        }
+    }
+
+    #[test]
+    fn test_downcast_mut() {
+        {
+            let props1 = Props([].into());
+            let props2 = Props([].into());
+
+            let mut boxed = BoxPayload::new(props1);
+            let downcast_mut = boxed.downcast_mut::<Props>().unwrap();
+            assert_eq!(downcast_mut, &props2);
         }
     }
 }

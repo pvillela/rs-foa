@@ -195,7 +195,7 @@ impl JserBoxError {
         if err_dyn_any.is::<MaybeJserError<T>>() {
             let err_with_null_r = err_dyn_any
                 .downcast_mut::<MaybeJserError<T>>()
-                .expect("downcast success previously confirmed");
+                .expect("downcast success previously ensured");
             let err_with_null_v = replace(err_with_null_r, MaybeJserError::Nothing);
             Ok(err_with_null_v.just().unwrap())
         } else {
