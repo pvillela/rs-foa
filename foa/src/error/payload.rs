@@ -46,6 +46,10 @@ impl<T: Payload> Debug for MaybePayload<T> {
 pub(crate) trait PayloadPriv: Payload {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
+
+    /// For exploratory purposes only
+    #[cfg(test)]
+    fn into_any(self: Box<Self>) -> Box<dyn Any>;
 }
 
 impl<T> PayloadPriv for T
@@ -57,6 +61,12 @@ where
     }
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    /// For exploratory purposes only
+    #[cfg(test)]
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
         self
     }
 }
@@ -83,7 +93,8 @@ impl BoxPayload {
             })
     }
 
-    /// Not a very useful method
+    /// For exploratory purposes only
+    #[cfg(test)]
     pub fn downcast_mut<T: Payload>(&mut self) -> Option<&mut T> {
         let pld_box_dyn = &mut self.0;
         pld_box_dyn
@@ -96,10 +107,10 @@ impl BoxPayload {
     }
 
     pub fn downcast<T: Payload>(mut self) -> Result<T, Self> {
-        let pld_box_dyn = &mut self.0;
-        let pld_dyn_mut = pld_box_dyn.as_mut();
-        let pld_dyn_any = pld_dyn_mut.as_any_mut();
-        if pld_dyn_any.is::<MaybePayload<T>>() {
+        if self.is::<T>() {
+            let pld_box_dyn = &mut self.0;
+            let pld_dyn_mut = pld_box_dyn.as_mut();
+            let pld_dyn_any = pld_dyn_mut.as_any_mut();
             let pld_maybe_r = pld_dyn_any
                 .downcast_mut::<MaybePayload<T>>()
                 .expect("downcast success previously confirmed");
@@ -110,8 +121,24 @@ impl BoxPayload {
         }
     }
 
+    /// For exploratory purposes only
+    #[cfg(test)]
+    pub fn downcast_with_into_any<T: Payload>(self) -> Result<T, Self> {
+        if self.is::<T>() {
+            let pld_box_any = self.0.into_any();
+            let mut pld_box_maybe = pld_box_any
+                .downcast::<MaybePayload<T>>()
+                .expect("downcast success previously confirmed");
+            let pld_maybe_r = pld_box_maybe.as_mut();
+            let pld_maybe_v = replace(pld_maybe_r, MaybePayload::Nothing);
+            Ok(pld_maybe_v.just().unwrap())
+        } else {
+            Err(self)
+        }
+    }
+
     /// If the boxed value is of type `T`, returns `Err(f(value))`; otherwise, returns `Ok(self)`.
-    /// This unusual signature facilitates chaining of calls of this method with different types.
+    /// This unusual signature facilitates chaining of calls of this method for different types.
     pub fn with_downcast<T: Payload, U>(self, f: impl FnOnce(T) -> U) -> Result<Self, U> {
         let res = self.downcast::<T>();
         match res {

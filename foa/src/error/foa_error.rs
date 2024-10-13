@@ -172,7 +172,7 @@ impl Error {
     }
 
     /// If the payload is of type `T`, returns `Err(f(payload))`; otherwise, returns `Ok(self)`
-    /// This unusual signature facilitates chaining of calls of this method with different types.
+    /// This unusual signature facilitates chaining of calls of this method for different types.
     ///
     /// As this method consumes `self`, if you also need access to other [`Error`] fields then convert
     /// use [`Error::with_errorexp`] instead.
@@ -226,7 +226,7 @@ impl Error {
 
     /// If the payload is of type `T`, returns `Err(f(error_exp))` where `error_exp` is the
     /// [`ErrorExp`] instance obtained from `self`; otherwise, returns `Ok(self)`.
-    /// This unusual signature facilitates chaining of calls of this method with different types.
+    /// This unusual signature facilitates chaining of calls of this method for different types.
     ///
     /// # Example
     /// ```
