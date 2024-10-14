@@ -1,4 +1,4 @@
-use super::{Payload, SerError, SerErrorExp};
+use super::{Payload, SerError, SerErrorExt};
 use serde::Deserialize;
 use std::{
     collections::BTreeMap,
@@ -23,7 +23,7 @@ pub struct DeserKindId(pub String);
 // endregion:   --- DeserKindId
 
 //===========================
-// region:      --- DeserError, DeserErrorExp
+// region:      --- DeserError, DeserErrorExt
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
 pub struct DeserError {
@@ -58,7 +58,7 @@ impl From<&SerError> for DeserError {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
-pub struct DeserErrorExp<T: Payload> {
+pub struct DeserErrorExt<T: Payload> {
     pub kind_id: DeserKindId,
     pub msg: String,
     pub tag: DeserTag,
@@ -66,16 +66,16 @@ pub struct DeserErrorExp<T: Payload> {
     pub other: BTreeMap<String, String>,
 }
 
-impl<T: Payload> Display for DeserErrorExp<T> {
+impl<T: Payload> Display for DeserErrorExt<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.msg)
     }
 }
 
-impl<T: Payload> StdError for DeserErrorExp<T> {}
+impl<T: Payload> StdError for DeserErrorExt<T> {}
 
-impl<T: Payload> From<SerErrorExp<T>> for DeserErrorExp<T> {
-    fn from(value: SerErrorExp<T>) -> Self {
+impl<T: Payload> From<SerErrorExt<T>> for DeserErrorExt<T> {
+    fn from(value: SerErrorExt<T>) -> Self {
         let other: BTreeMap<String, String> = value
             .other()
             .iter()
@@ -91,11 +91,11 @@ impl<T: Payload> From<SerErrorExp<T>> for DeserErrorExp<T> {
     }
 }
 
-// endregion:   --- DeserError, DeserErrorExp
+// endregion:   --- DeserError, DeserErrorExt
 
 #[cfg(test)]
 mod test {
-    use crate::error::{self, BacktraceSpec, DeserError, DeserErrorExp, Props, PropsKind, Tag};
+    use crate::error::{self, BacktraceSpec, DeserError, DeserErrorExt, Props, PropsKind, Tag};
 
     static FOO_TAG: Tag = Tag("FOO");
 
@@ -121,13 +121,13 @@ mod test {
 
         {
             let err0 = FOO_ERROR.error_with_values(["hi there!".into()]);
-            let err = err0.into_errorexp::<Props>()?;
+            let err = err0.into_errorext::<Props>()?;
 
             let ser_err =
-                err.into_sererrorexp([error::StringSpec::Dbg, error::StringSpec::Recursive]);
+                err.into_sererrorext([error::StringSpec::Dbg, error::StringSpec::Recursive]);
             let json_err = serde_json::to_string(&ser_err)?;
-            let deser_err: DeserErrorExp<Props> = serde_json::from_str(&json_err)?;
-            let exp_deser_err = DeserErrorExp::from(ser_err);
+            let deser_err: DeserErrorExt<Props> = serde_json::from_str(&json_err)?;
+            let exp_deser_err = DeserErrorExt::from(ser_err);
 
             assert_eq!(exp_deser_err, deser_err);
         }

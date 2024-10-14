@@ -35,9 +35,9 @@ pub fn default_mapper(err: Error) -> (StatusCode, JserBoxError) {
     match err.tag() {
         tag if tag == &VALIDATION_TAG => {
             let status_code = StatusCode::BAD_REQUEST;
-            let err_exp_res = err.into_errorexp::<ValidationError>();
+            let err_exp_res = err.into_errorext::<ValidationError>();
             match err_exp_res {
-                Ok(ee) => (status_code, ee.into_sererrorexp([]).into()),
+                Ok(ee) => (status_code, ee.into_sererrorext([]).into()),
                 Err(e) => (
                     status_code,
                     e.to_sererror([error::StringSpec::Dbg, error::StringSpec::Recursive])

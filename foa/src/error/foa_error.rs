@@ -158,7 +158,7 @@ impl Error {
     /// If the payload is of type `T`, returns `Ok(payload)` , otherwise returns `Err(self)`.
     ///
     /// As this method consumes `self`, if you also need access to other [`Error`] fields then convert
-    /// to an [`ErrorExp`] using [`Self::into_errorexp`] instead.
+    /// to an [`ErrorExt`] using [`Self::into_ErrorExt`] instead.
     pub fn typed_payload<T: Payload>(self) -> Result<Box<T>> {
         if self.payload.is::<T>() {
             let res = self.payload.downcast::<T>();
@@ -175,7 +175,7 @@ impl Error {
     /// This unusual signature facilitates chaining of calls of this method for different types.
     ///
     /// As this method consumes `self`, if you also need access to other [`Error`] fields then convert
-    /// use [`Error::with_errorexp`] instead.
+    /// use [`Error::with_ErrorExt`] instead.
     ///
     /// # Example
     /// ```
@@ -206,13 +206,13 @@ impl Error {
         &self.backtrace
     }
 
-    /// If the payload is of type `T`, returns `Ok(error_exp)`, where `error_exp` is the
-    /// [`ErrorExp`] instance obtained from `self`; otherwise returns `Err(self)`.
-    pub fn into_errorexp<T: Payload>(self) -> Result<ErrorExp<T>> {
+    /// If the payload is of type `T`, returns `Ok(error_ext)`, where `error_ext` is the
+    /// [`ErrorExt`] instance obtained from `self`; otherwise returns `Err(self)`.
+    pub fn into_errorext<T: Payload>(self) -> Result<ErrorExt<T>> {
         if self.payload.is::<T>() {
             let res = self.payload.downcast::<T>();
             match res {
-                Ok(payload) => Ok(ErrorExp {
+                Ok(payload) => Ok(ErrorExt {
                     kind_id: self.kind_id,
                     msg: self.msg,
                     tag: self.tag,
@@ -227,8 +227,8 @@ impl Error {
         }
     }
 
-    /// If the payload is of type `T`, returns `Err(f(error_exp))` where `error_exp` is the
-    /// [`ErrorExp`] instance obtained from `self`; otherwise, returns `Ok(self)`.
+    /// If the payload is of type `T`, returns `Err(f(error_ext))` where `error_ext` is the
+    /// [`ErrorExt`] instance obtained from `self`; otherwise, returns `Ok(self)`.
     /// This unusual signature facilitates chaining of calls of this method for different types.
     ///
     /// # Example
@@ -240,18 +240,18 @@ impl Error {
     ///     err: Error,
     /// ) -> Result<()> {
     ///     swap_result(|| -> ReverseResult<()> {
-    ///         err.with_errorexp::<T1, ()>(|ee| println!("payload type was `T1`: {ee:?}"))?
-    ///             .with_errorexp::<T2, ()>(|ee| println!("payload type was `T2`: {ee:?}"))
+    ///         err.with_ErrorExt::<T1, ()>(|ee| println!("payload type was `T1`: {ee:?}"))?
+    ///             .with_ErrorExt::<T2, ()>(|ee| println!("payload type was `T2`: {ee:?}"))
     ///     })
     /// }
     /// ```
-    pub fn with_errorexp<T: Payload, U>(
+    pub fn with_errorext<T: Payload, U>(
         self,
-        f: impl FnOnce(ErrorExp<T>) -> U,
+        f: impl FnOnce(ErrorExt<T>) -> U,
     ) -> ReverseResult<U> {
-        let res = self.into_errorexp::<T>();
+        let res = self.into_errorext::<T>();
         match res {
-            Ok(error_exp) => Err(f(error_exp)),
+            Ok(error_ext) => Err(f(error_ext)),
             Err(err) => Ok(err),
         }
     }
@@ -299,11 +299,11 @@ impl WithBacktrace for Error {
 // endregion:   --- Error
 
 //===========================
-// region:      --- ErrorExp
+// region:      --- ErrorExt
 
 /// Struct with the same fields as [`Error`] but where the payload is a type `T` rather than a boxed error.
 #[derive(Debug)]
-pub struct ErrorExp<T> {
+pub struct ErrorExt<T> {
     kind_id: &'static KindId,
     msg: StaticStr,
     tag: &'static Tag,
@@ -312,7 +312,7 @@ pub struct ErrorExp<T> {
     backtrace: NoDebug<Backtrace>,
 }
 
-impl<T: Payload> ErrorExp<T> {
+impl<T: Payload> ErrorExt<T> {
     pub fn has_kind(&self, kind: &'static KindId) -> bool {
         self.kind_id == kind
     }
@@ -346,14 +346,14 @@ impl<T: Payload> ErrorExp<T> {
     }
 }
 
-impl<T: Payload + Serialize> ErrorExp<T> {
-    pub fn into_sererrorexp<const N: usize>(self, str_specs: [StringSpec; N]) -> SerErrorExp<T> {
+impl<T: Payload + Serialize> ErrorExt<T> {
+    pub fn into_sererrorext<const N: usize>(self, str_specs: [StringSpec; N]) -> SerErrorExt<T> {
         let fmt = Fmt(&self);
         let other = str_specs
             .into_iter()
             .map(|spec| fmt.speced_string_tuple(&spec))
             .collect::<BTreeMap<&'static str, String>>();
-        SerErrorExp {
+        SerErrorExt {
             kind_id: self.kind_id,
             msg: self.msg,
             tag: self.tag,
@@ -363,13 +363,13 @@ impl<T: Payload + Serialize> ErrorExp<T> {
     }
 }
 
-impl<T: Payload> Display for ErrorExp<T> {
+impl<T: Payload> Display for ErrorExt<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.msg)
     }
 }
 
-impl<T: Payload> StdError for ErrorExp<T> {
+impl<T: Payload> StdError for ErrorExt<T> {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match &self.source {
             Some(e) => Some(e.as_dyn_std_error()),
@@ -378,22 +378,22 @@ impl<T: Payload> StdError for ErrorExp<T> {
     }
 }
 
-impl<T> WithBacktrace for ErrorExp<T> {
+impl<T> WithBacktrace for ErrorExt<T> {
     fn backtrace(&self) -> &Backtrace {
         &self.backtrace
     }
 }
 
-impl<T: Payload> From<Error> for Result<ErrorExp<T>> {
+impl<T: Payload> From<Error> for Result<ErrorExt<T>> {
     fn from(value: Error) -> Self {
-        value.into_errorexp()
+        value.into_errorext()
     }
 }
 
-// endregion:   --- ErrorExp
+// endregion:   --- ErrorExt
 
 //===========================
-// region:      --- SerError, SerErrorExp
+// region:      --- SerError, SerErrorExt
 
 #[derive(Debug, Serialize)]
 pub struct SerError {
@@ -436,7 +436,7 @@ impl From<SerError> for JserBoxError {
 }
 
 #[derive(Debug, Serialize)]
-pub struct SerErrorExp<T: Payload> {
+pub struct SerErrorExt<T: Payload> {
     kind_id: &'static KindId,
     msg: StaticStr,
     tag: &'static Tag,
@@ -444,7 +444,7 @@ pub struct SerErrorExp<T: Payload> {
     other: BTreeMap<&'static str, String>,
 }
 
-impl<T: Payload> SerErrorExp<T> {
+impl<T: Payload> SerErrorExt<T> {
     pub fn kind_id(&self) -> &'static KindId {
         self.kind_id
     }
@@ -470,21 +470,21 @@ impl<T: Payload> SerErrorExp<T> {
     }
 }
 
-impl<T: Payload> Display for SerErrorExp<T> {
+impl<T: Payload> Display for SerErrorExt<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.msg)
     }
 }
 
-impl<T: Payload> StdError for SerErrorExp<T> {}
+impl<T: Payload> StdError for SerErrorExt<T> {}
 
-impl<T: Payload + Serialize> From<SerErrorExp<T>> for JserBoxError {
-    fn from(value: SerErrorExp<T>) -> Self {
+impl<T: Payload + Serialize> From<SerErrorExt<T>> for JserBoxError {
+    fn from(value: SerErrorExt<T>) -> Self {
         Self::new(value)
     }
 }
 
-// endregion:   --- SerError, SerErrorExp
+// endregion:   --- SerError, SerErrorExt
 
 #[cfg(test)]
 mod test {
@@ -551,7 +551,7 @@ mod test {
     }
 
     #[test]
-    fn test_with_errorexp() {
+    fn test_with_errorext() {
         let (payload, err) = make_payload_error_pair();
         let (_, err1) = make_payload_error_pair();
 
@@ -559,26 +559,26 @@ mod test {
         assert_eq!(err.to_string(), "foo message: {xyz}");
 
         let res = swap_result(|| -> std::result::Result<Error, ()> {
-            err.with_errorexp::<TrivialError, _>(|_| unreachable!())?
-                .with_errorexp::<Props, _>(|ee| {
+            err.with_errorext::<TrivialError, _>(|_| unreachable!())?
+                .with_errorext::<Props, _>(|ee| {
                     assert_eq!(payload.0, ee.payload.0);
                     assert_eq!(err1.kind_id(), ee.kind_id);
                     assert_eq!(err1.msg, ee.msg);
                     assert_eq!(err1.tag(), ee.tag);
                 })?
-                .with_errorexp::<TrivialError, _>(|_| unreachable!("again"))
+                .with_errorext::<TrivialError, _>(|_| unreachable!("again"))
         });
         assert!(res.is_ok());
     }
 
     #[test]
-    fn test_into_errorexp_props() {
+    fn test_into_errorext_props() {
         let err = FOO_ERROR.error_with_values(["hi there!".into()]);
 
         assert!(err.has_kind(FOO_ERROR.kind_id()));
         assert_eq!(err.to_string(), "foo message: {xyz}");
 
-        let res = err.into_errorexp::<Props>();
+        let res = err.into_errorext::<Props>();
         match res {
             Ok(ee) => assert_eq!(ee.kind_id, FOO_ERROR.kind_id()),
             Err(_) => unreachable!(),
@@ -586,7 +586,7 @@ mod test {
     }
 
     #[test]
-    fn test_with_errorexp_validation() {
+    fn test_with_errorext_validation() {
         let age_delta: i32 = -10;
         let payload = age_delta
             .validate(
@@ -599,11 +599,11 @@ mod test {
         assert!(err.has_kind(VALIDATION_ERROR.kind_id()));
 
         let res = swap_result(|| -> ReverseResult<()> {
-            err.with_errorexp::<TrivialError, _>(|_| unreachable!())?
-                .with_errorexp::<ValidationError, _>(|ee| {
+            err.with_errorext::<TrivialError, _>(|_| unreachable!())?
+                .with_errorext::<ValidationError, _>(|ee| {
                     assert_eq!(ee.kind_id, VALIDATION_ERROR.kind_id());
                 })?
-                .with_errorexp::<TrivialError, _>(|_| unreachable!("again"))
+                .with_errorext::<TrivialError, _>(|_| unreachable!("again"))
         });
         assert!(res.is_ok());
     }
