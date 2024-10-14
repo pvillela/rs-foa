@@ -62,7 +62,7 @@ pub struct DeserErrorExp<T: Payload> {
     pub kind_id: DeserKindId,
     pub msg: String,
     pub tag: DeserTag,
-    pub payload: T,
+    pub payload: Box<T>,
     pub other: BTreeMap<String, String>,
 }
 

@@ -159,7 +159,7 @@ impl Error {
     ///
     /// As this method consumes `self`, if you also need access to other [`Error`] fields then convert
     /// to an [`ErrorExp`] using [`Self::into_errorexp`] instead.
-    pub fn typed_payload<T: Payload>(self) -> Result<T> {
+    pub fn typed_payload<T: Payload>(self) -> Result<Box<T>> {
         if self.payload.is::<T>() {
             let res = self.payload.downcast::<T>();
             match res {
@@ -191,7 +191,10 @@ impl Error {
     ///     })
     /// }
     /// ```
-    pub fn with_typed_payload<T: Payload, U>(self, f: impl FnOnce(T) -> U) -> ReverseResult<U> {
+    pub fn with_typed_payload<T: Payload, U>(
+        self,
+        f: impl FnOnce(Box<T>) -> U,
+    ) -> ReverseResult<U> {
         let res = self.typed_payload::<T>();
         match res {
             Ok(payload) => Err(f(payload)),
@@ -304,7 +307,7 @@ pub struct ErrorExp<T> {
     kind_id: &'static KindId,
     msg: StaticStr,
     tag: &'static Tag,
-    payload: T,
+    payload: Box<T>,
     source: Option<StdBoxError>,
     backtrace: NoDebug<Backtrace>,
 }
@@ -330,7 +333,7 @@ impl<T: Payload> ErrorExp<T> {
         &self.payload
     }
 
-    pub fn payload(self) -> T {
+    pub fn payload(self) -> Box<T> {
         self.payload
     }
 
@@ -437,7 +440,7 @@ pub struct SerErrorExp<T: Payload> {
     kind_id: &'static KindId,
     msg: StaticStr,
     tag: &'static Tag,
-    pub(super) payload: T,
+    pub(super) payload: Box<T>,
     other: BTreeMap<&'static str, String>,
 }
 
@@ -458,7 +461,7 @@ impl<T: Payload> SerErrorExp<T> {
         &self.payload
     }
 
-    pub fn payload(self) -> T {
+    pub fn payload(self) -> Box<T> {
         self.payload
     }
 
@@ -526,7 +529,7 @@ mod test {
         assert!(err.has_kind(FOO_ERROR.kind_id()));
         assert_eq!(err.to_string(), "foo message: {xyz}");
 
-        let payload_ext: Props = err.typed_payload::<Props>().unwrap();
+        let payload_ext = err.typed_payload::<Props>().unwrap();
         assert_eq!(payload.0, payload_ext.0);
     }
 

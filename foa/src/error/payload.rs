@@ -63,13 +63,13 @@ impl BoxPayload {
         self.0.as_mut().as_any_mut().downcast_mut::<T>()
     }
 
-    pub fn downcast<T: Payload>(self) -> Result<T, Self> {
+    pub fn downcast<T: Payload>(self) -> Result<Box<T>, Self> {
         if self.is::<T>() {
             let pld_box_any = self.0.into_any();
             let pld_box = pld_box_any
                 .downcast::<T>()
                 .expect("downcast success previously ensured");
-            Ok(*pld_box)
+            Ok(pld_box)
         } else {
             Err(self)
         }
@@ -77,7 +77,7 @@ impl BoxPayload {
 
     /// If the boxed value is of type `T`, returns `Err(f(value))`; otherwise, returns `Ok(self)`.
     /// This unusual signature facilitates chaining of calls of this method for different types.
-    pub fn with_downcast<T: Payload, U>(self, f: impl FnOnce(T) -> U) -> Result<Self, U> {
+    pub fn with_downcast<T: Payload, U>(self, f: impl FnOnce(Box<T>) -> U) -> Result<Self, U> {
         let res = self.downcast::<T>();
         match res {
             Ok(t) => Err(f(t)),
