@@ -105,14 +105,24 @@ mod test {
     use crate::error::{BoxPayload, PayloadPriv, Props};
     use std::any::TypeId;
 
+    fn make_props() -> Props {
+        Props {
+            props: [].into(),
+            sensitive: false,
+            locked: false,
+        }
+    }
+
     #[test]
     fn test_payload() {
+        let props = make_props();
+
         {
             fn f(payload: &dyn PayloadPriv) -> TypeId {
                 payload.as_any().type_id()
             }
 
-            let props = Props([].into());
+            let props = props.clone();
             let id = props.as_any().type_id();
 
             println!("props type_id={:?}, f type_id={:?}", id, f(&props));
@@ -125,9 +135,9 @@ mod test {
                 boxed.0.as_ref().as_any().type_id()
             }
 
-            let props1 = Props([].into());
-            let props2 = Props([].into());
-            let props3 = Props([].into());
+            let props1 = props.clone();
+            let props2 = props.clone();
+            let props3 = props.clone();
             let id = props1.as_any().type_id();
 
             println!("props type_id={:?}, f type_id={:?}", id, f(props2));
@@ -137,25 +147,25 @@ mod test {
 
     #[test]
     fn test_downcast_ref() {
-        {
-            let props1 = Props([].into());
-            let props2 = Props([].into());
+        let props = make_props();
 
-            let boxed = BoxPayload::new(props1);
-            let downcast_ref = boxed.downcast_ref::<Props>().unwrap();
-            assert_eq!(downcast_ref, &props2);
-        }
+        let props1 = props.clone();
+        let props2 = props.clone();
+
+        let boxed = BoxPayload::new(props1);
+        let downcast_ref = boxed.downcast_ref::<Props>().unwrap();
+        assert_eq!(downcast_ref, &props2);
     }
 
     #[test]
     fn test_downcast_mut() {
-        {
-            let props1 = Props([].into());
-            let props2 = Props([].into());
+        let props = make_props();
 
-            let mut boxed = BoxPayload::new(props1);
-            let downcast_mut = boxed.downcast_mut::<Props>().unwrap();
-            assert_eq!(downcast_mut, &props2);
-        }
+        let props1 = props.clone();
+        let props2 = props.clone();
+
+        let mut boxed = BoxPayload::new(props1);
+        let downcast_mut = boxed.downcast_mut::<Props>().unwrap();
+        assert_eq!(downcast_mut, &props2);
     }
 }

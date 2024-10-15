@@ -1,5 +1,5 @@
 use crate::{
-    error::{BacktraceSpec, BasicKind, Error, PropsKind, RUNTIME_TAG},
+    error::{BacktraceSpec, BasicKind, Error, RUNTIME_TAG},
     fun::AsyncFn,
 };
 
@@ -20,7 +20,7 @@ pub trait Db {
 pub trait PgDbCtx: DbCtx<Db: Db<Database = Postgres>> {}
 impl<T> PgDbCtx for T where T: DbCtx<Db: Db<Database = Postgres>> {}
 
-pub static DB_ERROR: PropsKind<0, true> = BasicKind::new(
+pub static DB_ERROR: BasicKind<true> = BasicKind::new(
     "DB_ERROR",
     Some("database error"),
     BacktraceSpec::Env,

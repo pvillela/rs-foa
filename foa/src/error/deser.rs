@@ -1,5 +1,5 @@
 use super::{Payload, SerError, SerErrorExt};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
     error::Error as StdError,
@@ -9,7 +9,7 @@ use std::{
 //===========================
 // region:      --- DeserTag
 
-#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DeserTag(pub String);
 
 // endregion:   --- DeserTag
@@ -17,7 +17,7 @@ pub struct DeserTag(pub String);
 //===========================
 // region:      --- DeserKindId
 
-#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DeserKindId(pub String);
 
 // endregion:   --- DeserKindId
@@ -57,7 +57,7 @@ impl From<&SerError> for DeserError {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DeserErrorExt<T: Payload> {
     pub kind_id: DeserKindId,
     pub msg: String,

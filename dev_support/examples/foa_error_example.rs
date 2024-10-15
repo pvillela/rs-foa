@@ -4,7 +4,7 @@ use foa::error::{
 
 static EG_TAG: Tag = Tag("EG");
 
-static ERROR0: PropsKind<0, false> = BasicKind::new(
+static ERROR0: BasicKind<false> = BasicKind::new(
     "ERROR0",
     Some("error kind with no args"),
     BacktraceSpec::Env,
