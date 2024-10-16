@@ -10,42 +10,45 @@ use std::{error::Error as StdError, fmt::Debug};
 
 #[derive(Deserialize, Clone, PartialEq, Eq)]
 pub struct Props {
-    pub(crate) props: Vec<(String, String)>,
-    pub(crate) sensitive: bool,
-    pub(crate) locked: bool,
+    pub(crate) pairs: Vec<(String, String)>,
+    pub(crate) protected: bool,
 }
 
 impl Props {
     pub fn props(&self) -> impl Iterator<Item = (&str, &str)> {
-        self.props.iter().map(|p| (p.0.as_str(), p.1.as_str()))
+        self.pairs.iter().map(|p| (p.0.as_str(), p.1.as_str()))
     }
 
     pub fn prop(&self, key: &str) -> Option<&str> {
-        self.props
+        self.pairs
             .iter()
             .find(|&p| p.0 == key)
             .map(|p| p.1.as_str())
     }
 
+    /// Hashes value of fields whose names starts with '!'.
     fn hashed_props(&self) -> Vec<(String, String)> {
-        self.props
+        self.pairs
             .iter()
             .map(|(name, value)| {
-                let vhash = hash_sha256_of_str_arr(&[value]);
-                let vb64 = string::base64_encode_trunc_of_u8_arr(&vhash, TRUNC);
-                (name.to_owned(), vb64)
+                let value = if name.starts_with("!") {
+                    let vhash = hash_sha256_of_str_arr(&[value]);
+                    string::base64_encode_trunc_of_u8_arr(&vhash, TRUNC)
+                } else {
+                    value.to_owned()
+                };
+                (name.to_owned(), value)
             })
             .collect::<Vec<_>>()
     }
 
     pub fn safe_props(&self) -> Self {
-        if cfg!(debug_assertions) || !self.sensitive || self.locked {
+        if cfg!(debug_assertions) || self.protected {
             self.clone()
         } else {
             Self {
-                props: self.hashed_props(),
-                sensitive: self.sensitive,
-                locked: true,
+                pairs: self.hashed_props(),
+                protected: true,
             }
         }
     }
@@ -53,17 +56,15 @@ impl Props {
 
 impl Debug for Props {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let props = if cfg!(debug_assertions) || !self.sensitive || self.locked {
-            &self.props
+        let pairs = if cfg!(debug_assertions) || self.protected {
+            &self.pairs
         } else {
             &self.hashed_props()
         };
-        f.write_str("Props { props: ")?;
-        props.fmt(f)?;
-        f.write_str(", sensitive: ")?;
-        self.sensitive.fmt(f)?;
-        f.write_str(", locked: ")?;
-        self.locked.fmt(f)?;
+        f.write_str("Props { pairs: ")?;
+        pairs.fmt(f)?;
+        f.write_str(", protected: ")?;
+        self.protected.fmt(f)?;
         f.write_str(" }")
     }
 }
@@ -73,15 +74,14 @@ impl Serialize for Props {
     where
         S: serde::Serializer,
     {
-        let (props, locked) = if cfg!(debug_assertions) || !self.sensitive || self.locked {
-            (&self.props, self.locked)
+        let (pairs, protected) = if cfg!(debug_assertions) || self.protected {
+            (&self.pairs, self.protected)
         } else {
             (&self.hashed_props(), true)
         };
-        let mut state = serializer.serialize_struct("Props", 3)?;
-        state.serialize_field("props", &props)?;
-        state.serialize_field("sensitive", &self.sensitive)?;
-        state.serialize_field("locked", &locked)?;
+        let mut state = serializer.serialize_struct("Props", 2)?;
+        state.serialize_field("pairs", &pairs)?;
+        state.serialize_field("protected", &protected)?;
         state.end()
     }
 }
@@ -92,7 +92,7 @@ impl Serialize for Props {
 // region:      --- PropsKind
 
 #[derive(Debug)]
-pub struct PropsKind<const ARITY: usize, const HASCAUSE: bool, const SENSITIVE: bool = true> {
+pub struct PropsKind<const ARITY: usize, const HASCAUSE: bool> {
     pub(super) kind_id: KindId,
     pub(super) msg: Option<&'static str>,
     pub(super) prop_names: [&'static str; ARITY],
@@ -100,11 +100,9 @@ pub struct PropsKind<const ARITY: usize, const HASCAUSE: bool, const SENSITIVE: 
     pub(super) tag: &'static Tag,
 }
 
-pub type BasicKind<const HASCAUSE: bool> = PropsKind<0, HASCAUSE, false>;
+pub type BasicKind<const HASCAUSE: bool> = PropsKind<0, HASCAUSE>;
 
-impl<const ARITY: usize, const HASCAUSE: bool, const SENSITIVE: bool>
-    PropsKind<ARITY, HASCAUSE, SENSITIVE>
-{
+impl<const ARITY: usize, const HASCAUSE: bool> PropsKind<ARITY, HASCAUSE> {
     pub const fn kind_id(&self) -> &KindId {
         &self.kind_id
     }
@@ -148,9 +146,8 @@ impl<const ARITY: usize, const HASCAUSE: bool, const SENSITIVE: bool>
             None => self.kind_id.0,
         };
         let payload = Props {
-            props,
-            sensitive: SENSITIVE,
-            locked: false,
+            pairs: props,
+            protected: false,
         };
         let backtrace = match self.backtrace_spec {
             BacktraceSpec::Yes => Backtrace::force_capture(),
@@ -198,13 +195,13 @@ impl BasicKind<true> {
     }
 }
 
-impl<const ARITY: usize, const SENSITIVE: bool> PropsKind<ARITY, false, SENSITIVE> {
+impl<const ARITY: usize> PropsKind<ARITY, false> {
     pub fn error_with_values(&'static self, values: [&str; ARITY]) -> Error {
         self.error_priv(values, None)
     }
 }
 
-impl<const ARITY: usize, const SENSITIVE: bool> PropsKind<ARITY, true, SENSITIVE> {
+impl<const ARITY: usize> PropsKind<ARITY, true> {
     pub fn error_with_values(
         &'static self,
         values: [&str; ARITY],

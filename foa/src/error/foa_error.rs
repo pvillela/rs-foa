@@ -508,9 +508,8 @@ mod test {
     fn make_payload_error_pair() -> (Props, Error) {
         fn make_payload() -> Props {
             Props {
-                props: vec![(FOO_ERROR.prop_names[0].into(), "hi there!".into())],
-                sensitive: false,
-                locked: false,
+                pairs: vec![(FOO_ERROR.prop_names[0].into(), "hi there!".into())],
+                protected: false,
             }
         }
 
@@ -534,7 +533,7 @@ mod test {
         assert_eq!(err.to_string(), "foo message: {xyz}");
 
         let payload_ext = err.typed_payload::<Props>().unwrap();
-        assert_eq!(payload.props, payload_ext.props);
+        assert_eq!(payload.pairs, payload_ext.pairs);
     }
 
     #[test]
@@ -547,7 +546,7 @@ mod test {
         let res = swap_result(|| -> ReverseResult<()> {
             err.with_typed_payload::<TrivialError, _>(|_| unreachable!())?
                 .with_typed_payload::<Props, _>(|payload_ext| {
-                    assert_eq!(payload.props, payload_ext.props);
+                    assert_eq!(payload.pairs, payload_ext.pairs);
                 })?
                 .with_typed_payload::<TrivialError, _>(|_| unreachable!("again"))
         });
@@ -565,7 +564,7 @@ mod test {
         let res = swap_result(|| -> std::result::Result<Error, ()> {
             err.with_errorext::<TrivialError, _>(|_| unreachable!())?
                 .with_errorext::<Props, _>(|ee| {
-                    assert_eq!(payload.props, ee.payload.props);
+                    assert_eq!(payload.pairs, ee.payload.pairs);
                     assert_eq!(err1.kind_id(), ee.kind_id);
                     assert_eq!(err1.msg, ee.msg);
                     assert_eq!(err1.tag(), ee.tag);

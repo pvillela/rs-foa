@@ -18,16 +18,16 @@ static FOO_ERROR: PropsKind<1, false> = PropsKind::with_prop_names(
 static BAR_TAG: Tag = Tag("BAR");
 
 /// Used to construct errors without sensitive data.
-static BAR_ERROR: PropsKind<1, false, false> = PropsKind::with_prop_names(
+static BAR_ERROR: PropsKind<2, false> = PropsKind::with_prop_names(
     "BAR_ERROR",
-    Some("foo message: {xyz}"),
-    ["xyz"],
+    Some("bar message: {abc}, {!email}"),
+    ["abc", "!email"],
     BacktraceSpec::Env,
     &BAR_TAG,
 );
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Sensitive info examples with `SerError`.
+    // Non-sensitive info examples with `SerError`.
     {
         let err = FOO_ERROR.error_with_values(["hi there!".into()]);
         println!("*** err={err:?}");
@@ -45,7 +45,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!();
 
-    // Sensitive info examples with `SerErrorExt`.
+    // Non-sensitive info examples with `SerErrorExt`.
     {
         let err0 = FOO_ERROR.error_with_values(["hi there!".into()]);
         let err = err0.into_errorext::<Props>()?;
@@ -80,9 +80,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!();
 
-    // Non-sensitive info examples with `SerErrorExt`.
+    // Sensitive info examples with `SerErrorExt`.
     {
-        let err0 = BAR_ERROR.error_with_values(["hi there!".into()]);
+        let err0 = BAR_ERROR.error_with_values(["hi there!".into(), "bar@example.com".into()]);
         let err = err0.into_errorext::<Props>()?;
         println!("*** err={err:?}");
 

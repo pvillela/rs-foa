@@ -107,9 +107,8 @@ mod test {
 
     fn make_props() -> Props {
         Props {
-            props: [].into(),
-            sensitive: false,
-            locked: false,
+            pairs: [].into(),
+            protected: false,
         }
     }
 
