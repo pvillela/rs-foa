@@ -7,6 +7,7 @@ use crate::string;
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Serialize};
 use std::{
+    any::type_name,
     backtrace::Backtrace,
     collections::BTreeMap,
     error::Error as StdError,
@@ -250,15 +251,19 @@ impl Error {
         self.payload.as_ref()
     }
 
-    pub fn typed_payload_ref<T: Payload>(&self) -> Option<&T> {
+    pub fn try_typed_payload_ref<T: Payload>(&self) -> Option<&T> {
         self.payload.downcast_ref::<T>()
+    }
+
+    pub fn payload_is<T: Payload>(&self) -> bool {
+        self.payload.is::<T>()
     }
 
     /// If the payload is of type `T`, returns `Ok(payload)` , otherwise returns `Err(self)`.
     ///
     /// As this method consumes `self`, if you also need access to other [`Error`] fields then convert
-    /// to an [`ErrorExt`] using [`Self::into_ErrorExt`] instead.
-    pub fn typed_payload<T: Payload>(self) -> Result<Box<T>> {
+    /// to an [`ErrorExt`] using [`Self::try_into_errorext`] instead.
+    pub fn try_typed_payload<T: Payload>(self) -> Result<Box<T>> {
         if self.payload.is::<T>() {
             let res = self.payload.downcast::<T>();
             match res {
@@ -270,23 +275,40 @@ impl Error {
         }
     }
 
+    /// Returns `self`'s payload if the payload is of type `T`, panics otherwise.
+    ///
+    /// Should only be used (instead of [`Self::try_typed_payload`]) when it is known that the payload
+    /// is of type `T`, e.g., after calling [`Self::payload_is`].
+    ///
+    /// As this method consumes `self`, if you also need access to other [`Error`] fields then convert
+    /// to an [`ErrorExt`] using [`Self::into_errorext`] instead.
+    ///
+    /// # Panics
+    /// If the payload is not of type `T`.
+    pub fn typed_payload<T: Payload>(self) -> Box<T> {
+        match self.try_typed_payload::<T>() {
+            Ok(pld) => pld,
+            _ => panic!("self's payload is not of type {}", type_name::<T>()),
+        }
+    }
+
     /// If the payload is of type `T`, returns `Err(f(payload))`; otherwise, returns `Ok(self)`
     /// This unusual signature facilitates chaining of calls of this method for different types.
     ///
     /// As this method consumes `self`, if you also need access to other [`Error`] fields then convert
-    /// use [`Error::with_ErrorExt`] instead.
+    /// use [`Error::with_errorext`] instead.
     ///
     /// # Example
     /// ```
     /// use foa::{Error, Result, ReverseResult, error::{Payload, swap_result}};
-    /// use std::fmt::Debug;
+    /// use std::{any::type_name, fmt::Debug};
     ///
     /// fn process_error<T1: Payload, T2: Payload>(
     ///     err: Error,
     /// ) -> Result<()> {
     ///     swap_result(|| -> ReverseResult<()> {
-    ///         err.with_typed_payload::<T1, ()>(|pld| println!("payload type was `T1`: {pld:?}"))?
-    ///             .with_typed_payload::<T2, ()>(|pld| println!("payload type was `T2: {pld:?}`"))
+    ///         err.with_typed_payload::<T1, ()>(|pld| println!("payload type was {}, payload={:?}", type_name::<T1>(), pld))?
+    ///             .with_typed_payload::<T2, ()>(|pld| println!("payload type was {}, payload={:?}", type_name::<T2>(), pld))
     ///     })
     /// }
     /// ```
@@ -294,7 +316,7 @@ impl Error {
         self,
         f: impl FnOnce(Box<T>) -> U,
     ) -> ReverseResult<U> {
-        let res = self.typed_payload::<T>();
+        let res = self.try_typed_payload::<T>();
         match res {
             Ok(payload) => Err(f(payload)),
             Err(err) => Ok(err),
@@ -307,7 +329,7 @@ impl Error {
 
     /// If the payload is of type `T`, returns `Ok(error_ext)`, where `error_ext` is the
     /// [`ErrorExt`] instance obtained from `self`; otherwise returns `Err(self)`.
-    pub fn into_errorext<T: Payload>(self) -> Result<ErrorExt<T>> {
+    pub fn try_into_errorext<T: Payload>(self) -> Result<ErrorExt<T>> {
         if self.payload.is::<T>() {
             let res = self.payload.downcast::<T>();
             match res {
@@ -327,6 +349,21 @@ impl Error {
         }
     }
 
+    /// Returns the [`ErrorExt`] instance obtained from `self` if the payload is of type `T`,
+    /// panics otherwise.
+    ///
+    /// Should only be used (instead of [`Self::try_into_errorext`]) when it is known that the payload
+    /// is of type `T`, e.g., after calling [`Self::payload_is`].
+    ///
+    /// # Panics
+    /// If the payload is not of type `T`.
+    pub fn into_errorext<T: Payload>(self) -> ErrorExt<T> {
+        match self.try_into_errorext::<T>() {
+            Ok(ee) => ee,
+            _ => panic!("self's payload is not of type {}", type_name::<T>()),
+        }
+    }
+
     /// If the payload is of type `T`, returns `Err(f(error_ext))` where `error_ext` is the
     /// [`ErrorExt`] instance obtained from `self`; otherwise, returns `Ok(self)`.
     /// This unusual signature facilitates chaining of calls of this method for different types.
@@ -334,14 +371,16 @@ impl Error {
     /// # Example
     /// ```
     /// use foa::{Error, Result, ReverseResult, error::{Payload, swap_result}};
-    /// use std::fmt::Debug;
+    /// use std::{any::type_name, fmt::Debug};
     ///
-    /// fn process_error<T1: Payload, T2: Payload>(
-    ///     err: Error,
-    /// ) -> Result<()> {
+    /// fn process_error<T1: Payload, T2: Payload>(err: Error) -> Result<()> {
     ///     swap_result(|| -> ReverseResult<()> {
-    ///         err.with_errorext::<T1, ()>(|ee| println!("payload type was `T1`: {ee:?}"))?
-    ///             .with_errorext::<T2, ()>(|ee| println!("payload type was `T2`: {ee:?}"))
+    ///         err.with_errorext::<T1, ()>(|ee| {
+    ///             println!("payload type was {}, ee={:?}", type_name::<T1>(), ee)
+    ///         })?
+    ///         .with_errorext::<T2, ()>(|ee| {
+    ///             println!("payload type was {}, ee={:?}", type_name::<T2>(), ee)
+    ///         })
     ///     })
     /// }
     /// ```
@@ -349,10 +388,39 @@ impl Error {
         self,
         f: impl FnOnce(ErrorExt<T>) -> U,
     ) -> ReverseResult<U> {
-        let res = self.into_errorext::<T>();
+        let res = self.try_into_errorext::<T>();
         match res {
             Ok(error_ext) => Err(f(error_ext)),
             Err(err) => Ok(err),
+        }
+    }
+
+    /// Facilitates the chaining of functions that return [`ReverseResult<U>`] by encapsulating the chained call
+    /// in argument `f` and using the `?` operator.
+    ///
+    /// # Example
+    /// ```
+    /// use foa::{Error, Result, ReverseResult, error::{Payload, swap_result}};
+    /// use std::{any::type_name, fmt::Debug};
+    ///
+    /// fn process_error<T1: Payload, T2: Payload>(err: Error) -> String {
+    ///     err.chained_map(
+    ///         |err| {
+    ///             err.with_typed_payload::<T1, _>(|pld| format!("payload type was {}, payload={:?}", type_name::<T1>(), pld))?
+    ///                 .with_typed_payload::<T2, _>(|pld| format!("payload type was {}, payload={:?}", type_name::<T2>(), pld))
+    ///         },
+    ///         |_err| "payload type was neither `T1` nor `T2`".into(),
+    ///     )
+    /// }
+    /// ```
+    pub fn chained_map<U>(
+        self,
+        f: impl FnOnce(Self) -> ReverseResult<U>,
+        fallback: impl FnOnce(Self) -> U,
+    ) -> U {
+        match f(self) {
+            Err(u) => u,
+            Ok(err) => fallback(err),
         }
     }
 
@@ -493,7 +561,7 @@ impl<T> WithBacktrace for ErrorExt<T> {
 
 impl<T: Payload> From<Error> for Result<ErrorExt<T>> {
     fn from(value: Error) -> Self {
-        value.into_errorext()
+        value.try_into_errorext()
     }
 }
 
@@ -608,7 +676,7 @@ mod test {
     use super::*;
     use crate::error::foa_error::Props;
     use crate::{
-        error::{swap_result, FullKind, ReverseResult, TrivialError},
+        error::{swap_result, FullKind, ReverseResult},
         validation::validc::VALIDATION_ERROR,
     };
     use valid::{constraint::Bound, Validate, ValidationError};
@@ -654,7 +722,7 @@ mod test {
         assert!(err.has_kind(BAR_ERROR.kind_id()));
         assert_eq!(err.to_string(), "bar message: {abc}, {!email}");
 
-        let payload_ext = err.typed_payload::<Pld>().unwrap();
+        let payload_ext = err.try_typed_payload::<Pld>().unwrap();
         assert_eq!(payload, *payload_ext);
     }
 
@@ -666,48 +734,92 @@ mod test {
         assert_eq!(err.to_string(), "bar message: {abc}, {!email}");
 
         let res = swap_result(|| -> ReverseResult<()> {
-            err.with_typed_payload::<TrivialError, _>(|_| unreachable!())?
+            err.with_typed_payload::<String, _>(|_| unreachable!())?
                 .with_typed_payload::<Pld, _>(|payload_ext| {
                     assert_eq!(payload, *payload_ext);
                 })?
-                .with_typed_payload::<TrivialError, _>(|_| unreachable!("again"))
+                .with_typed_payload::<(), _>(|_| unreachable!("again"))
         });
         assert!(res.is_ok());
     }
 
     #[test]
-    fn test_with_errorext() {
+    fn test_try_into_errorext_pld() {
+        let (_, err) = make_payload_error_pair();
+
+        assert!(err.has_kind(BAR_ERROR.kind_id()));
+        assert_eq!(err.to_string(), "bar message: {abc}, {!email}");
+
+        let res = err.try_into_errorext::<Pld>();
+        match res {
+            Ok(ee) => assert_eq!(ee.kind_id, BAR_ERROR.kind_id()),
+            Err(_) => unreachable!(),
+        };
+    }
+
+    #[test]
+    fn test_into_errorext_pld() {
         let (payload, err) = make_payload_error_pair();
         let (_, err1) = make_payload_error_pair();
 
         assert!(err.has_kind(BAR_ERROR.kind_id()));
         assert_eq!(err.to_string(), "bar message: {abc}, {!email}");
 
-        let res = swap_result(|| -> std::result::Result<Error, ()> {
-            err.with_errorext::<TrivialError, _>(|_| unreachable!())?
+        if err.payload_is::<String>() {
+            unreachable!()
+        } else if err.payload_is::<Pld>() {
+            let ee = err.into_errorext();
+            assert_eq!(payload, *ee.payload);
+            assert_eq!(err1.kind_id(), ee.kind_id);
+            assert_eq!(err1.msg, ee.msg);
+            assert_eq!(err1.tag(), ee.tag);
+        } else if err.payload_is::<()>() {
+            unreachable!("again")
+        };
+    }
+
+    #[test]
+    fn test_with_errorext_pld() {
+        let (payload, err) = make_payload_error_pair();
+        let (_, err1) = make_payload_error_pair();
+
+        assert!(err.has_kind(BAR_ERROR.kind_id()));
+        assert_eq!(err.to_string(), "bar message: {abc}, {!email}");
+
+        let res = swap_result(|| -> ReverseResult<()> {
+            err.with_errorext::<String, _>(|_| unreachable!())?
                 .with_errorext::<Pld, _>(|ee| {
                     assert_eq!(payload, *ee.payload);
                     assert_eq!(err1.kind_id(), ee.kind_id);
                     assert_eq!(err1.msg, ee.msg);
                     assert_eq!(err1.tag(), ee.tag);
                 })?
-                .with_errorext::<TrivialError, _>(|_| unreachable!("again"))
+                .with_errorext::<(), _>(|_| unreachable!("again"))
         });
         assert!(res.is_ok());
     }
 
     #[test]
-    fn test_into_errorext_props() {
-        let (_, err) = make_payload_error_pair();
+    fn test_chained_map_pld() {
+        let (payload, err) = make_payload_error_pair();
+        let (_, err1) = make_payload_error_pair();
 
         assert!(err.has_kind(BAR_ERROR.kind_id()));
         assert_eq!(err.to_string(), "bar message: {abc}, {!email}");
 
-        let res = err.into_errorext::<Pld>();
-        match res {
-            Ok(ee) => assert_eq!(ee.kind_id, BAR_ERROR.kind_id()),
-            Err(_) => unreachable!(),
-        };
+        err.chained_map(
+            |err| {
+                err.with_errorext::<String, _>(|_| unreachable!())?
+                    .with_errorext::<Pld, _>(|ee| {
+                        assert_eq!(payload, *ee.payload);
+                        assert_eq!(err1.kind_id(), ee.kind_id);
+                        assert_eq!(err1.msg, ee.msg);
+                        assert_eq!(err1.tag(), ee.tag);
+                    })?
+                    .with_errorext::<(), _>(|_| unreachable!("again"))
+            },
+            |_err| unreachable!("fallback shouldn't execute"),
+        )
     }
 
     #[test]
@@ -724,11 +836,11 @@ mod test {
         assert!(err.has_kind(VALIDATION_ERROR.kind_id()));
 
         let res = swap_result(|| -> ReverseResult<()> {
-            err.with_errorext::<TrivialError, _>(|_| unreachable!())?
+            err.with_errorext::<String, _>(|_| unreachable!())?
                 .with_errorext::<ValidationError, _>(|ee| {
                     assert_eq!(ee.kind_id, VALIDATION_ERROR.kind_id());
                 })?
-                .with_errorext::<TrivialError, _>(|_| unreachable!("again"))
+                .with_errorext::<(), _>(|_| unreachable!("again"))
         });
         assert!(res.is_ok());
     }

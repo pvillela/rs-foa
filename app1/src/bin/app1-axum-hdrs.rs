@@ -3,10 +3,11 @@ use app1::{
     svc::{FooIn, FooOut, FooSfl, FooSflI},
 };
 use axum::Router;
+use foa::web::default_mapper;
 use foa::{
     db::sqlx::{AsyncTxFn, DbCtx},
     tokio::task_local::{tl_scoped, TaskLocal, TaskLocalCtx},
-    web::axum::{default_mapper, HandlerAsyncFn2rsWithErrorMapper},
+    web::axum::HandlerAsyncFn2rsWithErrorMapper,
     Error,
 };
 use serde::Serialize;

@@ -74,16 +74,6 @@ impl BoxPayload {
             Err(self)
         }
     }
-
-    /// If the boxed value is of type `T`, returns `Err(f(value))`; otherwise, returns `Ok(self)`.
-    /// This unusual signature facilitates chaining of calls of this method for different types.
-    pub fn with_downcast<T: Payload, U>(self, f: impl FnOnce(Box<T>) -> U) -> Result<Self, U> {
-        let res = self.downcast::<T>();
-        match res {
-            Ok(t) => Err(f(t)),
-            Err(err) => Ok(err),
-        }
-    }
 }
 
 impl Debug for BoxPayload {

@@ -59,7 +59,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         let err0 = FOO_ERROR
             .error_with_values_and_payload(["hi there!".into()], Pld("foo-payload".into()));
-        let err = err0.into_errorext::<Pld>()?;
+        let err = err0.try_into_errorext::<Pld>()?;
         println!("*** err={err:?}");
 
         let ser_err = err.into_sererrorext([]);
@@ -97,7 +97,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             ["hi there!".into(), "bar@example.com".into()],
             Pld("bar-payload".into()),
         );
-        let err = err0.into_errorext::<Pld>()?;
+        let err = err0.try_into_errorext::<Pld>()?;
         println!("*** err={err:?}");
 
         let ser_err = err.into_sererrorext([]);
