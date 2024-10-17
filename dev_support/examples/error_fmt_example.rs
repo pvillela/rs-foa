@@ -5,7 +5,7 @@ use foa::{
 
 static FOO_TAG: Tag = Tag("FOO");
 
-static FOO_ERROR: PropsKind<1, false> = PropsKind::with_prop_names(
+static FOO_ERROR: PropsKind<1, false> = PropsKind::new_with_prop_names(
     "FOO_ERROR",
     Some("foo message: {xyz}"),
     ["xyz"],
@@ -13,7 +13,7 @@ static FOO_ERROR: PropsKind<1, false> = PropsKind::with_prop_names(
     &FOO_TAG,
 );
 
-static BAR_ERROR: BasicKind<true> = BasicKind::new(
+static BAR_ERROR: BasicKind<true> = BasicKind::new_basic_kind(
     "BAR_ERROR",
     Some("bar message"),
     BacktraceSpec::Env,

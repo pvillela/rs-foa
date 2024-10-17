@@ -1,15 +1,15 @@
 use crate::{
-    error::{BacktraceSpec, TypedKind, VALIDATION_TAG},
+    error::{BacktraceSpec, PayloadKind, VALIDATION_TAG},
     Error,
 };
 use valid::ValidationError;
 
-pub static VALIDATION_ERROR: TypedKind<ValidationError, false> =
-    TypedKind::new("VALIDATION_ERROR", None, BacktraceSpec::No, &VALIDATION_TAG);
+pub static VALIDATION_ERROR: PayloadKind<ValidationError, false> =
+    PayloadKind::new_payloadkind("VALIDATION_ERROR", None, BacktraceSpec::No, &VALIDATION_TAG);
 
 impl From<ValidationError> for Error {
     fn from(value: ValidationError) -> Self {
-        VALIDATION_ERROR.error(value)
+        VALIDATION_ERROR.error_with_payload(value)
     }
 }
 
@@ -29,7 +29,7 @@ mod test {
             .result()
             .expect_err("validation designed to fail");
 
-        let err = VALIDATION_ERROR.error(payload);
+        let err = VALIDATION_ERROR.error_with_payload(payload);
         assert!(err.has_kind(VALIDATION_ERROR.kind_id()));
     }
 }

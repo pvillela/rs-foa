@@ -7,7 +7,7 @@ use std::marker::PhantomData;
 use tokio::task::LocalKey;
 
 pub static TASK_LOCAL_ERROR: BasicKind<true> =
-    BasicKind::new("TASK_LOCAL_ERROR", None, BacktraceSpec::Yes, &INTERNAL_TAG);
+    BasicKind::new_basic_kind("TASK_LOCAL_ERROR", None, BacktraceSpec::Yes, &INTERNAL_TAG);
 
 pub trait TaskLocalCtx {
     type TaskLocal: TaskLocal;

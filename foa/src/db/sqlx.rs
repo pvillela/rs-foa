@@ -20,7 +20,7 @@ pub trait Db {
 pub trait PgDbCtx: DbCtx<Db: Db<Database = Postgres>> {}
 impl<T> PgDbCtx for T where T: DbCtx<Db: Db<Database = Postgres>> {}
 
-pub static DB_ERROR: BasicKind<true> = BasicKind::new(
+pub static DB_ERROR: BasicKind<true> = BasicKind::new_basic_kind(
     "DB_ERROR",
     Some("database error"),
     BacktraceSpec::Env,

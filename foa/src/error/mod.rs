@@ -6,12 +6,11 @@ mod box_error;
 mod core_error;
 mod deser;
 mod foa_error;
+mod full_kind;
 mod misc;
 mod payload;
-mod props_kind;
 mod static_str;
 mod tags;
-mod typed_kind;
 mod utils;
 
 // endregion:   --- modules
@@ -24,11 +23,10 @@ pub use box_error::*;
 pub use core_error::*;
 pub use deser::*;
 pub use foa_error::*;
+pub use full_kind::*;
 pub use misc::*;
 pub use payload::*;
-pub use props_kind::*;
 pub use tags::*;
-pub use typed_kind::*;
 pub use utils::*;
 
 // endregion:   --- flattened

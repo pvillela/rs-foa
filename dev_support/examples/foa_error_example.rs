@@ -4,20 +4,20 @@ use foa::error::{
 
 static EG_TAG: Tag = Tag("EG");
 
-static ERROR0: BasicKind<false> = BasicKind::new(
+static ERROR0: BasicKind<false> = BasicKind::new_basic_kind(
     "ERROR0",
     Some("error kind with no args"),
     BacktraceSpec::Env,
     &EG_TAG,
 );
-static ERROR1: PropsKind<1, true> = PropsKind::with_prop_names(
+static ERROR1: PropsKind<1, true> = PropsKind::new_with_prop_names(
     "ERROR1",
     Some("error kind with '{xyz}' as single arg"),
     ["xyz"],
     BacktraceSpec::Env,
     &EG_TAG,
 );
-static ERROR2: PropsKind<2, true> = PropsKind::with_prop_names(
+static ERROR2: PropsKind<2, true> = PropsKind::new_with_prop_names(
     "ERROR2",
     Some("error kind with '{aaa}' and '{bbb}' as args"),
     ["aaa", "bbb"],

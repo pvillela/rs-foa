@@ -1,13 +1,17 @@
 use super::{BoxPayload, Fmt, JserBoxError, Payload, StdBoxError, WithBacktrace};
 use crate::error::static_str::StaticStr;
 use crate::error::utils::StringSpec;
+use crate::hash::hash_sha256_of_str_arr;
 use crate::nodebug::NoDebug;
-use serde::Serialize;
+use crate::string;
+use serde::ser::SerializeStruct;
+use serde::{Deserialize, Serialize};
 use std::{
     backtrace::Backtrace,
     collections::BTreeMap,
     error::Error as StdError,
     fmt::{Debug, Display},
+    result,
 };
 
 pub const TRUNC: usize = 8;
@@ -70,6 +74,92 @@ impl Eq for KindId {}
 // endregion:   --- KindId
 
 //===========================
+// region:      --- Props
+
+#[derive(Deserialize, Clone, PartialEq, Eq)]
+pub struct Props {
+    pub(crate) pairs: Vec<(String, String)>,
+    pub(crate) protected: bool,
+}
+
+impl Props {
+    pub fn pairs(&self) -> impl Iterator<Item = (&str, &str)> {
+        self.pairs.iter().map(|p| (p.0.as_str(), p.1.as_str()))
+    }
+
+    pub fn prop_value(&self, key: &str) -> Option<&str> {
+        self.pairs
+            .iter()
+            .find(|&p| p.0 == key)
+            .map(|p| p.1.as_str())
+    }
+
+    /// Hashes value of fields whose names starts with '!'.
+    fn hashed_pairs(&self) -> (Vec<(String, String)>, bool) {
+        let mut protected = false;
+        let pairs = self
+            .pairs
+            .iter()
+            .map(|(name, value)| {
+                let value = if name.starts_with("!") {
+                    protected = true;
+                    let vhash = hash_sha256_of_str_arr(&[value]);
+                    string::base64_encode_trunc_of_u8_arr(&vhash, TRUNC)
+                } else {
+                    value.to_owned()
+                };
+                (name.to_owned(), value)
+            })
+            .collect::<Vec<_>>();
+        (pairs, protected)
+    }
+
+    pub fn safe_props(&self) -> Self {
+        if cfg!(debug_assertions) || self.protected {
+            self.clone()
+        } else {
+            let (pairs, protected) = self.hashed_pairs();
+            Self { pairs, protected }
+        }
+    }
+}
+
+impl Debug for Props {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let pairs = if cfg!(debug_assertions) || self.protected {
+            &self.pairs
+        } else {
+            &self.hashed_pairs().0
+        };
+        f.write_str("Props { pairs: ")?;
+        pairs.fmt(f)?;
+        f.write_str(", protected: ")?;
+        Debug::fmt(&self.protected, f)?;
+        f.write_str(" }")
+    }
+}
+
+impl Serialize for Props {
+    fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut state = serializer.serialize_struct("Props", 2)?;
+        if cfg!(debug_assertions) || self.protected {
+            state.serialize_field("pairs", &self.pairs)?;
+            state.serialize_field("protected", &self.protected)?;
+        } else {
+            let (pairs, protected) = self.hashed_pairs();
+            state.serialize_field("pairs", &pairs)?;
+            state.serialize_field("protected", &protected)?;
+        };
+        state.end()
+    }
+}
+
+// endregion:   --- Props
+
+//===========================
 // region:      --- Error
 
 #[derive(Debug)]
@@ -77,6 +167,7 @@ pub struct Error {
     pub(crate) kind_id: &'static KindId,
     pub(super) msg: StaticStr,
     pub(crate) tag: &'static Tag,
+    pub(crate) props: Props,
     pub(crate) payload: BoxPayload,
     pub(crate) source: Option<StdBoxError>,
     pub(crate) backtrace: NoDebug<Backtrace>,
@@ -91,6 +182,7 @@ impl Error {
         kind_id: &'static KindId,
         msg: &'static str,
         tag: &'static Tag,
+        props: Props,
         payload: impl Payload,
         source: Option<StdBoxError>,
         backtrace: Backtrace,
@@ -103,6 +195,7 @@ impl Error {
             kind_id,
             msg: msg.into(),
             tag,
+            props,
             payload: BoxPayload::new(payload),
             source,
             backtrace: NoDebug(backtrace),
@@ -113,6 +206,7 @@ impl Error {
         kind_id: &'static KindId,
         msg: String,
         tag: &'static Tag,
+        props: Props,
         payload: impl Payload,
         source: Option<StdBoxError>,
         backtrace: Backtrace,
@@ -125,6 +219,7 @@ impl Error {
             kind_id,
             msg: msg.into(),
             tag,
+            props,
             payload: BoxPayload::new(payload),
             source,
             backtrace: NoDebug(backtrace),
@@ -145,6 +240,10 @@ impl Error {
 
     pub fn tag(&self) -> &'static Tag {
         self.tag
+    }
+
+    pub fn props(&self) -> &Props {
+        &self.props
     }
 
     pub fn payload_ref(&self) -> &dyn Payload {
@@ -216,6 +315,7 @@ impl Error {
                     kind_id: self.kind_id,
                     msg: self.msg,
                     tag: self.tag,
+                    props: self.props,
                     payload,
                     source: self.source,
                     backtrace: self.backtrace,
@@ -266,6 +366,7 @@ impl Error {
             kind_id: self.kind_id,
             msg: self.msg.clone(),
             tag: self.tag,
+            props: self.props.clone(),
             other,
         }
     }
@@ -307,6 +408,7 @@ pub struct ErrorExt<T> {
     kind_id: &'static KindId,
     msg: StaticStr,
     tag: &'static Tag,
+    props: Props,
     payload: Box<T>,
     source: Option<StdBoxError>,
     backtrace: NoDebug<Backtrace>,
@@ -327,6 +429,10 @@ impl<T: Payload> ErrorExt<T> {
 
     pub fn tag(&self) -> &'static Tag {
         self.tag
+    }
+
+    pub fn props(&self) -> &Props {
+        &self.props
     }
 
     pub fn payload_ref(&self) -> &T {
@@ -357,6 +463,7 @@ impl<T: Payload + Serialize> ErrorExt<T> {
             kind_id: self.kind_id,
             msg: self.msg,
             tag: self.tag,
+            props: self.props,
             payload: self.payload,
             other,
         }
@@ -400,6 +507,7 @@ pub struct SerError {
     kind_id: &'static KindId,
     msg: StaticStr,
     tag: &'static Tag,
+    pub(super) props: Props,
     other: BTreeMap<&'static str, String>,
 }
 
@@ -414,6 +522,10 @@ impl SerError {
 
     pub fn tag(&self) -> &'static Tag {
         self.tag
+    }
+
+    pub fn props(&self) -> &Props {
+        &self.props
     }
 
     pub fn other(&self) -> &BTreeMap<&'static str, String> {
@@ -440,6 +552,7 @@ pub struct SerErrorExt<T: Payload> {
     kind_id: &'static KindId,
     msg: StaticStr,
     tag: &'static Tag,
+    pub(super) props: Props,
     pub(super) payload: Box<T>,
     other: BTreeMap<&'static str, String>,
 }
@@ -455,6 +568,10 @@ impl<T: Payload> SerErrorExt<T> {
 
     pub fn tag(&self) -> &'static Tag {
         self.tag
+    }
+
+    pub fn props(&self) -> &Props {
+        &self.props
     }
 
     pub fn payload_ref(&self) -> &T {
@@ -489,64 +606,69 @@ impl<T: Payload + Serialize> From<SerErrorExt<T>> for JserBoxError {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::error::foa_error::Props;
     use crate::{
-        error::{swap_result, Props, PropsKind, ReverseResult, TrivialError},
+        error::{swap_result, FullKind, ReverseResult, TrivialError},
         validation::validc::VALIDATION_ERROR,
     };
     use valid::{constraint::Bound, Validate, ValidationError};
 
-    static FOO_TAG: Tag = Tag("FOO");
+    #[derive(Debug, Clone, PartialEq)]
+    struct Pld(String);
 
-    static FOO_ERROR: PropsKind<1, false> = PropsKind::with_prop_names(
-        "FOO_ERROR",
-        Some("foo message: {xyz}"),
-        ["xyz"],
+    static BAR_TAG: Tag = Tag("BAR");
+
+    static BAR_ERROR: FullKind<Pld, 2, false> = FullKind::new_with_prop_names(
+        "BAR_ERROR",
+        Some("bar message: {abc}, {!email}"),
+        ["abc", "!email"],
         BacktraceSpec::Env,
-        &FOO_TAG,
+        &BAR_TAG,
     );
 
-    fn make_payload_error_pair() -> (Props, Error) {
-        fn make_payload() -> Props {
-            Props {
-                pairs: vec![(FOO_ERROR.prop_names[0].into(), "hi there!".into())],
-                protected: false,
-            }
-        }
+    fn make_payload_error_pair() -> (Pld, Error) {
+        let props = Props {
+            pairs: vec![(BAR_ERROR.prop_names[0].into(), "hi there!".into())],
+            protected: false,
+        };
+
+        let pld = Pld("bar-payload".into());
 
         let err = Error::new(
-            FOO_ERROR.kind_id(),
-            FOO_ERROR.msg().into(),
-            FOO_ERROR.tag(),
-            make_payload(),
+            BAR_ERROR.kind_id(),
+            BAR_ERROR.msg().into(),
+            BAR_ERROR.tag(),
+            props,
+            pld.clone(),
             None,
             Backtrace::disabled(),
         );
 
-        (make_payload(), err)
+        (pld, err)
     }
 
     #[test]
     fn test_extract_payload() {
         let (payload, err) = make_payload_error_pair();
 
-        assert!(err.has_kind(FOO_ERROR.kind_id()));
-        assert_eq!(err.to_string(), "foo message: {xyz}");
+        assert!(err.has_kind(BAR_ERROR.kind_id()));
+        assert_eq!(err.to_string(), "bar message: {abc}, {!email}");
 
-        let payload_ext = err.typed_payload::<Props>().unwrap();
-        assert_eq!(payload.pairs, payload_ext.pairs);
+        let payload_ext = err.typed_payload::<Pld>().unwrap();
+        assert_eq!(payload, *payload_ext);
     }
 
     #[test]
     fn test_with_typed_payload() {
         let (payload, err) = make_payload_error_pair();
 
-        assert!(err.has_kind(FOO_ERROR.kind_id()));
-        assert_eq!(err.to_string(), "foo message: {xyz}");
+        assert!(err.has_kind(BAR_ERROR.kind_id()));
+        assert_eq!(err.to_string(), "bar message: {abc}, {!email}");
 
         let res = swap_result(|| -> ReverseResult<()> {
             err.with_typed_payload::<TrivialError, _>(|_| unreachable!())?
-                .with_typed_payload::<Props, _>(|payload_ext| {
-                    assert_eq!(payload.pairs, payload_ext.pairs);
+                .with_typed_payload::<Pld, _>(|payload_ext| {
+                    assert_eq!(payload, *payload_ext);
                 })?
                 .with_typed_payload::<TrivialError, _>(|_| unreachable!("again"))
         });
@@ -558,13 +680,13 @@ mod test {
         let (payload, err) = make_payload_error_pair();
         let (_, err1) = make_payload_error_pair();
 
-        assert!(err.has_kind(FOO_ERROR.kind_id()));
-        assert_eq!(err.to_string(), "foo message: {xyz}");
+        assert!(err.has_kind(BAR_ERROR.kind_id()));
+        assert_eq!(err.to_string(), "bar message: {abc}, {!email}");
 
         let res = swap_result(|| -> std::result::Result<Error, ()> {
             err.with_errorext::<TrivialError, _>(|_| unreachable!())?
-                .with_errorext::<Props, _>(|ee| {
-                    assert_eq!(payload.pairs, ee.payload.pairs);
+                .with_errorext::<Pld, _>(|ee| {
+                    assert_eq!(payload, *ee.payload);
                     assert_eq!(err1.kind_id(), ee.kind_id);
                     assert_eq!(err1.msg, ee.msg);
                     assert_eq!(err1.tag(), ee.tag);
@@ -576,14 +698,14 @@ mod test {
 
     #[test]
     fn test_into_errorext_props() {
-        let err = FOO_ERROR.error_with_values(["hi there!".into()]);
+        let (_, err) = make_payload_error_pair();
 
-        assert!(err.has_kind(FOO_ERROR.kind_id()));
-        assert_eq!(err.to_string(), "foo message: {xyz}");
+        assert!(err.has_kind(BAR_ERROR.kind_id()));
+        assert_eq!(err.to_string(), "bar message: {abc}, {!email}");
 
-        let res = err.into_errorext::<Props>();
+        let res = err.into_errorext::<Pld>();
         match res {
-            Ok(ee) => assert_eq!(ee.kind_id, FOO_ERROR.kind_id()),
+            Ok(ee) => assert_eq!(ee.kind_id, BAR_ERROR.kind_id()),
             Err(_) => unreachable!(),
         };
     }
@@ -598,7 +720,7 @@ mod test {
             )
             .result()
             .expect_err("validation designed to fail");
-        let err = VALIDATION_ERROR.error(payload);
+        let err = VALIDATION_ERROR.error_with_payload(payload);
         assert!(err.has_kind(VALIDATION_ERROR.kind_id()));
 
         let res = swap_result(|| -> ReverseResult<()> {
