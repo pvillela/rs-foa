@@ -1,6 +1,10 @@
+use rand::random;
 use std::{backtrace::Backtrace, error::Error as StdError};
 
-use crate::string;
+use crate::string::{self, hex_lower_of_u8_arr};
+
+// ===========================
+// region:      --- General utilities
 
 pub fn extract_boxed<T: StdError + 'static>(
     boxed: Box<dyn StdError + Send + Sync>,
@@ -63,6 +67,15 @@ pub fn recursive_msg(err: &(dyn StdError)) -> String {
     buf
 }
 
+/// Returns a random 32-bit number in lower hex string format.
+pub fn ref_id_u32_hex_lower() -> String {
+    let rnd = random::<u32>().to_be_bytes();
+    hex_lower_of_u8_arr(&rnd)
+}
+
+// endregion:   --- General utilities
+
+// ===========================
 // region:      --- StringSpec
 
 #[non_exhaustive]
@@ -76,6 +89,9 @@ pub enum StringSpec<'a> {
 }
 
 // endregion:   --- StringSpec
+
+// ===========================
+// region:      --- WithBacktrace
 
 pub trait WithBacktrace {
     fn backtrace(&self) -> &Backtrace;
@@ -147,3 +163,5 @@ impl<'a, T: StdError + WithBacktrace> Fmt<'a, T> {
         }
     }
 }
+
+// endregion:   --- WithBacktrace

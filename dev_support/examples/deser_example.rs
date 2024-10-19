@@ -11,24 +11,18 @@ static FOO_TAG: Tag = Tag("FOO");
 struct Pld(String);
 
 /// Used to construct errors without sensitive data.
-static FOO_ERROR: FullKind<Pld, 1, false> = FullKind::new_with_prop_names(
-    "FOO_ERROR",
-    Some("foo message: {xyz}"),
-    ["xyz"],
-    BacktraceSpec::Env,
-    &FOO_TAG,
-);
+static FOO_ERROR: FullKind<Pld, 1, false> =
+    FullKind::new_with_payload("FOO_ERROR", Some("foo message: {xyz}"), &FOO_TAG)
+        .with_prop_names(["xyz"])
+        .with_backtrace(BacktraceSpec::Env);
 
 static BAR_TAG: Tag = Tag("BAR");
 
 /// Used to construct errors with sensitive data.
-static BAR_ERROR: FullKind<Pld, 2, false> = FullKind::new_with_prop_names(
-    "BAR_ERROR",
-    Some("bar message: {abc}, {!email}"),
-    ["abc", "!email"],
-    BacktraceSpec::Env,
-    &BAR_TAG,
-);
+static BAR_ERROR: FullKind<Pld, 2, false> =
+    FullKind::new_with_payload("BAR_ERROR", Some("bar message: {abc}, {!email}"), &BAR_TAG)
+        .with_prop_names(["abc", "!email"])
+        .with_backtrace(BacktraceSpec::Env);
 
 #[test]
 fn test() -> Result<(), Box<dyn std::error::Error>> {

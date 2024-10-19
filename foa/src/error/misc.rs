@@ -16,12 +16,8 @@ impl Display for TrivialError {
 impl std::error::Error for TrivialError {}
 
 /// Error kind instance that can be used to wrap unexpected errors.
-pub static UNEXPECTED_ERROR: BasicKind<true> = BasicKind::new_basic_kind(
-    "UNEXPECTED_ERROR",
-    None,
-    BacktraceSpec::Yes,
-    &UNEXPECTED_TAG,
-);
+pub static UNEXPECTED_ERROR: BasicKind<true> =
+    BasicKind::new("UNEXPECTED_ERROR", None, &UNEXPECTED_TAG).with_backtrace(BacktraceSpec::Yes);
 
 /// Supports the replacement of an existing [`Error`] intances's `kind_id`, `msg`, and `tag`.
 ///
@@ -65,6 +61,7 @@ impl TransmuterKind {
             payload: err.payload,
             source: err.source,
             backtrace: err.backtrace,
+            ref_id: err.ref_id,
         }
     }
 }

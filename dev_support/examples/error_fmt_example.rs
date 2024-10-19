@@ -5,20 +5,13 @@ use foa::{
 
 static FOO_TAG: Tag = Tag("FOO");
 
-static FOO_ERROR: PropsKind<1, false> = PropsKind::new_with_prop_names(
-    "FOO_ERROR",
-    Some("foo message: {xyz}"),
-    ["xyz"],
-    BacktraceSpec::Yes,
-    &FOO_TAG,
-);
+static FOO_ERROR: PropsKind<1, false> =
+    PropsKind::new("FOO_ERROR", Some("foo message: {xyz}"), &FOO_TAG)
+        .with_prop_names(["xyz"])
+        .with_backtrace(BacktraceSpec::Yes);
 
-static BAR_ERROR: BasicKind<true> = BasicKind::new_basic_kind(
-    "BAR_ERROR",
-    Some("bar message"),
-    BacktraceSpec::Env,
-    &FOO_TAG,
-);
+static BAR_ERROR: BasicKind<true> =
+    BasicKind::new("BAR_ERROR", Some("bar message"), &FOO_TAG).with_backtrace(BacktraceSpec::Env);
 
 fn out_formatted_string(err: &Error) -> String {
     let mut fmt_spec = "{dbg_string}".to_owned();

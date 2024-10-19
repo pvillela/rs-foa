@@ -1,11 +1,11 @@
 use crate::{
-    error::{BacktraceSpec, PayloadKind, VALIDATION_TAG},
+    error::{PayloadKind, VALIDATION_TAG},
     Error,
 };
 use valid::ValidationError;
 
 pub static VALIDATION_ERROR: PayloadKind<ValidationError, false> =
-    PayloadKind::new_payloadkind("VALIDATION_ERROR", None, BacktraceSpec::No, &VALIDATION_TAG);
+    PayloadKind::new_with_payload("VALIDATION_ERROR", None, &VALIDATION_TAG);
 
 impl From<ValidationError> for Error {
     fn from(value: ValidationError) -> Self {

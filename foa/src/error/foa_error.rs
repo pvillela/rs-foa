@@ -29,7 +29,7 @@ pub struct Tag(pub &'static str);
 // region:      --- Backtrace
 
 /// Specifies different backtrace generation modes.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum BacktraceSpec {
     /// A backtrace is always generated
     Yes,
@@ -172,6 +172,7 @@ pub struct Error {
     pub(crate) payload: BoxPayload,
     pub(crate) source: Option<StdBoxError>,
     pub(crate) backtrace: NoDebug<Backtrace>,
+    pub(crate) ref_id: Option<String>,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -187,6 +188,7 @@ impl Error {
         payload: impl Payload,
         source: Option<StdBoxError>,
         backtrace: Backtrace,
+        ref_id: Option<String>,
     ) -> Self {
         let source = match source {
             Some(e) => Some(StdBoxError::new(e)),
@@ -200,6 +202,7 @@ impl Error {
             payload: BoxPayload::new(payload),
             source,
             backtrace: NoDebug(backtrace),
+            ref_id,
         }
     }
 
@@ -211,6 +214,7 @@ impl Error {
         payload: impl Payload,
         source: Option<StdBoxError>,
         backtrace: Backtrace,
+        ref_id: Option<String>,
     ) -> Self {
         let source = match source {
             Some(e) => Some(StdBoxError::new(e)),
@@ -224,6 +228,7 @@ impl Error {
             payload: BoxPayload::new(payload),
             source,
             backtrace: NoDebug(backtrace),
+            ref_id,
         }
     }
 
@@ -327,6 +332,10 @@ impl Error {
         &self.backtrace
     }
 
+    pub fn ref_id(&self) -> Option<&str> {
+        self.ref_id.as_deref()
+    }
+
     /// If the payload is of type `T`, returns `Ok(error_ext)`, where `error_ext` is the
     /// [`ErrorExt`] instance obtained from `self`; otherwise returns `Err(self)`.
     pub fn try_into_errorext<T: Payload>(self) -> Result<ErrorExt<T>> {
@@ -341,6 +350,7 @@ impl Error {
                     payload,
                     source: self.source,
                     backtrace: self.backtrace,
+                    ref_id: self.ref_id,
                 }),
                 Err(_) => unreachable!("downcast previously confirmed"),
             }
@@ -480,6 +490,7 @@ pub struct ErrorExt<T> {
     payload: Box<T>,
     source: Option<StdBoxError>,
     backtrace: NoDebug<Backtrace>,
+    ref_id: Option<String>,
 }
 
 impl<T: Payload> ErrorExt<T> {
@@ -513,6 +524,10 @@ impl<T: Payload> ErrorExt<T> {
 
     pub fn backtrace(&self) -> &Backtrace {
         &self.backtrace
+    }
+
+    pub fn ref_id(&self) -> Option<&str> {
+        self.ref_id.as_deref()
     }
 
     pub fn as_fmt(&self) -> Fmt<'_, Self> {
@@ -674,7 +689,6 @@ impl<T: Payload + Serialize> From<SerErrorExt<T>> for JserBoxError {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::error::foa_error::Props;
     use crate::{
         error::{swap_result, FullKind, ReverseResult},
         validation::validc::VALIDATION_ERROR,
@@ -686,32 +700,15 @@ mod test {
 
     static BAR_TAG: Tag = Tag("BAR");
 
-    static BAR_ERROR: FullKind<Pld, 2, false> = FullKind::new_with_prop_names(
-        "BAR_ERROR",
-        Some("bar message: {abc}, {!email}"),
-        ["abc", "!email"],
-        BacktraceSpec::Env,
-        &BAR_TAG,
-    );
+    static BAR_ERROR: FullKind<Pld, 2, false> =
+        FullKind::new_with_payload("BAR_ERROR", Some("bar message: {abc}, {!email}"), &BAR_TAG)
+            .with_prop_names(["abc", "!email"])
+            .with_backtrace(BacktraceSpec::Env);
 
     fn make_payload_error_pair() -> (Pld, Error) {
-        let props = Props {
-            pairs: vec![(BAR_ERROR.prop_names[0].into(), "hi there!".into())],
-            protected: false,
-        };
-
         let pld = Pld("bar-payload".into());
-
-        let err = Error::new(
-            BAR_ERROR.kind_id(),
-            BAR_ERROR.msg().into(),
-            BAR_ERROR.tag(),
-            props,
-            pld.clone(),
-            None,
-            Backtrace::disabled(),
-        );
-
+        let err =
+            BAR_ERROR.error_with_values_and_payload(["hi there", "bar@example.com"], pld.clone());
         (pld, err)
     }
 
@@ -720,7 +717,7 @@ mod test {
         let (payload, err) = make_payload_error_pair();
 
         assert!(err.has_kind(BAR_ERROR.kind_id()));
-        assert_eq!(err.to_string(), "bar message: {abc}, {!email}");
+        assert_eq!(err.to_string(), BAR_ERROR.msg());
 
         let payload_ext = err.try_typed_payload::<Pld>().unwrap();
         assert_eq!(payload, *payload_ext);
