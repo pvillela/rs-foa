@@ -190,10 +190,6 @@ impl Error {
         backtrace: Backtrace,
         ref_id: Option<String>,
     ) -> Self {
-        let source = match source {
-            Some(e) => Some(StdBoxError::new(e)),
-            None => None,
-        };
         Self {
             kind_id,
             msg: msg.into(),
@@ -256,7 +252,7 @@ impl Error {
         self.payload.as_ref()
     }
 
-    pub fn try_typed_payload_ref<T: Payload>(&self) -> Option<&T> {
+    pub fn downcast_payload_ref<T: Payload>(&self) -> Option<&T> {
         self.payload.downcast_ref::<T>()
     }
 
@@ -268,7 +264,7 @@ impl Error {
     ///
     /// As this method consumes `self`, if you also need access to other [`Error`] fields then convert
     /// to an [`ErrorExt`] using [`Self::try_into_errorext`] instead.
-    pub fn try_typed_payload<T: Payload>(self) -> Result<Box<T>> {
+    pub fn downcast_payload<T: Payload>(self) -> Result<Box<T>> {
         if self.payload.is::<T>() {
             let res = self.payload.downcast::<T>();
             match res {
@@ -290,8 +286,8 @@ impl Error {
     ///
     /// # Panics
     /// If the payload is not of type `T`.
-    pub fn typed_payload<T: Payload>(self) -> Box<T> {
-        match self.try_typed_payload::<T>() {
+    pub fn force_downcast_payload<T: Payload>(self) -> Box<T> {
+        match self.downcast_payload::<T>() {
             Ok(pld) => pld,
             _ => panic!("self's payload is not of type {}", type_name::<T>()),
         }
@@ -312,19 +308,28 @@ impl Error {
     ///     err: Error,
     /// ) -> Result<()> {
     ///     swap_result(|| -> ReverseResult<()> {
-    ///         err.with_typed_payload::<T1, ()>(|pld| println!("payload type was {}, payload={:?}", type_name::<T1>(), pld))?
-    ///             .with_typed_payload::<T2, ()>(|pld| println!("payload type was {}, payload={:?}", type_name::<T2>(), pld))
+    ///         err.with_downcast_payload::<T1, ()>(|pld| println!("payload type was {}, payload={:?}", type_name::<T1>(), pld))?
+    ///             .with_downcast_payload::<T2, ()>(|pld| println!("payload type was {}, payload={:?}", type_name::<T2>(), pld))
     ///     })
     /// }
     /// ```
-    pub fn with_typed_payload<T: Payload, U>(
+    pub fn with_downcast_payload<T: Payload, U>(
         self,
         f: impl FnOnce(Box<T>) -> U,
     ) -> ReverseResult<U> {
-        let res = self.try_typed_payload::<T>();
+        let res = self.downcast_payload::<T>();
         match res {
             Ok(payload) => Err(f(payload)),
             Err(err) => Ok(err),
+        }
+    }
+
+    /// Returns some reference to the `source` field if it is of type `S`, or
+    /// `None` if it isn't.
+    pub fn downcast_source_ref<S: StdError + Send + Sync + 'static>(&self) -> Option<&S> {
+        match &self.source {
+            Some(y) => y.0.downcast_ref(),
+            None => None,
         }
     }
 
@@ -416,8 +421,8 @@ impl Error {
     /// fn process_error<T1: Payload, T2: Payload>(err: Error) -> String {
     ///     err.chained_map(
     ///         |err| {
-    ///             err.with_typed_payload::<T1, _>(|pld| format!("payload type was {}, payload={:?}", type_name::<T1>(), pld))?
-    ///                 .with_typed_payload::<T2, _>(|pld| format!("payload type was {}, payload={:?}", type_name::<T2>(), pld))
+    ///             err.with_downcast_payload::<T1, _>(|pld| format!("payload type was {}, payload={:?}", type_name::<T1>(), pld))?
+    ///                 .with_downcast_payload::<T2, _>(|pld| format!("payload type was {}, payload={:?}", type_name::<T2>(), pld))
     ///         },
     ///         |_err| "payload type was neither `T1` nor `T2`".into(),
     ///     )
@@ -520,6 +525,15 @@ impl<T: Payload> ErrorExt<T> {
 
     pub fn payload(self) -> Box<T> {
         self.payload
+    }
+
+    /// Returns some reference to the `source` field if it is of type `S`, or
+    /// `None` if it isn't.
+    pub fn downcast_source_ref<S: StdError + Send + Sync + 'static>(&self) -> Option<&S> {
+        match &self.source {
+            Some(src) => src.0.downcast_ref(),
+            None => None,
+        }
     }
 
     pub fn backtrace(&self) -> &Backtrace {
@@ -690,9 +704,10 @@ impl<T: Payload + Serialize> From<SerErrorExt<T>> for JserBoxError {
 mod test {
     use super::*;
     use crate::{
-        error::{swap_result, FullKind, ReverseResult},
+        error::{recursive_msg, swap_result, FullKind, ReverseResult, TrivialError},
         validation::validc::VALIDATION_ERROR,
     };
+    use std::any::Any;
     use valid::{constraint::Bound, Validate, ValidationError};
 
     #[derive(Debug, Clone, PartialEq)]
@@ -700,64 +715,104 @@ mod test {
 
     static BAR_TAG: Tag = Tag("BAR");
 
-    static BAR_ERROR: FullKind<Pld, 2, false> =
+    static BAR_ERROR: FullKind<Pld, 2, true> =
         FullKind::new_with_payload("BAR_ERROR", Some("bar message: {abc}, {!email}"), &BAR_TAG)
             .with_prop_names(["abc", "!email"])
             .with_backtrace(BacktraceSpec::Env);
 
-    fn make_payload_error_pair() -> (Pld, Error) {
+    fn make_payload_source_error_tuple() -> (Pld, TrivialError, Error) {
         let pld = Pld("bar-payload".into());
-        let err =
-            BAR_ERROR.error_with_values_and_payload(["hi there", "bar@example.com"], pld.clone());
-        (pld, err)
+        let src = TrivialError("dummy");
+        let err = BAR_ERROR.error_with_values_and_payload(
+            ["hi there", "bar@example.com"],
+            pld.clone(),
+            src.clone(),
+        );
+        (pld, src, err)
     }
 
     #[test]
-    fn test_extract_payload() {
-        let (payload, err) = make_payload_error_pair();
+    fn test_downcast_payload_ref() {
+        let (payload, _, err) = make_payload_source_error_tuple();
 
         assert!(err.has_kind(BAR_ERROR.kind_id()));
         assert_eq!(err.to_string(), BAR_ERROR.msg());
 
-        let payload_ext = err.try_typed_payload::<Pld>().unwrap();
+        let payload_ext = err.downcast_payload_ref::<Pld>().unwrap();
+        assert_eq!(&payload, payload_ext);
+    }
+
+    #[test]
+    fn test_downcast_payload() {
+        let (payload, _, err) = make_payload_source_error_tuple();
+
+        assert!(err.has_kind(BAR_ERROR.kind_id()));
+        assert_eq!(err.to_string(), BAR_ERROR.msg());
+
+        let payload_ext = err.downcast_payload::<Pld>().unwrap();
         assert_eq!(payload, *payload_ext);
     }
 
     #[test]
-    fn test_with_typed_payload() {
-        let (payload, err) = make_payload_error_pair();
+    fn test_with_downcast_payload() {
+        let (payload, _, err) = make_payload_source_error_tuple();
 
         assert!(err.has_kind(BAR_ERROR.kind_id()));
         assert_eq!(err.to_string(), "bar message: {abc}, {!email}");
 
         let res = swap_result(|| -> ReverseResult<()> {
-            err.with_typed_payload::<String, _>(|_| unreachable!())?
-                .with_typed_payload::<Pld, _>(|payload_ext| {
+            err.with_downcast_payload::<String, _>(|_| unreachable!())?
+                .with_downcast_payload::<Pld, _>(|payload_ext| {
                     assert_eq!(payload, *payload_ext);
                 })?
-                .with_typed_payload::<(), _>(|_| unreachable!("again"))
+                .with_downcast_payload::<(), _>(|_| unreachable!("again"))
         });
         assert!(res.is_ok());
     }
 
     #[test]
-    fn test_try_into_errorext_pld() {
-        let (_, err) = make_payload_error_pair();
+    fn test_downcast_source_ref() {
+        let (_, src, err) = make_payload_source_error_tuple();
+
+        assert!(err.has_kind(BAR_ERROR.kind_id()));
+        assert_eq!(err.to_string(), BAR_ERROR.msg());
+
+        println!("err={:?}", err);
+        println!("recursive_msg={}", recursive_msg(&err));
+        println!("src.type_id()={:?}", Any::type_id(&src));
+
+        let source_ext = err.downcast_source_ref::<TrivialError>().unwrap();
+        assert_eq!(&src, source_ext);
+    }
+
+    #[test]
+    fn test_try_into_errorext_pld_and_errorext_downcast_source_ref() {
+        let (_, src, err) = make_payload_source_error_tuple();
+
+        println!("src.type_id()={:?}", Any::type_id(&src));
 
         assert!(err.has_kind(BAR_ERROR.kind_id()));
         assert_eq!(err.to_string(), "bar message: {abc}, {!email}");
 
         let res = err.try_into_errorext::<Pld>();
         match res {
-            Ok(ee) => assert_eq!(ee.kind_id, BAR_ERROR.kind_id()),
+            Ok(ee) => {
+                println!("ee={:?}", ee);
+                println!("recursive_msg={}", recursive_msg(&ee));
+
+                assert_eq!(ee.kind_id, BAR_ERROR.kind_id());
+
+                let source_ext = ee.downcast_source_ref::<TrivialError>().unwrap();
+                assert_eq!(&src, source_ext);
+            }
             Err(_) => unreachable!(),
         };
     }
 
     #[test]
     fn test_into_errorext_pld() {
-        let (payload, err) = make_payload_error_pair();
-        let (_, err1) = make_payload_error_pair();
+        let (payload, _, err) = make_payload_source_error_tuple();
+        let (_, _, err1) = make_payload_source_error_tuple();
 
         assert!(err.has_kind(BAR_ERROR.kind_id()));
         assert_eq!(err.to_string(), "bar message: {abc}, {!email}");
@@ -777,8 +832,8 @@ mod test {
 
     #[test]
     fn test_with_errorext_pld() {
-        let (payload, err) = make_payload_error_pair();
-        let (_, err1) = make_payload_error_pair();
+        let (payload, _, err) = make_payload_source_error_tuple();
+        let (_, _, err1) = make_payload_source_error_tuple();
 
         assert!(err.has_kind(BAR_ERROR.kind_id()));
         assert_eq!(err.to_string(), "bar message: {abc}, {!email}");
@@ -794,29 +849,6 @@ mod test {
                 .with_errorext::<(), _>(|_| unreachable!("again"))
         });
         assert!(res.is_ok());
-    }
-
-    #[test]
-    fn test_chained_map_pld() {
-        let (payload, err) = make_payload_error_pair();
-        let (_, err1) = make_payload_error_pair();
-
-        assert!(err.has_kind(BAR_ERROR.kind_id()));
-        assert_eq!(err.to_string(), "bar message: {abc}, {!email}");
-
-        err.chained_map(
-            |err| {
-                err.with_errorext::<String, _>(|_| unreachable!())?
-                    .with_errorext::<Pld, _>(|ee| {
-                        assert_eq!(payload, *ee.payload);
-                        assert_eq!(err1.kind_id(), ee.kind_id);
-                        assert_eq!(err1.msg, ee.msg);
-                        assert_eq!(err1.tag(), ee.tag);
-                    })?
-                    .with_errorext::<(), _>(|_| unreachable!("again"))
-            },
-            |_err| unreachable!("fallback shouldn't execute"),
-        )
     }
 
     #[test]
@@ -840,5 +872,28 @@ mod test {
                 .with_errorext::<(), _>(|_| unreachable!("again"))
         });
         assert!(res.is_ok());
+    }
+
+    #[test]
+    fn test_chained_map_pld() {
+        let (payload, _, err) = make_payload_source_error_tuple();
+        let (_, _, err1) = make_payload_source_error_tuple();
+
+        assert!(err.has_kind(BAR_ERROR.kind_id()));
+        assert_eq!(err.to_string(), "bar message: {abc}, {!email}");
+
+        err.chained_map(
+            |err| {
+                err.with_errorext::<String, _>(|_| unreachable!())?
+                    .with_errorext::<Pld, _>(|ee| {
+                        assert_eq!(payload, *ee.payload);
+                        assert_eq!(err1.kind_id(), ee.kind_id);
+                        assert_eq!(err1.msg, ee.msg);
+                        assert_eq!(err1.tag(), ee.tag);
+                    })?
+                    .with_errorext::<(), _>(|_| unreachable!("again"))
+            },
+            |_err| unreachable!("fallback shouldn't execute"),
+        )
     }
 }

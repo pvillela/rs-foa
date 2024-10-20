@@ -8,7 +8,7 @@ use std::{error::Error as StdError, fmt::Debug};
 // region:      --- Kind types and aliases
 
 #[derive(Debug)]
-pub struct FullKind<PLD: Payload, const ARITY: usize, const HASCAUSE: bool = false> {
+pub struct FullKind<PLD: Payload, const ARITY: usize, const HASSOURCE: bool = false> {
     pub(super) kind_id: KindId,
     pub(super) msg: Option<&'static str>,
     pub(super) tag: &'static Tag,
@@ -18,19 +18,19 @@ pub struct FullKind<PLD: Payload, const ARITY: usize, const HASCAUSE: bool = fal
     _pld: PhantomData<PLD>,
 }
 
-pub type BasicKind<const HASCAUSE: bool = false> = FullKind<(), 0, HASCAUSE>;
+pub type BasicKind<const HASSOURCE: bool = false> = FullKind<(), 0, HASSOURCE>;
 
-pub type PropsKind<const ARITY: usize, const HASCAUSE: bool = false> =
-    FullKind<(), ARITY, HASCAUSE>;
+pub type PropsKind<const ARITY: usize, const HASSOURCE: bool = false> =
+    FullKind<(), ARITY, HASSOURCE>;
 
-pub type PayloadKind<PLD, const HASCAUSE: bool = false> = FullKind<PLD, 0, HASCAUSE>;
+pub type PayloadKind<PLD, const HASSOURCE: bool = false> = FullKind<PLD, 0, HASSOURCE>;
 
 // endregion:   --- Kind types and aliases
 
 //===========================
 // region:      --- Kind constructors
 
-impl<const HASCAUSE: bool> BasicKind<HASCAUSE> {
+impl<const HASSOURCE: bool> BasicKind<HASSOURCE> {
     pub const fn new(name: &'static str, msg: Option<&'static str>, tag: &'static Tag) -> Self {
         Self {
             kind_id: KindId(name),
@@ -44,7 +44,7 @@ impl<const HASCAUSE: bool> BasicKind<HASCAUSE> {
     }
 }
 
-impl<PLD: Payload, const HASCAUSE: bool> PayloadKind<PLD, HASCAUSE> {
+impl<PLD: Payload, const HASSOURCE: bool> PayloadKind<PLD, HASSOURCE> {
     pub const fn new_with_payload(
         name: &'static str,
         msg: Option<&'static str>,
@@ -62,11 +62,11 @@ impl<PLD: Payload, const HASCAUSE: bool> PayloadKind<PLD, HASCAUSE> {
     }
 }
 
-impl<PLD: Payload, const HASCAUSE: bool> FullKind<PLD, 0, HASCAUSE> {
+impl<PLD: Payload, const HASSOURCE: bool> FullKind<PLD, 0, HASSOURCE> {
     pub const fn with_prop_names<const ARITY: usize>(
         self,
         prop_names: [&'static str; ARITY],
-    ) -> FullKind<PLD, ARITY, HASCAUSE> {
+    ) -> FullKind<PLD, ARITY, HASSOURCE> {
         FullKind {
             kind_id: self.kind_id,
             msg: self.msg,
@@ -78,7 +78,7 @@ impl<PLD: Payload, const HASCAUSE: bool> FullKind<PLD, 0, HASCAUSE> {
         }
     }
 }
-impl<PLD: Payload, const ARITY: usize, const HASCAUSE: bool> FullKind<PLD, ARITY, HASCAUSE> {
+impl<PLD: Payload, const ARITY: usize, const HASSOURCE: bool> FullKind<PLD, ARITY, HASSOURCE> {
     pub const fn with_backtrace(self, backtrace_spec: BacktraceSpec) -> Self {
         Self {
             backtrace_spec,
@@ -93,7 +93,7 @@ impl<PLD: Payload, const ARITY: usize, const HASCAUSE: bool> FullKind<PLD, ARITY
         }
     }
 
-    pub const fn with_payload_type<T: Payload>(self) -> FullKind<T, ARITY, HASCAUSE> {
+    pub const fn with_payload_type<T: Payload>(self) -> FullKind<T, ARITY, HASSOURCE> {
         FullKind {
             kind_id: self.kind_id,
             msg: self.msg,
@@ -111,7 +111,7 @@ impl<PLD: Payload, const ARITY: usize, const HASCAUSE: bool> FullKind<PLD, ARITY
 //===========================
 // region:      --- Getter methods
 
-impl<PLD: Payload, const ARITY: usize, const HASCAUSE: bool> FullKind<PLD, ARITY, HASCAUSE> {
+impl<PLD: Payload, const ARITY: usize, const HASSOURCE: bool> FullKind<PLD, ARITY, HASSOURCE> {
     pub const fn kind_id(&self) -> &KindId {
         &self.kind_id
     }
@@ -145,7 +145,7 @@ impl<PLD: Payload, const ARITY: usize, const HASCAUSE: bool> FullKind<PLD, ARITY
 //===========================
 // region:      --- Error constructors
 
-impl<PLD: Payload, const ARITY: usize, const HASCAUSE: bool> FullKind<PLD, ARITY, HASCAUSE> {
+impl<PLD: Payload, const ARITY: usize, const HASSOURCE: bool> FullKind<PLD, ARITY, HASSOURCE> {
     fn error_priv(
         &'static self,
         values: [&str; ARITY],
@@ -198,8 +198,8 @@ impl BasicKind<false> {
 }
 
 impl PropsKind<0, true> {
-    pub fn error(&'static self, cause: impl StdError + Send + Sync + 'static) -> Error {
-        self.error_priv([], (), Some(StdBoxError::new(cause)))
+    pub fn error(&'static self, source: impl StdError + Send + Sync + 'static) -> Error {
+        self.error_priv([], (), Some(StdBoxError::new(source)))
     }
 }
 
@@ -213,9 +213,9 @@ impl<const ARITY: usize> PropsKind<ARITY, true> {
     pub fn error_with_values(
         &'static self,
         values: [&str; ARITY],
-        cause: impl StdError + Send + Sync + 'static,
+        source: impl StdError + Send + Sync + 'static,
     ) -> Error {
-        self.error_priv(values, (), Some(StdBoxError::new(cause)))
+        self.error_priv(values, (), Some(StdBoxError::new(source)))
     }
 }
 
@@ -231,7 +231,7 @@ impl<PLD: Payload> FullKind<PLD, 0, true> {
         payload: PLD,
         source: impl StdError + Send + Sync + 'static,
     ) -> Error {
-        self.error_with_values_and_payload([], payload, StdBoxError::new(source))
+        self.error_with_values_and_payload([], payload, source)
     }
 }
 
@@ -250,9 +250,9 @@ impl<PLD: Payload, const ARITY: usize> FullKind<PLD, ARITY, true> {
         &'static self,
         values: [&str; ARITY],
         payload: PLD,
-        cause: impl StdError + Send + Sync + 'static,
+        source: impl StdError + Send + Sync + 'static,
     ) -> Error {
-        self.error_priv(values, payload, Some(StdBoxError::new(cause)))
+        self.error_priv(values, payload, Some(StdBoxError::new(source)))
     }
 }
 

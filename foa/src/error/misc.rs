@@ -4,7 +4,7 @@ use std::fmt::{Debug, Display};
 
 /// Very simple error that simply encapsulates a `&static str`. Should only be used for tests and examples,
 /// not recommended for production applications or libraries.
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct TrivialError(pub &'static str);
 
 impl Display for TrivialError {
