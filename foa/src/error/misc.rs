@@ -59,7 +59,7 @@ impl TransmuterKind {
             tag: self.tag,
             props: err.props,
             payload: err.payload,
-            source: err.source,
+            src: err.src,
             backtrace: err.backtrace,
             ref_id: err.ref_id,
         }

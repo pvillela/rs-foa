@@ -1,3 +1,4 @@
+use super::NullError;
 use std::{
     any::Any,
     error::Error as StdError,
@@ -84,17 +85,6 @@ impl StdError for Box<dyn SsssError> {
         self.as_ref().source()
     }
 }
-
-#[derive(Debug)]
-struct NullError;
-
-impl Display for NullError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("")
-    }
-}
-
-impl StdError for NullError {}
 
 pub struct MaybeStdBoxError(Box<dyn SsssError>);
 

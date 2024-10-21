@@ -1,6 +1,5 @@
-use foa::error::{
-    self, BacktraceSpec, BasicKind, Error, PropsKind, Tag, TrivialError, UNEXPECTED_ERROR,
-};
+use foa::error::{self, BasicKind, Error, PropsKind, TrivialError, UNEXPECTED_ERROR};
+use foa::error::{BacktraceSpec, Tag};
 
 static EG_TAG: Tag = Tag("EG");
 
@@ -59,9 +58,10 @@ fn print_error(err: &Error) {
     println!("{}", error_string(&err));
     println!(
         "JSON: {}",
-        serde_json::to_string(
-            &err.to_sererror([error::StringSpec::Dbg, error::StringSpec::Recursive])
-        )
+        serde_json::to_string(&err.to_sererror_without_pld_or_src([
+            error::StringSpec::Dbg,
+            error::StringSpec::Recursive
+        ]))
         .unwrap()
     );
 }

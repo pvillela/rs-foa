@@ -1,5 +1,6 @@
+use foa::error::{BacktraceSpec, Tag};
 use foa::{
-    error::{BacktraceSpec, BasicKind, PropsKind, Tag},
+    error::{BasicKind, PropsKind},
     Error,
 };
 

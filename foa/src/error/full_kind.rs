@@ -1,5 +1,4 @@
-use super::{ref_id_u32_hex_lower, BacktraceSpec, Error, KindId, Payload, StdBoxError, Tag};
-use crate::error::foa_error::Props;
+use super::{ref_id_u32_hex_lower, BacktraceSpec, Error, KindId, Payload, Props, StdBoxError, Tag};
 use std::backtrace::Backtrace;
 use std::marker::PhantomData;
 use std::{error::Error as StdError, fmt::Debug};

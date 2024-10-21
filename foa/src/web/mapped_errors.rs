@@ -63,13 +63,16 @@ pub fn default_mapper(err: Error) -> (StatusCode, JserBoxError) {
     match err.tag() {
         tag if tag == &VALIDATION_TAG => {
             let status_code = StatusCode::BAD_REQUEST;
-            let err_exp_res = err.try_into_errorext::<ValidationError>();
+            let err_exp_res = err.downcast_payload::<ValidationError>();
             match err_exp_res {
-                Ok(ee) => (status_code, ee.into_sererrorext([]).into()),
+                Ok(ee) => (status_code, ee.into_sererror_with_pld([]).into()),
                 Err(e) => (
                     status_code,
-                    e.to_sererror([error::StringSpec::Dbg, error::StringSpec::Recursive])
-                        .into(),
+                    e.to_sererror_without_pld_or_src([
+                        error::StringSpec::Dbg,
+                        error::StringSpec::Recursive,
+                    ])
+                    .into(),
                 ),
             }
         }
@@ -77,8 +80,11 @@ pub fn default_mapper(err: Error) -> (StatusCode, JserBoxError) {
             log!(Level::Error, "{}", error_string_for_error_level(&err));
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                err.to_sererror([error::StringSpec::Dbg, error::StringSpec::Recursive])
-                    .into(),
+                err.to_sererror_without_pld_or_src([
+                    error::StringSpec::Dbg,
+                    error::StringSpec::Recursive,
+                ])
+                .into(),
             )
         }
     }
@@ -92,15 +98,18 @@ pub fn default_mapper1(err: Error) -> (StatusCode, JserBoxError) {
             let status_code = StatusCode::BAD_REQUEST;
             err.chained_map(
                 |e| {
-                    e.with_errorext::<ValidationError, _>(|ee| {
-                        (status_code, ee.into_sererrorext([]).into())
+                    e.with_downcast_payload::<ValidationError, _>(|ee| {
+                        (status_code, ee.into_sererror_with_pld([]).into())
                     })
                 },
                 |e| {
                     (
                         status_code,
-                        e.to_sererror([error::StringSpec::Dbg, error::StringSpec::Recursive])
-                            .into(),
+                        e.to_sererror_without_pld_or_src([
+                            error::StringSpec::Dbg,
+                            error::StringSpec::Recursive,
+                        ])
+                        .into(),
                     )
                 },
             )
@@ -109,8 +118,11 @@ pub fn default_mapper1(err: Error) -> (StatusCode, JserBoxError) {
             log!(Level::Error, "{}", error_string_for_error_level(&err));
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                err.to_sererror([error::StringSpec::Dbg, error::StringSpec::Recursive])
-                    .into(),
+                err.to_sererror_without_pld_or_src([
+                    error::StringSpec::Dbg,
+                    error::StringSpec::Recursive,
+                ])
+                .into(),
             )
         }
     }

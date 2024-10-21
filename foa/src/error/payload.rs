@@ -92,8 +92,7 @@ impl AsRef<dyn Payload> for BoxPayload {
 
 #[cfg(test)]
 mod test {
-    use crate::error::foa_error::Props;
-    use crate::error::{BoxPayload, PayloadPriv};
+    use crate::error::{BoxPayload, PayloadPriv, Props};
     use std::any::TypeId;
 
     fn make_props() -> Props {
