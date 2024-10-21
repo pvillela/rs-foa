@@ -1,4 +1,4 @@
-use super::NullError;
+use foa::error::NullError;
 use std::{
     any::Any,
     error::Error as StdError,
@@ -145,7 +145,7 @@ impl StdError for MaybeStdBoxError {
 #[cfg(test)]
 mod test {
     use super::MaybeStdBoxError;
-    use crate::error::TrivialError;
+    use foa::error::TrivialError;
 
     #[test]
     fn test_downcast_ref() {
