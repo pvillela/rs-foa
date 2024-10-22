@@ -481,7 +481,7 @@ mod test {
     fn make_payload_source_error_tuple() -> (Pld, TrivialError, Error) {
         let pld = Pld("bar-payload".into());
         let src = TrivialError("dummy");
-        let err = BAR_ERROR.error_with_values_and_payload(
+        let err = BAR_ERROR.error_with_values_payload(
             ["hi there", "bar@example.com"],
             pld.clone(),
             src.clone(),

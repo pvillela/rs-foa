@@ -1,5 +1,7 @@
-use super::{static_str::StaticStr, JserBoxError, KindId, NullError, Props, Tag};
-use serde::{Deserialize, Serialize};
+use super::{
+    static_str::StaticStr, JserBoxError, KindId, KindTypeInfo, NullError, Payload, Props, Tag,
+};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
     error::Error as StdError,
@@ -105,6 +107,17 @@ pub struct DeserError<PLD = (), SRC = NullError> {
     pub payload: Option<PLD>,
     pub src: Option<SRC>,
     pub other: BTreeMap<String, String>,
+}
+
+impl DeserError {
+    pub fn for_kind<T: KindTypeInfo>(_kind: &T, json_string: String) -> DeserError<Box<T::Pld>>
+    where
+        T::Pld: Payload + DeserializeOwned,
+    {
+        let deser_err: DeserError<Box<T::Pld>> = serde_json::from_str(&json_string).unwrap();
+        println!("*** deser_err={deser_err:?}");
+        deser_err
+    }
 }
 
 impl<PLD, SRC> Display for DeserError<PLD, SRC> {
