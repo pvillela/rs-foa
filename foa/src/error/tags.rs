@@ -9,3 +9,5 @@ pub static RUNTIME_TAG: Tag = Tag("RUNTIME");
 pub static VALIDATION_TAG: Tag = Tag("VALIDATION");
 
 pub static UNEXPECTED_TAG: Tag = Tag("UNEXPECTED");
+
+pub static LIB_DEPENDENCY_TAG: Tag = Tag("LIB_DEPENDENCY");

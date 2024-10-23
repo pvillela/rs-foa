@@ -39,7 +39,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .to_sererror_without_pld_or_src([error::StringSpec::Dbg, error::StringSpec::Recursive]);
         println!("*** ser_err={ser_err:?}");
         let json_string = serde_json::to_string(&ser_err)?;
-        println!("*** json_string={json_string:?}");
+        println!("*** json_string={json_string}");
         let deser_err: DeserError = serde_json::from_str(&json_string)?;
         println!("*** deser_err={deser_err:?}");
         let exp_deser_err = DeserError::from(ser_err);
@@ -60,8 +60,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let ser_err = err.into_sererror_with_pld([]);
         println!("*** ser_err={ser_err:?}");
         let json_string = serde_json::to_string(&ser_err)?;
-        println!("*** json_string={json_string:?}");
-        let deser_err = DeserError::for_kind(&FOO_ERROR, json_string);
+        println!("*** json_string={json_string}");
+        let deser_err = DeserError::for_kind(&FOO_ERROR, json_string)?;
         println!("*** deser_err={deser_err:?}");
         let mut exp_deser_err = DeserError::from(ser_err);
         exp_deser_err.props = exp_deser_err.props.safe_props().into();
@@ -98,8 +98,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let ser_err = err.into_sererror_with_pld([]);
         println!("*** ser_err={ser_err:?}");
         let json_string = serde_json::to_string(&ser_err)?;
-        println!("*** json_string={json_string:?}");
-        let deser_err = DeserError::for_kind(&FOO_ERROR, json_string);
+        println!("*** json_string={json_string}");
+        let deser_err = DeserError::for_kind(&FOO_ERROR, json_string)?;
         println!("*** deser_err={deser_err:?}");
         let mut exp_deser_err = DeserError::from(ser_err);
         exp_deser_err.props = exp_deser_err.props.safe_props().into();

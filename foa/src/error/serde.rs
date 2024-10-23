@@ -1,6 +1,6 @@
 use super::{
-    static_str::StaticStr, JserBoxError, KindId, NullError, Payload, Props, SendSyncStaticError,
-    Tag,
+    static_str::StaticStr, BasicKind, ErrSrcNotTyped, Error, JserBoxError, KindId, NullError,
+    Payload, Props, Result, SendSyncStaticError, Tag, LIB_DEPENDENCY_TAG,
 };
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{
@@ -104,6 +104,15 @@ pub trait KindDeserTypeInfo {
     type Src;
 }
 
+static JSON_DESER_ERROR: BasicKind<ErrSrcNotTyped> =
+    BasicKind::new("JSON_DESER_ERROR", None, &LIB_DEPENDENCY_TAG);
+
+impl From<serde_json::Error> for Error {
+    fn from(value: serde_json::Error) -> Self {
+        JSON_DESER_ERROR.error(value)
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DeserError<PLD = (), SRC = NullError> {
     pub kind_id: DeserKindId,
@@ -119,12 +128,12 @@ impl DeserError {
     pub fn for_kind<T: KindDeserTypeInfo>(
         _kind: &T,
         json_string: String,
-    ) -> DeserError<T::Pld, T::Src>
+    ) -> Result<DeserError<T::Pld, T::Src>>
     where
         T::Pld: Payload + DeserializeOwned,
         T::Src: SendSyncStaticError + DeserializeOwned,
     {
-        serde_json::from_str(&json_string).unwrap()
+        serde_json::from_str(&json_string).map_err(|err| err.into())
     }
 }
 
