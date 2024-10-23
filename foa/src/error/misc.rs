@@ -1,4 +1,4 @@
-use super::{BacktraceSpec, BasicKind, Error, KindId, Tag, UNEXPECTED_TAG};
+use super::{BacktraceSpec, BasicKind, ErrSrcNotTyped, Error, KindId, Tag, UNEXPECTED_TAG};
 use serde::Serialize;
 use std::fmt::{Debug, Display};
 
@@ -16,7 +16,7 @@ impl Display for TrivialError {
 impl std::error::Error for TrivialError {}
 
 /// Error kind instance that can be used to wrap unexpected errors.
-pub static UNEXPECTED_ERROR: BasicKind<true> =
+pub static UNEXPECTED_ERROR: BasicKind<ErrSrcNotTyped> =
     BasicKind::new("UNEXPECTED_ERROR", None, &UNEXPECTED_TAG).with_backtrace(BacktraceSpec::Yes);
 
 /// Supports the replacement of an existing [`Error`] intances's `kind_id`, `msg`, and `tag`.

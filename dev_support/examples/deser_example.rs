@@ -2,7 +2,7 @@
 //! [`Props`] payload.
 //! Run the example in both dev and prod (`-r`) to see the hashing of sensitive info in action.
 
-use foa::error::{self, BacktraceSpec, DeserError, FullKind, Tag};
+use foa::error::{self, BacktraceSpec, DeserError, ErrSrcNone, FullKind, Tag};
 use serde::{Deserialize, Serialize};
 
 static FOO_TAG: Tag = Tag("FOO");
@@ -11,7 +11,7 @@ static FOO_TAG: Tag = Tag("FOO");
 struct Pld(String);
 
 /// Used to construct errors without sensitive data.
-static FOO_ERROR: FullKind<Pld, 1, false> =
+static FOO_ERROR: FullKind<Pld, 1, ErrSrcNone> =
     FullKind::new_with_payload("FOO_ERROR", Some("foo message: {xyz}"), &FOO_TAG)
         .with_prop_names(["xyz"])
         .with_backtrace(BacktraceSpec::Env);
@@ -19,7 +19,7 @@ static FOO_ERROR: FullKind<Pld, 1, false> =
 static BAR_TAG: Tag = Tag("BAR");
 
 /// Used to construct errors with sensitive data.
-static BAR_ERROR: FullKind<Pld, 2, false> =
+static BAR_ERROR: FullKind<Pld, 2, ErrSrcNone> =
     FullKind::new_with_payload("BAR_ERROR", Some("bar message: {abc}, {!email}"), &BAR_TAG)
         .with_prop_names(["abc", "!email"])
         .with_backtrace(BacktraceSpec::Env);
@@ -61,9 +61,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("*** ser_err={ser_err:?}");
         let json_string = serde_json::to_string(&ser_err)?;
         println!("*** json_string={json_string:?}");
-
         let deser_err = DeserError::for_kind(&FOO_ERROR, json_string);
-
+        println!("*** deser_err={deser_err:?}");
         let mut exp_deser_err = DeserError::from(ser_err);
         exp_deser_err.props = exp_deser_err.props.safe_props().into();
         println!("*** exp_deser_err={exp_deser_err:?}");
@@ -100,7 +99,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("*** ser_err={ser_err:?}");
         let json_string = serde_json::to_string(&ser_err)?;
         println!("*** json_string={json_string:?}");
-        let deser_err: DeserError<Box<Pld>> = serde_json::from_str(&json_string)?;
+        let deser_err = DeserError::for_kind(&FOO_ERROR, json_string);
         println!("*** deser_err={deser_err:?}");
         let mut exp_deser_err = DeserError::from(ser_err);
         exp_deser_err.props = exp_deser_err.props.safe_props().into();

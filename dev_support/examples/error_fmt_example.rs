@@ -1,4 +1,4 @@
-use foa::error::{BacktraceSpec, Tag};
+use foa::error::{BacktraceSpec, ErrSrcNone, ErrSrcNotTyped, Tag};
 use foa::{
     error::{BasicKind, PropsKind},
     Error,
@@ -6,12 +6,12 @@ use foa::{
 
 static FOO_TAG: Tag = Tag("FOO");
 
-static FOO_ERROR: PropsKind<1, false> =
+static FOO_ERROR: PropsKind<1, ErrSrcNone> =
     PropsKind::new("FOO_ERROR", Some("foo message: {xyz}"), &FOO_TAG)
         .with_prop_names(["xyz"])
         .with_backtrace(BacktraceSpec::Yes);
 
-static BAR_ERROR: BasicKind<true> =
+static BAR_ERROR: BasicKind<ErrSrcNotTyped> =
     BasicKind::new("BAR_ERROR", Some("bar message"), &FOO_TAG).with_backtrace(BacktraceSpec::Env);
 
 fn out_formatted_string(err: &Error) -> String {

@@ -1,6 +1,6 @@
 use super::{
-    ref_id_u32_hex_lower, BacktraceSpec, Error, KindId, NullError, Payload, Props,
-    SendSyncStaticError, StdBoxError, Tag,
+    ref_id_u32_hex_lower, BacktraceSpec, Error, KindDeserTypeInfo, KindId, NullError, Payload,
+    Props, SendSyncStaticError, StdBoxError, Tag,
 };
 use std::backtrace::Backtrace;
 use std::marker::PhantomData;
@@ -9,13 +9,36 @@ use std::{error::Error as StdError, fmt::Debug};
 //===========================
 // region:      --- Kind types and aliases
 
+pub trait ErrSrcParam {
+    const HASSOURCE: bool;
+    const HASTPDSRC: bool;
+    type TPDSRC;
+}
+
+pub struct ErrSrcNone;
+pub struct ErrSrcNotTyped;
+pub struct ErrSrcTyped<TPDSRC>(PhantomData<TPDSRC>);
+
+impl ErrSrcParam for ErrSrcNone {
+    const HASSOURCE: bool = false;
+    const HASTPDSRC: bool = false;
+    type TPDSRC = NullError;
+}
+
+impl ErrSrcParam for ErrSrcNotTyped {
+    const HASSOURCE: bool = true;
+    const HASTPDSRC: bool = false;
+    type TPDSRC = NullError;
+}
+
+impl<TPDSRC> ErrSrcParam for ErrSrcTyped<TPDSRC> {
+    const HASSOURCE: bool = true;
+    const HASTPDSRC: bool = true;
+    type TPDSRC = TPDSRC;
+}
+
 #[derive(Debug)]
-pub struct FullKind<
-    PLD: Payload,
-    const ARITY: usize,
-    const HASSOURCE: bool = false,
-    TPDSRC = NullError,
-> {
+pub struct FullKind<PLD: Payload, const ARITY: usize, ESP: ErrSrcParam> {
     pub(super) kind_id: KindId,
     pub(super) msg: Option<&'static str>,
     pub(super) tag: &'static Tag,
@@ -23,36 +46,21 @@ pub struct FullKind<
     pub(super) backtrace_spec: BacktraceSpec,
     has_ref_id: bool,
     _pld: PhantomData<PLD>,
-    _tpdsrc: PhantomData<TPDSRC>,
+    _esp: PhantomData<ESP>,
 }
 
-pub trait KindTypeInfo {
-    type Pld;
-    type TypedSrc;
-}
+pub type BasicKind<ESP = ErrSrcNone> = FullKind<(), 0, ESP>;
 
-impl<PLD: Payload, const ARITY: usize, const HASSOURCE: bool, TPDSRC> KindTypeInfo
-    for FullKind<PLD, ARITY, HASSOURCE, TPDSRC>
-{
-    type Pld = PLD;
-    type TypedSrc = TPDSRC;
-}
+pub type PropsKind<const ARITY: usize, ESP = ErrSrcNone> = FullKind<(), ARITY, ESP>;
 
-pub type BasicKind<const HASSOURCE: bool = false, TPDSRC = NullError> =
-    FullKind<(), 0, HASSOURCE, TPDSRC>;
-
-pub type PropsKind<const ARITY: usize, const HASSOURCE: bool = false, TPDSRC = NullError> =
-    FullKind<(), ARITY, HASSOURCE, TPDSRC>;
-
-pub type PayloadKind<PLD, const HASSOURCE: bool = false, TPDSRC = NullError> =
-    FullKind<PLD, 0, HASSOURCE, TPDSRC>;
+pub type PayloadKind<PLD, ESP = ErrSrcNone> = FullKind<PLD, 0, ESP>;
 
 // endregion:   --- Kind types and aliases
 
 //===========================
 // region:      --- Kind constructors
 
-impl<const HASSOURCE: bool> BasicKind<HASSOURCE> {
+impl<ESP: ErrSrcParam> BasicKind<ESP> {
     pub const fn new(name: &'static str, msg: Option<&'static str>, tag: &'static Tag) -> Self {
         Self {
             kind_id: KindId(name),
@@ -62,12 +70,12 @@ impl<const HASSOURCE: bool> BasicKind<HASSOURCE> {
             backtrace_spec: BacktraceSpec::No,
             has_ref_id: false,
             _pld: PhantomData,
-            _tpdsrc: PhantomData,
+            _esp: PhantomData,
         }
     }
 }
 
-impl<PLD: Payload, const HASSOURCE: bool> PayloadKind<PLD, HASSOURCE> {
+impl<PLD: Payload, ESP: ErrSrcParam> PayloadKind<PLD, ESP> {
     pub const fn new_with_payload(
         name: &'static str,
         msg: Option<&'static str>,
@@ -81,16 +89,16 @@ impl<PLD: Payload, const HASSOURCE: bool> PayloadKind<PLD, HASSOURCE> {
             backtrace_spec: BacktraceSpec::No,
             has_ref_id: false,
             _pld: PhantomData,
-            _tpdsrc: PhantomData,
+            _esp: PhantomData,
         }
     }
 }
 
-impl<PLD: Payload, const HASSOURCE: bool, TPDSRC> FullKind<PLD, 0, HASSOURCE, TPDSRC> {
+impl<PLD: Payload, ESP: ErrSrcParam> FullKind<PLD, 0, ESP> {
     pub const fn with_prop_names<const ARITY: usize>(
         self,
         prop_names: [&'static str; ARITY],
-    ) -> FullKind<PLD, ARITY, HASSOURCE> {
+    ) -> FullKind<PLD, ARITY, ESP> {
         FullKind {
             kind_id: self.kind_id,
             msg: self.msg,
@@ -99,14 +107,12 @@ impl<PLD: Payload, const HASSOURCE: bool, TPDSRC> FullKind<PLD, 0, HASSOURCE, TP
             backtrace_spec: self.backtrace_spec,
             has_ref_id: self.has_ref_id,
             _pld: PhantomData,
-            _tpdsrc: PhantomData,
+            _esp: PhantomData,
         }
     }
 }
 
-impl<PLD: Payload, const ARITY: usize, const HASSOURCE: bool, TPDSRC>
-    FullKind<PLD, ARITY, HASSOURCE, TPDSRC>
-{
+impl<PLD: Payload, const ARITY: usize, ESP: ErrSrcParam> FullKind<PLD, ARITY, ESP> {
     pub const fn with_backtrace(self, backtrace_spec: BacktraceSpec) -> Self {
         Self {
             backtrace_spec,
@@ -121,7 +127,7 @@ impl<PLD: Payload, const ARITY: usize, const HASSOURCE: bool, TPDSRC>
         }
     }
 
-    pub const fn with_payload<T: Payload>(self) -> FullKind<T, ARITY, HASSOURCE, TPDSRC> {
+    pub const fn with_payload<T: Payload>(self) -> FullKind<T, ARITY, ESP> {
         FullKind {
             kind_id: self.kind_id,
             msg: self.msg,
@@ -130,13 +136,13 @@ impl<PLD: Payload, const ARITY: usize, const HASSOURCE: bool, TPDSRC>
             backtrace_spec: self.backtrace_spec,
             has_ref_id: self.has_ref_id,
             _pld: PhantomData,
-            _tpdsrc: PhantomData,
+            _esp: PhantomData,
         }
     }
 }
 
-impl<PLD: Payload, const ARITY: usize, TPDSRC> FullKind<PLD, ARITY, true, TPDSRC> {
-    pub const fn with_typedsrc<T>(self) -> FullKind<PLD, ARITY, true, T> {
+impl<PLD: Payload, const ARITY: usize, ESP: ErrSrcParam> FullKind<PLD, ARITY, ESP> {
+    pub const fn with_typedsrc<T>(self) -> FullKind<PLD, ARITY, ErrSrcTyped<T>> {
         FullKind {
             kind_id: self.kind_id,
             msg: self.msg,
@@ -145,7 +151,7 @@ impl<PLD: Payload, const ARITY: usize, TPDSRC> FullKind<PLD, ARITY, true, TPDSRC
             backtrace_spec: self.backtrace_spec,
             has_ref_id: self.has_ref_id,
             _pld: PhantomData,
-            _tpdsrc: PhantomData,
+            _esp: PhantomData,
         }
     }
 }
@@ -153,11 +159,9 @@ impl<PLD: Payload, const ARITY: usize, TPDSRC> FullKind<PLD, ARITY, true, TPDSRC
 // endregion:   --- Kind constructors
 
 //===========================
-// region:      --- Getter methods
+// region:      --- Accessors
 
-impl<PLD: Payload, const ARITY: usize, const HASSOURCE: bool, TPDSRC>
-    FullKind<PLD, ARITY, HASSOURCE, TPDSRC>
-{
+impl<PLD: Payload, const ARITY: usize, ESP: ErrSrcParam> FullKind<PLD, ARITY, ESP> {
     pub const fn kind_id(&self) -> &KindId {
         &self.kind_id
     }
@@ -186,14 +190,12 @@ impl<PLD: Payload, const ARITY: usize, const HASSOURCE: bool, TPDSRC>
     }
 }
 
-// endregion:   --- Getter methods
+// endregion:   --- Accessors
 
 //===========================
 // region:      --- Error constructors
 
-impl<PLD: Payload, const ARITY: usize, const HASSOURCE: bool, TPDSRC>
-    FullKind<PLD, ARITY, HASSOURCE, TPDSRC>
-{
+impl<PLD: Payload, const ARITY: usize, ESP: ErrSrcParam> FullKind<PLD, ARITY, ESP> {
     fn error_priv(
         &'static self,
         values: [&str; ARITY],
@@ -239,31 +241,31 @@ impl<PLD: Payload, const ARITY: usize, const HASSOURCE: bool, TPDSRC>
     }
 }
 
-impl BasicKind<false> {
+impl BasicKind<ErrSrcNone> {
     pub fn error(&'static self) -> Error {
         self.error_priv([], (), None)
     }
 }
 
-impl BasicKind<true> {
+impl BasicKind<ErrSrcNotTyped> {
     pub fn error(&'static self, source: impl StdError + Send + Sync + 'static) -> Error {
         self.error_priv([], (), Some(StdBoxError::new(source)))
     }
 }
 
-impl<TPDSRC: SendSyncStaticError> BasicKind<true, TPDSRC> {
+impl<TPDSRC: SendSyncStaticError> BasicKind<ErrSrcTyped<TPDSRC>> {
     pub fn error_with_typedsrc(&'static self, source: TPDSRC) -> Error {
         self.error_priv([], (), Some(StdBoxError::new(source)))
     }
 }
 
-impl<const ARITY: usize> PropsKind<ARITY, false> {
+impl<const ARITY: usize> PropsKind<ARITY, ErrSrcNone> {
     pub fn error_with_values(&'static self, values: [&str; ARITY]) -> Error {
         self.error_priv(values, (), None)
     }
 }
 
-impl<const ARITY: usize> PropsKind<ARITY, true> {
+impl<const ARITY: usize> PropsKind<ARITY, ErrSrcNotTyped> {
     pub fn error_with_values(
         &'static self,
         values: [&str; ARITY],
@@ -273,7 +275,7 @@ impl<const ARITY: usize> PropsKind<ARITY, true> {
     }
 }
 
-impl<const ARITY: usize, TPDSRC: SendSyncStaticError> PropsKind<ARITY, true, TPDSRC> {
+impl<const ARITY: usize, TPDSRC: SendSyncStaticError> PropsKind<ARITY, ErrSrcTyped<TPDSRC>> {
     pub fn error_with_values_typedsrc(
         &'static self,
         values: [&str; ARITY],
@@ -283,13 +285,13 @@ impl<const ARITY: usize, TPDSRC: SendSyncStaticError> PropsKind<ARITY, true, TPD
     }
 }
 
-impl<PLD: Payload> FullKind<PLD, 0, false> {
+impl<PLD: Payload> FullKind<PLD, 0, ErrSrcNone> {
     pub fn error_with_payload(&'static self, payload: PLD) -> Error {
         self.error_priv([], payload, None)
     }
 }
 
-impl<PLD: Payload> FullKind<PLD, 0, true> {
+impl<PLD: Payload> FullKind<PLD, 0, ErrSrcNotTyped> {
     pub fn error_with_payload(
         &'static self,
         payload: PLD,
@@ -299,19 +301,19 @@ impl<PLD: Payload> FullKind<PLD, 0, true> {
     }
 }
 
-impl<PLD: Payload, TPDSRC: SendSyncStaticError> FullKind<PLD, 0, true, TPDSRC> {
+impl<PLD: Payload, TPDSRC: SendSyncStaticError> FullKind<PLD, 0, ErrSrcTyped<TPDSRC>> {
     pub fn error_with_payload_typedsrc(&'static self, payload: PLD, source: TPDSRC) -> Error {
         self.error_priv([], payload, Some(StdBoxError::new(source)))
     }
 }
 
-impl<PLD: Payload, const ARITY: usize> FullKind<PLD, ARITY, false> {
+impl<PLD: Payload, const ARITY: usize> FullKind<PLD, ARITY, ErrSrcNone> {
     pub fn error_with_values_payload(&'static self, values: [&str; ARITY], payload: PLD) -> Error {
         self.error_priv(values, payload, None)
     }
 }
 
-impl<PLD: Payload, const ARITY: usize> FullKind<PLD, ARITY, true> {
+impl<PLD: Payload, const ARITY: usize> FullKind<PLD, ARITY, ErrSrcNotTyped> {
     pub fn error_with_values_payload(
         &'static self,
         values: [&str; ARITY],
@@ -323,7 +325,7 @@ impl<PLD: Payload, const ARITY: usize> FullKind<PLD, ARITY, true> {
 }
 
 impl<PLD: Payload, const ARITY: usize, TPDSRC: SendSyncStaticError>
-    FullKind<PLD, ARITY, true, TPDSRC>
+    FullKind<PLD, ARITY, ErrSrcTyped<TPDSRC>>
 {
     pub fn error_with_values_payload_typedsrc(
         &'static self,
@@ -338,9 +340,26 @@ impl<PLD: Payload, const ARITY: usize, TPDSRC: SendSyncStaticError>
 // endregion:   --- Error constructors
 
 //===========================
-// region:      --- PayloadKind
+// region:      --- KindDeserTypeInfo
 
-// endregion:   --- PayloadKind
+impl<PLD: Payload, const ARITY: usize> KindDeserTypeInfo for FullKind<PLD, ARITY, ErrSrcNone> {
+    type Pld = Box<PLD>;
+    type Src = NullError;
+}
+
+impl<PLD: Payload, const ARITY: usize> KindDeserTypeInfo for FullKind<PLD, ARITY, ErrSrcNotTyped> {
+    type Pld = Box<PLD>;
+    type Src = NullError;
+}
+
+impl<PLD: Payload, const ARITY: usize, TPDSRC> KindDeserTypeInfo
+    for FullKind<PLD, ARITY, ErrSrcTyped<TPDSRC>>
+{
+    type Pld = Box<PLD>;
+    type Src = Box<TPDSRC>;
+}
+
+// endregion:   --- KindDeserTypeInfo
 
 #[cfg(test)]
 mod test_props_kind {

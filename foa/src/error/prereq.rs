@@ -8,7 +8,7 @@ use std::fmt::{Debug, Display};
 use std::result;
 
 //===========================
-// region:      --- TraiNullErrorts
+// region:      --- NullError
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct NullError;
@@ -21,7 +21,7 @@ impl Display for NullError {
 
 impl StdError for NullError {}
 
-// endregion:   --- TraiNullErrorts
+// endregion:   --- NullError
 
 //===========================
 // region:      --- Traits

@@ -462,7 +462,10 @@ impl<PLD: Payload, SRC: SendSyncStaticError> WithBacktrace for Error<PLD, SRC> {
 mod test {
     use super::*;
     use crate::{
-        error::{recursive_msg, swap_result, BacktraceSpec, FullKind, ReverseResult, TrivialError},
+        error::{
+            recursive_msg, swap_result, BacktraceSpec, ErrSrcNotTyped, FullKind, ReverseResult,
+            TrivialError,
+        },
         validation::validc::VALIDATION_ERROR,
     };
     use std::any::Any;
@@ -473,7 +476,7 @@ mod test {
 
     static BAR_TAG: Tag = Tag("BAR");
 
-    static BAR_ERROR: FullKind<Pld, 2, true> =
+    static BAR_ERROR: FullKind<Pld, 2, ErrSrcNotTyped> =
         FullKind::new_with_payload("BAR_ERROR", Some("bar message: {abc}, {!email}"), &BAR_TAG)
             .with_prop_names(["abc", "!email"])
             .with_backtrace(BacktraceSpec::Env);

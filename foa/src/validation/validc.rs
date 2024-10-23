@@ -1,10 +1,10 @@
 use crate::{
-    error::{PayloadKind, VALIDATION_TAG},
+    error::{ErrSrcNone, PayloadKind, VALIDATION_TAG},
     Error,
 };
 use valid::ValidationError;
 
-pub static VALIDATION_ERROR: PayloadKind<ValidationError, false> =
+pub static VALIDATION_ERROR: PayloadKind<ValidationError, ErrSrcNone> =
     PayloadKind::new_with_payload("VALIDATION_ERROR", None, &VALIDATION_TAG);
 
 impl From<ValidationError> for Error {

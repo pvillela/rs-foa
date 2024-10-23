@@ -1,5 +1,6 @@
 use super::{
-    static_str::StaticStr, JserBoxError, KindId, KindTypeInfo, NullError, Payload, Props, Tag,
+    static_str::StaticStr, JserBoxError, KindId, NullError, Payload, Props, SendSyncStaticError,
+    Tag,
 };
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{
@@ -98,6 +99,11 @@ pub struct DeserKindId(pub String);
 //===========================
 // region:      --- DeserError
 
+pub trait KindDeserTypeInfo {
+    type Pld;
+    type Src;
+}
+
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DeserError<PLD = (), SRC = NullError> {
     pub kind_id: DeserKindId,
@@ -110,13 +116,15 @@ pub struct DeserError<PLD = (), SRC = NullError> {
 }
 
 impl DeserError {
-    pub fn for_kind<T: KindTypeInfo>(_kind: &T, json_string: String) -> DeserError<Box<T::Pld>>
+    pub fn for_kind<T: KindDeserTypeInfo>(
+        _kind: &T,
+        json_string: String,
+    ) -> DeserError<T::Pld, T::Src>
     where
         T::Pld: Payload + DeserializeOwned,
+        T::Src: SendSyncStaticError + DeserializeOwned,
     {
-        let deser_err: DeserError<Box<T::Pld>> = serde_json::from_str(&json_string).unwrap();
-        println!("*** deser_err={deser_err:?}");
-        deser_err
+        serde_json::from_str(&json_string).unwrap()
     }
 }
 
