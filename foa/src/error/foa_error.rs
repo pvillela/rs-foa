@@ -1,11 +1,11 @@
 use super::{
-    BoxPayload, Fmt, KindId, NullError, Payload, Props, SendSyncStaticError, SerError, StaticStr,
-    StdBoxError, StringSpec, Tag, WithBacktrace,
+    BoxPayload, Fmt, KindId, KindTypeInfo, NullError, Payload, Props, SendSyncStaticError,
+    SerError, StaticStr, StdBoxError, StringSpec, Tag, WithBacktrace,
 };
 use crate::nodebug::NoDebug;
 use serde::Serialize;
 use std::{
-    any::type_name,
+    any::{type_name, TypeId},
     backtrace::Backtrace,
     collections::BTreeMap,
     error::Error as StdError,
@@ -395,6 +395,49 @@ impl<PLD: Payload> Error<PLD, StdBoxError> {
         match res {
             Ok(error_ext) => Err(f(error_ext)),
             Err(err) => Ok(err),
+        }
+    }
+}
+
+impl Error {
+    pub fn downcast_payload_source<PLD: Payload, SRC: SendSyncStaticError>(
+        self,
+    ) -> Result<Error<Box<PLD>, Box<SRC>>> {
+        let res1 = self.downcast_payload::<PLD>()?;
+        let res2 = res1.downcast_source::<SRC>();
+        match res2 {
+            Ok(de) => Ok(de),
+            Err(err) => Err(Error {
+                kind_id: err.kind_id,
+                tag: err.tag,
+                msg: err.msg,
+                props: err.props,
+                payload: BoxPayload::new(*err.payload),
+                src: err.src,
+                backtrace: err.backtrace,
+                ref_id: err.ref_id,
+            }),
+        }
+    }
+
+    pub fn downcast_for_kind<K: KindTypeInfo>(
+        self,
+        _kind: &K,
+    ) -> Result<Error<Box<K::Pld>, Box<K::Src>>> {
+        if TypeId::of::<K::Src>() == TypeId::of::<NullError>() {
+            let derr = self.downcast_payload::<K::Pld>()?;
+            Ok(Error {
+                kind_id: derr.kind_id,
+                tag: derr.tag,
+                msg: derr.msg,
+                props: derr.props,
+                payload: derr.payload,
+                src: None,
+                backtrace: derr.backtrace,
+                ref_id: derr.ref_id,
+            })
+        } else {
+            self.downcast_payload_source::<K::Pld, K::Src>()
         }
     }
 }

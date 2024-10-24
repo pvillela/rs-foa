@@ -1,6 +1,6 @@
 use super::{
-    ref_id_u32_hex_lower, BacktraceSpec, Error, KindDeserTypeInfo, KindId, NullError, Payload,
-    Props, SendSyncStaticError, StdBoxError, Tag,
+    ref_id_u32_hex_lower, BacktraceSpec, Error, KindId, KindTypeInfo, NullError, Payload, Props,
+    SendSyncStaticError, StdBoxError, Tag,
 };
 use std::backtrace::Backtrace;
 use std::marker::PhantomData;
@@ -340,26 +340,26 @@ impl<PLD: Payload, const ARITY: usize, TPDSRC: SendSyncStaticError>
 // endregion:   --- Error constructors
 
 //===========================
-// region:      --- KindDeserTypeInfo
+// region:      --- impl KindTypeInfo
 
-impl<PLD: Payload, const ARITY: usize> KindDeserTypeInfo for FullKind<PLD, ARITY, ErrSrcNone> {
+impl<PLD: Payload, const ARITY: usize> KindTypeInfo for FullKind<PLD, ARITY, ErrSrcNone> {
     type Pld = Box<PLD>;
     type Src = NullError;
 }
 
-impl<PLD: Payload, const ARITY: usize> KindDeserTypeInfo for FullKind<PLD, ARITY, ErrSrcNotTyped> {
+impl<PLD: Payload, const ARITY: usize> KindTypeInfo for FullKind<PLD, ARITY, ErrSrcNotTyped> {
     type Pld = Box<PLD>;
     type Src = NullError;
 }
 
-impl<PLD: Payload, const ARITY: usize, TPDSRC> KindDeserTypeInfo
+impl<PLD: Payload, const ARITY: usize, TPDSRC: SendSyncStaticError> KindTypeInfo
     for FullKind<PLD, ARITY, ErrSrcTyped<TPDSRC>>
 {
     type Pld = Box<PLD>;
     type Src = Box<TPDSRC>;
 }
 
-// endregion:   --- KindDeserTypeInfo
+// endregion:   --- impl KindTypeInfo
 
 #[cfg(test)]
 mod test_props_kind {

@@ -7,6 +7,8 @@ use std::error::Error as StdError;
 use std::fmt::{Debug, Display};
 use std::result;
 
+use super::Payload;
+
 //===========================
 // region:      --- NullError
 
@@ -25,6 +27,11 @@ impl StdError for NullError {}
 
 //===========================
 // region:      --- Traits
+
+pub trait KindTypeInfo {
+    type Pld: Payload;
+    type Src: SendSyncStaticError;
+}
 
 pub trait SendSyncStaticError: StdError + Send + Sync + 'static {}
 
