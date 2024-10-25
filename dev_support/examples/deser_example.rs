@@ -2,7 +2,7 @@
 //! [`Props`] payload.
 //! Run the example in both dev and prod (`-r`) to see the hashing of sensitive info in action.
 
-use foa::error::{self, BacktraceSpec, DeserError, ErrSrcNone, FullKind, Tag};
+use foa::error::{self, BacktraceSpec, DeserError, FullKind, Tag};
 use serde::{Deserialize, Serialize};
 
 static FOO_TAG: Tag = Tag("FOO");
@@ -11,7 +11,7 @@ static FOO_TAG: Tag = Tag("FOO");
 struct Pld(String);
 
 /// Used to construct errors without sensitive data.
-static FOO_ERROR: FullKind<Pld, 1, ErrSrcNone> =
+static FOO_ERROR: FullKind<Pld, 1> =
     FullKind::new_with_payload("FOO_ERROR", Some("foo message: {xyz}"), &FOO_TAG)
         .with_prop_names(["xyz"])
         .with_backtrace(BacktraceSpec::Env);
@@ -19,7 +19,7 @@ static FOO_ERROR: FullKind<Pld, 1, ErrSrcNone> =
 static BAR_TAG: Tag = Tag("BAR");
 
 /// Used to construct errors with sensitive data.
-static BAR_ERROR: FullKind<Pld, 2, ErrSrcNone> =
+static BAR_ERROR: FullKind<Pld, 2> =
     FullKind::new_with_payload("BAR_ERROR", Some("bar message: {abc}, {!email}"), &BAR_TAG)
         .with_prop_names(["abc", "!email"])
         .with_backtrace(BacktraceSpec::Env);

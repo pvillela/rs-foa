@@ -1,5 +1,5 @@
 use crate::{
-    error::{BacktraceSpec, BasicKind, ErrSrcNotTyped, Error, RUNTIME_TAG},
+    error::{BacktraceSpec, BasicKind, Error, RUNTIME_TAG},
     fun::AsyncFn,
 };
 
@@ -20,13 +20,13 @@ pub trait Db {
 pub trait PgDbCtx: DbCtx<Db: Db<Database = Postgres>> {}
 impl<T> PgDbCtx for T where T: DbCtx<Db: Db<Database = Postgres>> {}
 
-pub static DB_ERROR: BasicKind<ErrSrcNotTyped> =
+pub static DB_ERROR: BasicKind<sqlx::Error> =
     BasicKind::new("DB_ERROR", Some("database error"), &RUNTIME_TAG)
         .with_backtrace(BacktraceSpec::Env);
 
 impl From<sqlx::Error> for Error {
     fn from(cause: sqlx::Error) -> Self {
-        DB_ERROR.error(cause)
+        DB_ERROR.error_with_src(cause)
     }
 }
 

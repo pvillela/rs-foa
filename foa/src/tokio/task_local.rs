@@ -1,12 +1,12 @@
 use crate::{
-    error::{BacktraceSpec, BasicKind, ErrSrcNotTyped, INTERNAL_TAG},
+    error::{BacktraceSpec, BasicKind, StdBoxError, INTERNAL_TAG},
     fun::{AsyncFn, AsyncFn2},
     Error,
 };
 use std::marker::PhantomData;
 use tokio::task::LocalKey;
 
-pub static TASK_LOCAL_ERROR: BasicKind<ErrSrcNotTyped> =
+pub static TASK_LOCAL_ERROR: BasicKind<StdBoxError> =
     BasicKind::new("TASK_LOCAL_ERROR", None, &INTERNAL_TAG).with_backtrace(BacktraceSpec::Yes);
 
 pub trait TaskLocalCtx {
@@ -25,7 +25,7 @@ pub trait TaskLocal {
     fn try_with<U>(f: impl FnOnce(&Self::Value) -> U) -> Result<U, Error> {
         let lk = Self::local_key();
         lk.try_with(|v| f(v))
-            .map_err(|err| TASK_LOCAL_ERROR.error(err))
+            .map_err(|err| TASK_LOCAL_ERROR.error_with_src(StdBoxError::new(err)))
     }
 
     fn with<U>(f: impl FnOnce(&Self::Value) -> U) -> U {

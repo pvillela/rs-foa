@@ -1,4 +1,4 @@
-use foa::error::{BacktraceSpec, ErrSrcNone, ErrSrcNotTyped, Tag};
+use foa::error::{BacktraceSpec, Tag};
 use foa::{
     error::{BasicKind, PropsKind},
     Error,
@@ -6,12 +6,11 @@ use foa::{
 
 static FOO_TAG: Tag = Tag("FOO");
 
-static FOO_ERROR: PropsKind<1, ErrSrcNone> =
-    PropsKind::new("FOO_ERROR", Some("foo message: {xyz}"), &FOO_TAG)
-        .with_prop_names(["xyz"])
-        .with_backtrace(BacktraceSpec::Yes);
+static FOO_ERROR: PropsKind<1> = PropsKind::new("FOO_ERROR", Some("foo message: {xyz}"), &FOO_TAG)
+    .with_prop_names(["xyz"])
+    .with_backtrace(BacktraceSpec::Yes);
 
-static BAR_ERROR: BasicKind<ErrSrcNotTyped> =
+static BAR_ERROR: BasicKind<Error> =
     BasicKind::new("BAR_ERROR", Some("bar message"), &FOO_TAG).with_backtrace(BacktraceSpec::Env);
 
 fn out_formatted_string(err: &Error) -> String {
@@ -24,7 +23,7 @@ fn out_formatted_string(err: &Error) -> String {
 
 fn main() {
     let src = FOO_ERROR.error_with_values(["42"]);
-    let err = BAR_ERROR.error(src);
+    let err = BAR_ERROR.error_with_src(src);
     let out_string = out_formatted_string(&err);
     println!("{out_string}");
 }

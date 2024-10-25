@@ -1,15 +1,12 @@
-use foa::error::{
-    self, BasicKind, ErrSrcNone, ErrSrcNotTyped, Error, PropsKind, TrivialError, UNEXPECTED_ERROR,
-};
+use foa::error::{self, BasicKind, Error, PropsKind, StdBoxError, TrivialError, UNEXPECTED_ERROR};
 use foa::error::{BacktraceSpec, Tag};
 
 static EG_TAG: Tag = Tag("EG");
 
-static ERROR0: BasicKind<ErrSrcNone> =
-    BasicKind::new("ERROR0", Some("error kind with no args"), &EG_TAG)
-        .with_backtrace(BacktraceSpec::Env);
+static ERROR0: BasicKind = BasicKind::new("ERROR0", Some("error kind with no args"), &EG_TAG)
+    .with_backtrace(BacktraceSpec::Env);
 
-static ERROR1: PropsKind<1, ErrSrcNotTyped> = PropsKind::new(
+static ERROR1: PropsKind<1, Error> = PropsKind::new(
     "ERROR1",
     Some("error kind with '{xyz}' as single arg"),
     &EG_TAG,
@@ -17,7 +14,7 @@ static ERROR1: PropsKind<1, ErrSrcNotTyped> = PropsKind::new(
 .with_prop_names(["xyz"])
 .with_backtrace(BacktraceSpec::Env);
 
-static ERROR2: PropsKind<2, ErrSrcNotTyped> = PropsKind::new(
+static ERROR2: PropsKind<2, Error> = PropsKind::new(
     "ERROR2",
     Some("error kind with '{aaa}' and '{bbb}' as args"),
     &EG_TAG,
@@ -30,15 +27,15 @@ fn error0() -> Error {
 }
 
 fn error1() -> Error {
-    ERROR1.error_with_values([&42.to_string()], error0())
+    ERROR1.error_with_values_src([&42.to_string()], error0())
 }
 
 fn error2() -> Error {
-    ERROR2.error_with_values([&99.to_string(), "2nd arg"], error1())
+    ERROR2.error_with_values_src([&99.to_string(), "2nd arg"], error1())
 }
 
 fn error_unexpected() -> Error {
-    UNEXPECTED_ERROR.error(TrivialError("trivial"))
+    UNEXPECTED_ERROR.error_with_src(StdBoxError::new(TrivialError("trivial")))
 }
 
 fn error_string(err: &Error) -> String {

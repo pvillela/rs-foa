@@ -1,6 +1,6 @@
 use super::{
-    static_str::StaticStr, BasicKind, ErrSrcNotTyped, Error, JserBoxError, KindId, KindTypeInfo,
-    NullError, Payload, Props, Result, SendSyncStaticError, Tag, LIB_DEPENDENCY_TAG,
+    static_str::StaticStr, BasicKind, Error, JserBoxError, KindId, KindTypeInfo, NullError,
+    Payload, Props, Result, SendSyncStaticError, Tag, LIB_DEPENDENCY_TAG,
 };
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{
@@ -99,12 +99,12 @@ pub struct DeserKindId(pub String);
 //===========================
 // region:      --- DeserError
 
-static JSON_DESER_ERROR: BasicKind<ErrSrcNotTyped> =
+static JSON_DESER_ERROR: BasicKind<serde_json::Error> =
     BasicKind::new("JSON_DESER_ERROR", None, &LIB_DEPENDENCY_TAG);
 
 impl From<serde_json::Error> for Error {
     fn from(value: serde_json::Error) -> Self {
-        JSON_DESER_ERROR.error(value)
+        JSON_DESER_ERROR.error_with_src(value)
     }
 }
 
@@ -123,7 +123,7 @@ impl DeserError {
     pub fn for_kind<K: KindTypeInfo>(
         _kind: &K,
         json_string: String,
-    ) -> Result<DeserError<K::Pld, K::Src>>
+    ) -> Result<DeserError<Box<K::Pld>, Box<K::Src>>>
     where
         K::Pld: Payload + DeserializeOwned,
         K::Src: SendSyncStaticError + DeserializeOwned,

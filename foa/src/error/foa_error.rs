@@ -154,7 +154,7 @@ impl<PLD: Payload, SRC: SendSyncStaticError> Error<PLD, SRC> {
     pub fn into_sererror_with_pld<const N: usize>(
         self,
         str_specs: [StringSpec; N],
-    ) -> SerError<PLD, NullError>
+    ) -> SerError<PLD, Box<NullError>>
     where
         PLD: Serialize,
     {
@@ -177,7 +177,7 @@ impl<PLD: Payload, SRC: SendSyncStaticError> Error<PLD, SRC> {
     pub fn into_sererror_with_src<const N: usize>(
         self,
         str_specs: [StringSpec; N],
-    ) -> SerError<(), SRC>
+    ) -> SerError<Box<()>, SRC>
     where
         SRC: Serialize,
     {
@@ -505,10 +505,7 @@ impl<PLD: Payload, SRC: SendSyncStaticError> WithBacktrace for Error<PLD, SRC> {
 mod test {
     use super::*;
     use crate::{
-        error::{
-            recursive_msg, swap_result, BacktraceSpec, ErrSrcNotTyped, FullKind, ReverseResult,
-            TrivialError,
-        },
+        error::{recursive_msg, swap_result, BacktraceSpec, FullKind, ReverseResult, TrivialError},
         validation::validc::VALIDATION_ERROR,
     };
     use std::any::Any;
@@ -519,7 +516,7 @@ mod test {
 
     static BAR_TAG: Tag = Tag("BAR");
 
-    static BAR_ERROR: FullKind<Pld, 2, ErrSrcNotTyped> =
+    static BAR_ERROR: FullKind<Pld, 2, TrivialError> =
         FullKind::new_with_payload("BAR_ERROR", Some("bar message: {abc}, {!email}"), &BAR_TAG)
             .with_prop_names(["abc", "!email"])
             .with_backtrace(BacktraceSpec::Env);
@@ -527,7 +524,7 @@ mod test {
     fn make_payload_source_error_tuple() -> (Pld, TrivialError, Error) {
         let pld = Pld("bar-payload".into());
         let src = TrivialError("dummy");
-        let err = BAR_ERROR.error_with_values_payload(
+        let err = BAR_ERROR.error_with_values_payload_src(
             ["hi there", "bar@example.com"],
             pld.clone(),
             src.clone(),
