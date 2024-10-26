@@ -57,7 +57,7 @@ fn print_error(err: &Error) {
     println!("{}", error_string(&err));
     println!(
         "JSON: {}",
-        serde_json::to_string(&err.to_sererror_without_pld_or_src([
+        serde_json::to_string(&err.to_sererror_no_payload_src([
             error::StringSpec::Dbg,
             error::StringSpec::Recursive
         ]))

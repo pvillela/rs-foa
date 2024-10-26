@@ -13,7 +13,7 @@ use std::{
 // region:      --- SerError
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
-pub struct SerError<PLD, SRC> {
+pub struct SerError<PLD = Box<()>, SRC = Box<NullError>> {
     pub(super) kind_id: &'static KindId,
     pub(super) msg: StaticStr,
     pub(super) tag: &'static Tag,
@@ -109,7 +109,7 @@ impl From<serde_json::Error> for Error {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub struct DeserError<PLD = (), SRC = NullError> {
+pub struct DeserError<PLD = Box<()>, SRC = Box<NullError>> {
     pub kind_id: DeserKindId,
     pub msg: String,
     pub tag: DeserTag,
@@ -120,7 +120,31 @@ pub struct DeserError<PLD = (), SRC = NullError> {
 }
 
 impl DeserError {
-    pub fn for_kind<K: KindTypeInfo>(
+    pub fn deser_payload_for_kind<K: KindTypeInfo>(
+        _kind: &K,
+        json_string: String,
+    ) -> Result<DeserError<Box<K::Pld>, Box<NullError>>>
+    where
+        K::Pld: Payload + DeserializeOwned,
+    {
+        serde_json::from_str(&json_string).map_err(|err| err.into())
+    }
+}
+
+impl DeserError {
+    pub fn deser_src_for_kind<K: KindTypeInfo>(
+        _kind: &K,
+        json_string: String,
+    ) -> Result<DeserError<(), Box<K::Src>>>
+    where
+        K::Src: SendSyncStaticError + DeserializeOwned,
+    {
+        serde_json::from_str(&json_string).map_err(|err| err.into())
+    }
+}
+
+impl DeserError {
+    pub fn deser_payload_src_for_kind<K: KindTypeInfo>(
         _kind: &K,
         json_string: String,
     ) -> Result<DeserError<Box<K::Pld>, Box<K::Src>>>

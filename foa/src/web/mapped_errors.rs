@@ -65,10 +65,10 @@ pub fn default_mapper(err: Error) -> (StatusCode, JserBoxError) {
             let status_code = StatusCode::BAD_REQUEST;
             let err_exp_res = err.downcast_payload::<ValidationError>();
             match err_exp_res {
-                Ok(ee) => (status_code, ee.into_sererror_with_pld([]).into()),
+                Ok(ee) => (status_code, ee.into_sererror_with_payload([]).into()),
                 Err(e) => (
                     status_code,
-                    e.to_sererror_without_pld_or_src([
+                    e.to_sererror_no_payload_src([
                         error::StringSpec::Dbg,
                         error::StringSpec::Recursive,
                     ])
@@ -80,7 +80,7 @@ pub fn default_mapper(err: Error) -> (StatusCode, JserBoxError) {
             log!(Level::Error, "{}", error_string_for_error_level(&err));
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                err.to_sererror_without_pld_or_src([
+                err.to_sererror_no_payload_src([
                     error::StringSpec::Dbg,
                     error::StringSpec::Recursive,
                 ])
@@ -99,13 +99,13 @@ pub fn default_mapper1(err: Error) -> (StatusCode, JserBoxError) {
             err.chained_map(
                 |e| {
                     e.with_downcast_payload::<ValidationError, _>(|ee| {
-                        (status_code, ee.into_sererror_with_pld([]).into())
+                        (status_code, ee.into_sererror_with_payload([]).into())
                     })
                 },
                 |e| {
                     (
                         status_code,
-                        e.to_sererror_without_pld_or_src([
+                        e.to_sererror_no_payload_src([
                             error::StringSpec::Dbg,
                             error::StringSpec::Recursive,
                         ])
@@ -118,7 +118,7 @@ pub fn default_mapper1(err: Error) -> (StatusCode, JserBoxError) {
             log!(Level::Error, "{}", error_string_for_error_level(&err));
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                err.to_sererror_without_pld_or_src([
+                err.to_sererror_no_payload_src([
                     error::StringSpec::Dbg,
                     error::StringSpec::Recursive,
                 ])

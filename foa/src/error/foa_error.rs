@@ -131,10 +131,10 @@ impl<PLD: Payload, SRC: SendSyncStaticError> Error<PLD, SRC> {
         Fmt(self)
     }
 
-    pub fn to_sererror_without_pld_or_src<const N: usize>(
+    pub fn to_sererror_no_payload_src<const N: usize>(
         &self,
         str_specs: [StringSpec; N],
-    ) -> SerError<(), NullError> {
+    ) -> SerError<Box<()>, Box<NullError>> {
         let fmt = Fmt(self);
         let other = str_specs
             .into_iter()
@@ -151,7 +151,7 @@ impl<PLD: Payload, SRC: SendSyncStaticError> Error<PLD, SRC> {
         }
     }
 
-    pub fn into_sererror_with_pld<const N: usize>(
+    pub fn into_sererror_with_payload<const N: usize>(
         self,
         str_specs: [StringSpec; N],
     ) -> SerError<PLD, Box<NullError>>
@@ -197,7 +197,7 @@ impl<PLD: Payload, SRC: SendSyncStaticError> Error<PLD, SRC> {
         }
     }
 
-    pub fn into_sererror_with_pld_and_src<const N: usize>(
+    pub fn into_sererror_with_payload_src<const N: usize>(
         self,
         str_specs: [StringSpec; N],
     ) -> SerError<PLD, SRC>
@@ -239,7 +239,11 @@ impl<SRC: SendSyncStaticError> Error<BoxPayload, SRC> {
     }
 
     pub fn downcast_payload_ref<T: Payload>(&self) -> Option<&T> {
-        self.payload.downcast_ref::<T>()
+        self.payload.downcast_ref()
+    }
+
+    pub fn downcast_payload_ref_for_kind<K: KindTypeInfo>(&self) -> Option<&K::Pld> {
+        self.downcast_payload_ref()
     }
 
     /// If the payload is of type `T`, returns `Ok(error_ext)`, where `error_ext` is
@@ -265,6 +269,12 @@ impl<SRC: SendSyncStaticError> Error<BoxPayload, SRC> {
         }
     }
 
+    pub fn downcast_payload_for_kind<K: KindTypeInfo>(
+        self,
+    ) -> Result<Error<Box<K::Pld>, SRC>, BoxPayload, SRC> {
+        self.downcast_payload()
+    }
+
     /// If the payload is of type `T`, returns `error_ext`, where `error_ext` is
     /// `self` with the `Box dyn` payload replaced by a `Box<T>`; panics otherwise.
     ///
@@ -278,6 +288,10 @@ impl<SRC: SendSyncStaticError> Error<BoxPayload, SRC> {
             Ok(ee) => ee,
             _ => panic!("self's payload is not of type {}", type_name::<T>()),
         }
+    }
+
+    pub fn force_downcast_payload_for_kind<K: KindTypeInfo>(self) -> Error<Box<K::Pld>, SRC> {
+        self.force_downcast_payload()
     }
 
     /// If the payload is of type `T`, returns `Err(f(error_ext))` where `error_ext` is
@@ -313,61 +327,81 @@ impl<SRC: SendSyncStaticError> Error<BoxPayload, SRC> {
 }
 
 impl<PLD: Payload> Error<PLD, StdBoxError> {
-    pub fn source_is<T: SendSyncStaticError>(&self) -> bool {
+    pub fn src_is<T: SendSyncStaticError>(&self) -> bool {
         match &self.src {
             Some(y) => y.0.is::<T>(),
             None => false,
         }
     }
 
-    /// Returns some reference to the `source` field if it is of type `S`, or
+    /// Returns some reference to the `src` field if it is of type `S`, or
     /// `None` if it isn't.
-    pub fn downcast_source_ref<S: StdError + Send + Sync + 'static>(&self) -> Option<&S> {
+    pub fn downcast_src_ref<S: StdError + Send + Sync + 'static>(&self) -> Option<&S> {
         match &self.src {
             Some(y) => y.0.downcast_ref(),
             None => None,
         }
     }
 
+    pub fn downcast_src_ref_for_kind<K: KindTypeInfo>(&self) -> Option<&K::Src> {
+        self.downcast_src_ref()
+    }
+
     /// If the source is of type `T`, returns `Ok(error_ext)`, where `error_ext` is
-    /// `self` with the `Box dyn` source replaced by a `Box<T>`; otherwise returns `Err(self)`.
-    pub fn downcast_source<T: SendSyncStaticError>(self) -> Result<Error<PLD, Box<T>>, PLD> {
-        if self.source_is::<T>() {
-            let res = self.src.unwrap().0.downcast::<T>();
-            match res {
-                Ok(source) => Ok(Error {
-                    kind_id: self.kind_id,
-                    msg: self.msg,
-                    tag: self.tag,
-                    props: self.props,
-                    payload: self.payload,
-                    src: Some(source),
-                    backtrace: self.backtrace,
-                    ref_id: self.ref_id,
-                }),
-                Err(_) => unreachable!("downcast previously confirmed"),
-            }
+    /// `self` with the `Box dyn` `src` replaced by a `Box<T>`; otherwise returns `Err(self)`.
+    pub fn downcast_src<T: SendSyncStaticError>(self) -> Result<Error<PLD, Box<T>>, PLD> {
+        if self.src_is::<T>()
+            || TypeId::of::<T>() == TypeId::of::<NullError>() && self.src.is_none()
+        {
+            let src = if self.src.is_none() {
+                None
+            } else {
+                let res = self.src.unwrap().0.downcast::<T>();
+                match res {
+                    Ok(source) => Some(source),
+                    Err(_) => unreachable!("downcast previously confirmed"),
+                }
+            };
+
+            Ok(Error {
+                kind_id: self.kind_id,
+                msg: self.msg,
+                tag: self.tag,
+                props: self.props,
+                payload: self.payload,
+                src,
+                backtrace: self.backtrace,
+                ref_id: self.ref_id,
+            })
         } else {
             Err(self)
         }
     }
 
+    pub fn downcast_src_for_kind<K: KindTypeInfo>(self) -> Result<Error<PLD, Box<K::Src>>, PLD> {
+        self.downcast_src()
+    }
+
     /// If the source is of type `T`, returns `error_ext`, where `error_ext` is
-    /// `self` with the `Box dyn` source replaced by a `Box<T>`; panics otherwise.
+    /// `self` with the `Box dyn` `src` replaced by a `Box<T>`; panics otherwise.
     ///
-    /// Should only be used (instead of [`Self::try_into_errorext`]) when it is known that the source
+    /// Should only be used (instead of [`Self::try_into_errorext`]) when it is known that `src`
     /// is of type `T`, e.g., after calling [`Self::source_is`].
     ///
     /// # Panics
-    /// If the source is not of type `T`.
-    pub fn force_downcast_source<T: SendSyncStaticError>(self) -> Error<PLD, Box<T>> {
-        match self.downcast_source::<T>() {
+    /// If `src` is not of type `T`.
+    pub fn force_downcast_src<T: SendSyncStaticError>(self) -> Error<PLD, Box<T>> {
+        match self.downcast_src::<T>() {
             Ok(ee) => ee,
             _ => panic!("self's source is not of type {}", type_name::<T>()),
         }
     }
 
-    /// If the source is of type `T`, returns `Err(f(error_ext))` where `error_ext` is
+    pub fn force_downcast_src_for_kind<K: KindTypeInfo>(self) -> Error<PLD, Box<K::Src>> {
+        self.force_downcast_src()
+    }
+
+    /// If `src` is of type `T`, returns `Err(f(error_ext))` where `error_ext` is
     /// `self` with the `Box dyn` source replaced by a `Box<T>`; otherwise, returns `Ok(self)`.
     /// This unusual signature facilitates chaining of calls of this method for different types.
     ///
@@ -378,20 +412,20 @@ impl<PLD: Payload> Error<PLD, StdBoxError> {
     ///
     /// fn process_error<T1: SendSyncStaticError, T2: SendSyncStaticError>(err: Error) -> Result<()> {
     ///     swap_result(|| -> ReverseResult<()> {
-    ///         err.with_downcast_source::<T1, ()>(|ee| {
+    ///         err.with_downcast_src::<T1, ()>(|ee| {
     ///             println!("source type was {}, ee={:?}", type_name::<T1>(), ee)
     ///         })?
-    ///         .with_downcast_source::<T2, ()>(|ee| {
+    ///         .with_downcast_src::<T2, ()>(|ee| {
     ///             println!("source type was {}, ee={:?}", type_name::<T2>(), ee)
     ///         })
     ///     })
     /// }
     /// ```
-    pub fn with_downcast_source<T: SendSyncStaticError, U>(
+    pub fn with_downcast_src<T: SendSyncStaticError, U>(
         self,
         f: impl FnOnce(Error<PLD, Box<T>>) -> U,
     ) -> ReverseResult<U, PLD> {
-        let res = self.downcast_source::<T>();
+        let res = self.downcast_src::<T>();
         match res {
             Ok(error_ext) => Err(f(error_ext)),
             Err(err) => Ok(err),
@@ -400,11 +434,11 @@ impl<PLD: Payload> Error<PLD, StdBoxError> {
 }
 
 impl Error {
-    pub fn downcast_payload_source<PLD: Payload, SRC: SendSyncStaticError>(
+    pub fn downcast_payload_src<PLD: Payload, SRC: SendSyncStaticError>(
         self,
     ) -> Result<Error<Box<PLD>, Box<SRC>>> {
         let res1 = self.downcast_payload::<PLD>()?;
-        let res2 = res1.downcast_source::<SRC>();
+        let res2 = res1.downcast_src::<SRC>();
         match res2 {
             Ok(de) => Ok(de),
             Err(err) => Err(Error {
@@ -420,25 +454,11 @@ impl Error {
         }
     }
 
-    pub fn downcast_for_kind<K: KindTypeInfo>(
+    pub fn downcast_payload_src_for_kind<K: KindTypeInfo>(
         self,
         _kind: &K,
     ) -> Result<Error<Box<K::Pld>, Box<K::Src>>> {
-        if TypeId::of::<K::Src>() == TypeId::of::<NullError>() {
-            let derr = self.downcast_payload::<K::Pld>()?;
-            Ok(Error {
-                kind_id: derr.kind_id,
-                tag: derr.tag,
-                msg: derr.msg,
-                props: derr.props,
-                payload: derr.payload,
-                src: None,
-                backtrace: derr.backtrace,
-                ref_id: derr.ref_id,
-            })
-        } else {
-            self.downcast_payload_source::<K::Pld, K::Src>()
-        }
+        self.downcast_payload_src()
     }
 }
 
@@ -521,7 +541,7 @@ mod test {
             .with_prop_names(["abc", "!email"])
             .with_backtrace(BacktraceSpec::Env);
 
-    fn make_payload_source_error_tuple() -> (Pld, TrivialError, Error) {
+    fn make_payload_src_error_tuple() -> (Pld, TrivialError, Error) {
         let pld = Pld("bar-payload".into());
         let src = TrivialError("dummy");
         let err = BAR_ERROR.error_with_values_payload_src(
@@ -534,7 +554,7 @@ mod test {
 
     #[test]
     fn test_downcast_payload_ref() {
-        let (payload, _, err) = make_payload_source_error_tuple();
+        let (payload, _, err) = make_payload_src_error_tuple();
 
         assert!(err.has_kind(BAR_ERROR.kind_id()));
         assert_eq!(err.to_string(), BAR_ERROR.msg());
@@ -545,7 +565,7 @@ mod test {
 
     #[test]
     fn test_downcast_payload() {
-        let (payload, _, err) = make_payload_source_error_tuple();
+        let (payload, _, err) = make_payload_src_error_tuple();
 
         assert!(err.has_kind(BAR_ERROR.kind_id()));
         assert_eq!(err.to_string(), BAR_ERROR.msg());
@@ -556,7 +576,7 @@ mod test {
 
     #[test]
     fn test_with_downcast_payload() {
-        let (payload, _, err) = make_payload_source_error_tuple();
+        let (payload, _, err) = make_payload_src_error_tuple();
 
         assert!(err.has_kind(BAR_ERROR.kind_id()));
         assert_eq!(err.to_string(), "bar message: {abc}, {!email}");
@@ -572,8 +592,8 @@ mod test {
     }
 
     #[test]
-    fn test_downcast_source_ref() {
-        let (_, src, err) = make_payload_source_error_tuple();
+    fn test_downcast_src_ref() {
+        let (_, src, err) = make_payload_src_error_tuple();
 
         assert!(err.has_kind(BAR_ERROR.kind_id()));
         assert_eq!(err.to_string(), BAR_ERROR.msg());
@@ -582,13 +602,13 @@ mod test {
         println!("recursive_msg={}", recursive_msg(&err));
         println!("src.type_id()={:?}", Any::type_id(&src));
 
-        let source_ext = err.downcast_source_ref::<TrivialError>().unwrap();
+        let source_ext = err.downcast_src_ref::<TrivialError>().unwrap();
         assert_eq!(&src, source_ext);
     }
 
     #[test]
-    fn test_try_into_errorext_pld_and_errorext_downcast_source_ref() {
-        let (_, src, err) = make_payload_source_error_tuple();
+    fn test_downcast_payload_and_downcast_src_ref() {
+        let (_, src, err) = make_payload_src_error_tuple();
 
         println!("src.type_id()={:?}", Any::type_id(&src));
 
@@ -603,7 +623,7 @@ mod test {
 
                 assert_eq!(ee.kind_id, BAR_ERROR.kind_id());
 
-                let source_ext = ee.downcast_source_ref::<TrivialError>().unwrap();
+                let source_ext = ee.downcast_src_ref::<TrivialError>().unwrap();
                 assert_eq!(&src, source_ext);
             }
             Err(_) => unreachable!(),
@@ -611,9 +631,9 @@ mod test {
     }
 
     #[test]
-    fn test_into_errorext_pld() {
-        let (payload, _, err) = make_payload_source_error_tuple();
-        let (_, _, err1) = make_payload_source_error_tuple();
+    fn test_force_downcast_payload() {
+        let (payload, _, err) = make_payload_src_error_tuple();
+        let (_, _, err1) = make_payload_src_error_tuple();
 
         assert!(err.has_kind(BAR_ERROR.kind_id()));
         assert_eq!(err.to_string(), "bar message: {abc}, {!email}");
@@ -632,9 +652,9 @@ mod test {
     }
 
     #[test]
-    fn test_with_errorext_pld() {
-        let (payload, _, err) = make_payload_source_error_tuple();
-        let (_, _, err1) = make_payload_source_error_tuple();
+    fn test_with_downcast_payload_pld() {
+        let (payload, _, err) = make_payload_src_error_tuple();
+        let (_, _, err1) = make_payload_src_error_tuple();
 
         assert!(err.has_kind(BAR_ERROR.kind_id()));
         assert_eq!(err.to_string(), "bar message: {abc}, {!email}");
@@ -653,7 +673,7 @@ mod test {
     }
 
     #[test]
-    fn test_with_errorext_validation() {
+    fn test_with_downcast_payload_validation() {
         let age_delta: i32 = -10;
         let payload = age_delta
             .validate(
@@ -677,8 +697,8 @@ mod test {
 
     #[test]
     fn test_chained_map_pld() {
-        let (payload, _, err) = make_payload_source_error_tuple();
-        let (_, _, err1) = make_payload_source_error_tuple();
+        let (payload, _, err) = make_payload_src_error_tuple();
+        let (_, _, err1) = make_payload_src_error_tuple();
 
         assert!(err.has_kind(BAR_ERROR.kind_id()));
         assert_eq!(err.to_string(), "bar message: {abc}, {!email}");
