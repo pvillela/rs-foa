@@ -7,6 +7,7 @@ pub mod nodebug;
 pub mod refinto;
 pub mod static_state;
 pub mod string;
+pub mod sync;
 pub mod tokio;
 pub mod trait_utils;
 pub mod validation;
