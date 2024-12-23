@@ -1,19 +1,19 @@
 use std::{
-    cell::Cell,
+    cell::UnsafeCell,
     collections::HashMap,
     fmt::Debug,
     sync::{Arc, RwLock},
     thread::{self, ThreadId},
 };
 
-struct UnsafeSyncCell<V>(Cell<V>);
+struct UnsafeSyncCell<V>(UnsafeCell<V>);
 
 /// SAFETY: An instance is only accessed privately in [`ThreadMap`], always in the same thread.
 unsafe impl<V> Sync for UnsafeSyncCell<V> {}
 
 impl<V: Debug> Debug for UnsafeSyncCell<V> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{:?}", unsafe { &*self.0.as_ptr() }))
+        f.write_fmt(format_args!("{:?}", unsafe { &*self.0.get() }))
     }
 }
 
@@ -42,7 +42,7 @@ impl<V> ThreadMap<V> {
         let tid = thread::current().id();
         match lock.get(&tid) {
             Some(c) => {
-                let v = c.0.as_ptr();
+                let v = c.0.get();
                 // SAFETY: call below is always done in the thread with `ThreadId` `tid`.
                 let rv = unsafe { &mut *v };
                 f(rv)
@@ -52,7 +52,7 @@ impl<V> ThreadMap<V> {
                 let mut lock = self.state.write().expect("unable to get write lock");
                 let mut v0 = (self.value_constr)();
                 let w = f(&mut v0);
-                lock.insert(tid, UnsafeSyncCell(Cell::new(v0)));
+                lock.insert(tid, UnsafeSyncCell(UnsafeCell::new(v0)));
                 w
             }
         }
@@ -94,7 +94,7 @@ impl<V> ThreadMap<V> {
             .ok()?
             .iter()
             .map(|(tid, v)| {
-                let rv = unsafe { &*v.0.as_ptr() };
+                let rv = unsafe { &*v.0.get() };
                 (*tid, rv.clone())
             })
             .collect::<HashMap<_, _>>();
