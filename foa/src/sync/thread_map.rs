@@ -6,9 +6,13 @@ use std::{
     thread::{self, ThreadId},
 };
 
+/// Wrapper to enable cell to be used as value in `HashMap`.
 struct UnsafeSyncCell<V>(UnsafeCell<V>);
 
-/// SAFETY: An instance is only accessed privately in [`ThreadMap`], always in the same thread.
+/// SAFETY:
+/// An instance is only accessed privately by [`ThreadMap`], in two ways:
+/// - Under a [`ThreadMap`] instance read lock, always in the same thread.
+/// - Under a [`ThreadMap`] instance write lock, from an arbitrary thread.
 unsafe impl<V> Sync for UnsafeSyncCell<V> {}
 
 impl<V: Debug> Debug for UnsafeSyncCell<V> {
@@ -22,40 +26,50 @@ impl<V: Debug> Debug for UnsafeSyncCell<V> {
 #[derive(Debug)]
 pub struct ThreadMap<V> {
     state: Arc<RwLock<HashMap<ThreadId, UnsafeSyncCell<V>>>>,
-    value_constr: fn() -> V,
+    value_init: fn() -> V,
 }
 
 impl<V> ThreadMap<V> {
-    /// Creates a new [`ThreadMap`] instance, with `value_constr` used to instantiate the initial value for each thread.
-    pub fn new(value_constr: fn() -> V) -> Self {
+    /// Creates a new [`ThreadMap`] instance, with `value_init` used to create the initial value for each thread.
+    pub fn new(value_init: fn() -> V) -> Self {
         Self {
             state: RwLock::new(HashMap::new()).into(),
-            value_constr,
+            value_init,
         }
     }
 
-    /// Invokes `f` on the value associated with the [`ThreadId`] of the current thread and returns the invocation result.
-    /// If there is no value associated with the current thread then the `value_constr` argument of [`Self::new`] is used
+    /// Invokes `f` mutably on the value associated with the [`ThreadId`] of the current thread and returns the invocation result.
+    /// If there is no value associated with the current thread then the `value_init` argument of [`Self::new`] is used
     /// to instantiate an initial associated value before `f` is applied.
-    pub fn with<W>(&self, f: impl FnOnce(&mut V) -> W) -> W {
+    pub fn with_mut<W>(&self, f: impl FnOnce(&mut V) -> W) -> W {
         let lock = self.state.read().expect("unable to get read lock");
         let tid = thread::current().id();
         match lock.get(&tid) {
             Some(c) => {
                 let v = c.0.get();
-                // SAFETY: call below is always done in the thread with `ThreadId` `tid`.
+                // SAFETY: call below is always done in the thread with `ThreadId` `tid`, under an instance-level read lock.
+                // all other access to the cell is done under an instance-level write lock.
                 let rv = unsafe { &mut *v };
                 f(rv)
             }
             None => {
+                // Drop read lock and acquire write lock.
                 drop(lock);
                 let mut lock = self.state.write().expect("unable to get write lock");
-                let mut v0 = (self.value_constr)();
+                let mut v0 = (self.value_init)();
                 let w = f(&mut v0);
                 lock.insert(tid, UnsafeSyncCell(UnsafeCell::new(v0)));
                 w
             }
         }
+    }
+
+    /// Invokes `f` on the value associated with the [`ThreadId`] of the current thread and returns the invocation result.
+    /// If there is no value associated with the current thread then the `value_init` argument of [`Self::new`] is used
+    /// to instantiate an initial associated value before `f` is applied.
+    pub fn with<W>(&self, f: impl FnOnce(&V) -> W) -> W {
+        let g = |v: &mut V| f(v);
+        self.with_mut(g)
     }
 
     /// Returns a [`HashMap`] with the values associated with each [`ThreadId`] key.
@@ -77,7 +91,7 @@ impl<V> ThreadMap<V> {
             },
             Err(arc) => Err(Some(Self {
                 state: arc,
-                value_constr: self.value_constr,
+                value_init: self.value_init,
             })),
         }
     }
@@ -107,7 +121,7 @@ impl<V> Clone for ThreadMap<V> {
     fn clone(&self) -> Self {
         Self {
             state: self.state.clone(),
-            value_constr: self.value_constr,
+            value_init: self.value_init,
         }
     }
 }
@@ -147,7 +161,7 @@ mod test {
                     let tm = tm.clone();
                     for _ in 0..NITER {
                         thread::sleep(Duration::from_micros(SLEEP_MICROS));
-                        tm.with(f)
+                        tm.with_mut(f)
                     }
                 });
             }
@@ -157,7 +171,7 @@ mod test {
 
             let f = move |p: &mut (i32, i32)| g(p, NTHREADS);
             for _ in 0..NITER {
-                tm.with(f)
+                tm.with_mut(f)
             }
 
             let probed = tm.probe().unwrap().into_values().collect::<HashMap<_, _>>();
