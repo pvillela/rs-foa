@@ -134,6 +134,7 @@ mod test {
         let tm = ThreadMap::new(value_constr);
 
         thread::scope(|s| {
+            let tm = &tm;
             for i in 0..NTHREADS {
                 let f = move |p: &mut (i32, i32)| g(p, i);
                 s.spawn(move || {
