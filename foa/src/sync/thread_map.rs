@@ -2,7 +2,7 @@ use std::{
     cell::UnsafeCell,
     collections::HashMap,
     fmt::Debug,
-    sync::{Arc, RwLock},
+    sync::RwLock,
     thread::{self, ThreadId},
 };
 
@@ -25,7 +25,7 @@ impl<V: Debug> Debug for UnsafeSyncCell<V> {
 /// to the [`std::thread_local`] macro and the [`thread_local`](https://crates.io/crates/thread_local) crate.
 #[derive(Debug)]
 pub struct ThreadMap<V> {
-    state: Arc<RwLock<HashMap<ThreadId, UnsafeSyncCell<V>>>>,
+    state: RwLock<HashMap<ThreadId, UnsafeSyncCell<V>>>,
     value_init: fn() -> V,
 }
 
@@ -33,7 +33,7 @@ impl<V> ThreadMap<V> {
     /// Creates a new [`ThreadMap`] instance, with `value_init` used to create the initial value for each thread.
     pub fn new(value_init: fn() -> V) -> Self {
         Self {
-            state: RwLock::new(HashMap::new()).into(),
+            state: RwLock::new(HashMap::new()),
             value_init,
         }
     }
@@ -72,28 +72,17 @@ impl<V> ThreadMap<V> {
         self.with_mut(g)
     }
 
-    /// Returns a [`HashMap`] with the values associated with each [`ThreadId`] key.
-    ///
-    /// # Errors
-    /// - `Some(self)` if there are active cloned instances
-    /// - `None` if the internal lock is poisoned
-    pub fn try_dump(self) -> Result<HashMap<ThreadId, V>, Option<Self>> {
-        match Arc::try_unwrap(self.state) {
-            Ok(rwlock) => match rwlock.into_inner() {
-                Ok(inner) => {
-                    let map: HashMap<ThreadId, V> = inner
-                        .into_iter()
-                        .map(|(k, v)| (k, v.0.into_inner()))
-                        .collect();
-                    Ok(map)
-                }
-                Err(_e) => Err(None),
-            },
-            Err(arc) => Err(Some(Self {
-                state: arc,
-                value_init: self.value_init,
-            })),
-        }
+    /// Returns a [`HashMap`] with the values associated with each [`ThreadId`] key;
+    /// returns `None` if the internal lock is poisoned
+    pub fn dump(self) -> Option<HashMap<ThreadId, V>> {
+        let map = self
+            .state
+            .into_inner()
+            .ok()?
+            .into_iter()
+            .map(|(k, v)| (k, v.0.into_inner()))
+            .collect::<HashMap<_, _>>();
+        Some(map)
     }
 
     /// Returns a [`HashMap`] with clones of the values associated with each [`ThreadId`] key at the time the probe
@@ -114,15 +103,6 @@ impl<V> ThreadMap<V> {
             .collect::<HashMap<_, _>>();
 
         Some(map)
-    }
-}
-
-impl<V> Clone for ThreadMap<V> {
-    fn clone(&self) -> Self {
-        Self {
-            state: self.state.clone(),
-            value_init: self.value_init,
-        }
     }
 }
 
@@ -156,9 +136,7 @@ mod test {
         thread::scope(|s| {
             for i in 0..NTHREADS {
                 let f = move |p: &mut (i32, i32)| g(p, i);
-                let tm = &tm;
                 s.spawn(move || {
-                    let tm = tm.clone();
                     for _ in 0..NITER {
                         thread::sleep(Duration::from_micros(SLEEP_MICROS));
                         tm.with_mut(f)
@@ -187,11 +165,7 @@ mod test {
 
         assert_eq!(expected, probed);
 
-        let dumped = tm
-            .try_dump()
-            .unwrap()
-            .into_values()
-            .collect::<HashMap<_, _>>();
+        let dumped = tm.dump().unwrap().into_values().collect::<HashMap<_, _>>();
 
         assert_eq!(expected, dumped);
     }
