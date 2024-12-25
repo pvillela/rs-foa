@@ -17,7 +17,9 @@ impl std::error::Error for TrivialError {}
 
 /// Error kind instance that can be used to wrap unexpected errors.
 pub static UNEXPECTED_ERROR: BasicKind<StdBoxError> =
-    BasicKind::new("UNEXPECTED_ERROR", None, &UNEXPECTED_TAG).with_backtrace(BacktraceSpec::Yes);
+    BasicKind::new("UNEXPECTED_ERROR", None, &UNEXPECTED_TAG)
+        .with_backtrace(BacktraceSpec::Yes)
+        .with_src();
 
 /// Supports the replacement of an existing [`Error`] intances's `kind_id`, `msg`, and `tag`.
 ///

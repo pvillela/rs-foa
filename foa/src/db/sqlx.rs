@@ -22,7 +22,8 @@ impl<T> PgDbCtx for T where T: DbCtx<Db: Db<Database = Postgres>> {}
 
 pub static DB_ERROR: BasicKind<sqlx::Error> =
     BasicKind::new("DB_ERROR", Some("database error"), &RUNTIME_TAG)
-        .with_backtrace(BacktraceSpec::Env);
+        .with_backtrace(BacktraceSpec::Env)
+        .with_src();
 
 impl From<sqlx::Error> for Error {
     fn from(cause: sqlx::Error) -> Self {

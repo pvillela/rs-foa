@@ -10,8 +10,9 @@ static FOO_ERROR: PropsKind<1> = PropsKind::new("FOO_ERROR", Some("foo message: 
     .with_prop_names(["xyz"])
     .with_backtrace(BacktraceSpec::Yes);
 
-static BAR_ERROR: BasicKind<Error> =
-    BasicKind::new("BAR_ERROR", Some("bar message"), &FOO_TAG).with_backtrace(BacktraceSpec::Env);
+static BAR_ERROR: BasicKind<Error> = BasicKind::new("BAR_ERROR", Some("bar message"), &FOO_TAG)
+    .with_backtrace(BacktraceSpec::Env)
+    .with_src();
 
 fn out_formatted_string(err: &Error) -> String {
     let mut fmt_spec = "{dbg_string}".to_owned();

@@ -86,6 +86,12 @@ where
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DeserTag(pub String);
 
+impl From<Tag> for DeserTag {
+    fn from(value: Tag) -> Self {
+        Self(value.0.into())
+    }
+}
+
 // endregion:   --- DeserTag
 
 //===========================
@@ -94,13 +100,19 @@ pub struct DeserTag(pub String);
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DeserKindId(pub String);
 
+impl From<KindId> for DeserKindId {
+    fn from(value: KindId) -> Self {
+        Self(value.0.into())
+    }
+}
+
 // endregion:   --- DeserKindId
 
 //===========================
 // region:      --- DeserError
 
 static JSON_DESER_ERROR: BasicKind<serde_json::Error> =
-    BasicKind::new("JSON_DESER_ERROR", None, &LIB_DEPENDENCY_TAG);
+    BasicKind::new("JSON_DESER_ERROR", None, &LIB_DEPENDENCY_TAG).with_src();
 
 impl From<serde_json::Error> for Error {
     fn from(value: serde_json::Error) -> Self {

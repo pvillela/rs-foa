@@ -242,7 +242,7 @@ impl<SRC: SendSyncStaticError> Error<BoxPayload, SRC> {
         self.payload.downcast_ref()
     }
 
-    pub fn downcast_payload_ref_for_kind<K: KindTypeInfo>(&self) -> Option<&K::Pld> {
+    pub fn downcast_payload_ref_for_kind<K: KindTypeInfo>(&self, _kind: &K) -> Option<&K::Pld> {
         self.downcast_payload_ref()
     }
 
@@ -271,6 +271,7 @@ impl<SRC: SendSyncStaticError> Error<BoxPayload, SRC> {
 
     pub fn downcast_payload_for_kind<K: KindTypeInfo>(
         self,
+        _kind: &K,
     ) -> Result<Error<Box<K::Pld>, SRC>, BoxPayload, SRC> {
         self.downcast_payload()
     }
@@ -290,7 +291,10 @@ impl<SRC: SendSyncStaticError> Error<BoxPayload, SRC> {
         }
     }
 
-    pub fn force_downcast_payload_for_kind<K: KindTypeInfo>(self) -> Error<Box<K::Pld>, SRC> {
+    pub fn force_downcast_payload_for_kind<K: KindTypeInfo>(
+        self,
+        _kind: &K,
+    ) -> Error<Box<K::Pld>, SRC> {
         self.force_downcast_payload()
     }
 
@@ -343,7 +347,7 @@ impl<PLD: Payload> Error<PLD, StdBoxError> {
         }
     }
 
-    pub fn downcast_src_ref_for_kind<K: KindTypeInfo>(&self) -> Option<&K::Src> {
+    pub fn downcast_src_ref_for_kind<K: KindTypeInfo>(&self, _kind: &K) -> Option<&K::Src> {
         self.downcast_src_ref()
     }
 
@@ -378,7 +382,10 @@ impl<PLD: Payload> Error<PLD, StdBoxError> {
         }
     }
 
-    pub fn downcast_src_for_kind<K: KindTypeInfo>(self) -> Result<Error<PLD, Box<K::Src>>, PLD> {
+    pub fn downcast_src_for_kind<K: KindTypeInfo>(
+        self,
+        _kind: &K,
+    ) -> Result<Error<PLD, Box<K::Src>>, PLD> {
         self.downcast_src()
     }
 
@@ -397,7 +404,10 @@ impl<PLD: Payload> Error<PLD, StdBoxError> {
         }
     }
 
-    pub fn force_downcast_src_for_kind<K: KindTypeInfo>(self) -> Error<PLD, Box<K::Src>> {
+    pub fn force_downcast_src_for_kind<K: KindTypeInfo>(
+        self,
+        _kind: &K,
+    ) -> Error<PLD, Box<K::Src>> {
         self.force_downcast_src()
     }
 
@@ -454,11 +464,31 @@ impl Error {
         }
     }
 
+    pub fn force_downcast_payload_src<PLD: Payload, SRC: SendSyncStaticError>(
+        self,
+    ) -> Error<Box<PLD>, Box<SRC>> {
+        match self.downcast_payload_src::<PLD, SRC>() {
+            Ok(ee) => ee,
+            _ => panic!(
+                "self's payload is not of type {} or self's source is not of type {}",
+                type_name::<PLD>(),
+                type_name::<SRC>()
+            ),
+        }
+    }
+
     pub fn downcast_payload_src_for_kind<K: KindTypeInfo>(
         self,
         _kind: &K,
     ) -> Result<Error<Box<K::Pld>, Box<K::Src>>> {
         self.downcast_payload_src()
+    }
+
+    pub fn force_downcast_payload_src_for_kind<K: KindTypeInfo>(
+        self,
+        _kind: &K,
+    ) -> Error<Box<K::Pld>, Box<K::Src>> {
+        self.force_downcast_payload_src()
     }
 }
 

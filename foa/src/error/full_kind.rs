@@ -32,7 +32,7 @@ pub type PayloadKind<PLD, SRC = NullError> = FullKind<PLD, 0, SRC>;
 //===========================
 // region:      --- Kind constructors
 
-impl<SRC: SendSyncStaticError> BasicKind<SRC> {
+impl BasicKind {
     pub const fn new(name: &'static str, msg: Option<&'static str>, tag: &'static Tag) -> Self {
         Self {
             kind_id: KindId(name),
